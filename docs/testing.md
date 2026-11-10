@@ -9,8 +9,10 @@ Provider correctness is defined by the EF Core specification test suite, not by 
 | Layer | Content | Nature | Cost |
 |---|---|---|---|
 | T1 | Unit tests for `Dialect/` pure functions, error classification, identifier escaping | No database | milliseconds |
-| T2 | SQL shape assertions via `ToQueryString()` plus parameter inspection | No database; **never sufficient on its own** | milliseconds || T3 | **EF Core specification test suite**, executed against a live database | **Primary gate** | minutes |
+| T2 | SQL shape assertions via `ToQueryString()` plus parameter inspection | No database; **never sufficient on its own** | milliseconds |
+| T3 | **EF Core specification test suite**, executed against a live database | **Primary gate** | minutes |
 | T4 | Differential comparison against the official provider for the same query | Diagnostic aid, not a gate | minutes |
+| T5 | Package smoke test: packs the provider, restores a consumer into an isolated NuGet cache, compares the SHA-256 of the resolved package, runs the consumer | No database; needs a pack, so it is not part of `dotnet test` | about a minute |
 
 ### Constraint on T2
 
@@ -56,9 +58,12 @@ The test framework version is bound to the EF Core version and is not unified ac
 ```
 tests/
   DM.EntityFrameworkCore.Tests/                      T1, T2, branch-specific regressions
+  DM.EntityFrameworkCore.PackageConsumer/             T5: restores the packed provider as an application does
   DM.EntityFrameworkCore.SpecificationTests/         T3: inherits EF Core specification base classes (planned)
     Fixtures/                           one fixture per test store
     Skipped.md                          skip ledger
+scripts/
+  package-smoke.ps1                     T5: packs, restores in an isolated cache, runs the consumer
 samples/
   DmProviderValidation/                 live end-to-end acceptance (planned)
 ```

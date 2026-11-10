@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Consumes the provider as a package, never as a project reference: this project is not part of
+    the solution and is built only by scripts/package-smoke.ps1, which packs the provider first.
+    Central package management is off because a consumer pins the version it restores, the same way
+    an application outside this repository does.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <RootNamespace>DM.EntityFrameworkCore.PackageConsumer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="$(DmPackageIdBase)" Version="$(DmVersion)" />
+  </ItemGroup>
+
+</Project>

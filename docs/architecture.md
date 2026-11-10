@@ -160,7 +160,9 @@ src/DM.EntityFrameworkCore/                                provider
   Design/  Diagnostics/  Infrastructure/  Metadata/        provider internals
   Migrations/  Query/  Storage/  Update/  ValueGeneration/
 tests/DM.EntityFrameworkCore.Tests/                        unit and SQL-shape tests
+tests/DM.EntityFrameworkCore.PackageConsumer/              package smoke test: consumes the packed provider
 tests/DM.EntityFrameworkCore.SpecificationTests/           EF Core specification suite (planned)
+scripts/package-smoke.ps1                                  packs, restores the consumer in an isolated cache, runs it
 samples/DmProviderValidation/                              live-database acceptance console (planned)
 docs/
 ```

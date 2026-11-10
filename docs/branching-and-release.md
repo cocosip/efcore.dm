@@ -102,6 +102,11 @@ feature branch -> pull request (CI: build, unit tests, specification tests)
                -> publish
 ```
 
+`pwsh scripts/package-smoke.ps1` runs the last two steps: it packs into `artifacts/packages`, restores
+`tests/DM.EntityFrameworkCore.PackageConsumer` with its own `NUGET_PACKAGES` folder and a `NuGet.config`
+that lists only the produced feed, compares the SHA-256 of the package the consumer resolved against
+the packed one, and runs the consumer, which builds a model and a create script without connecting.
+
 Rules:
 
 - The consumer smoke test restores into an isolated NuGet package cache and compares the SHA-256 of the produced `.nupkg` against the package the consumer resolved. A package cache shared with the build output can silently validate an older package.

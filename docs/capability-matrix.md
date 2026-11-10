@@ -213,7 +213,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | T3 specification suite | `Not started` | — | P0b | **No** | The reference never had one |
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
 | Live validation console | `Not started` | — | P6 | Yes | |
-| Package consumer smoke test | `Not started` | — | P6 | Yes | |
+| Package consumer smoke test | `Implemented` | `scripts/package-smoke.ps1` | P6 | Yes | Packs the provider, restores a project that references it as a package into its own NuGet cache, compares the SHA-256 of the resolved package with the packed one, and runs the consumer, which builds a model and a create script without connecting to a server |
 
 ## 6. Current position
 
