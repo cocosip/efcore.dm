@@ -48,7 +48,7 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
             return ResultSetMapping.NoResults;
         }
 
-        AppendReadBack(commandStringBuilder, command, readOperations);
+        AppendReadBack(commandStringBuilder, command, readOperations, inserted: true);
 
         return ResultSetMapping.LastInResultSet;
     }
@@ -61,7 +61,7 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     {
         var writeOperations = command.ColumnModifications.Where(c => c.IsWrite).ToList();
         var conditionOperations = command.ColumnModifications.Where(c => c.IsCondition).ToList();
-        RejectReadOperations(command, "update");
+        var readOperations = command.ColumnModifications.Where(c => c.IsRead).ToList();
 
         AppendUpdateCommandHeader(commandStringBuilder, command.TableName, command.Schema, writeOperations);
         AppendWhereClause(commandStringBuilder, conditionOperations);
@@ -69,7 +69,14 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
 
         requiresTransaction = false;
 
-        return ResultSetMapping.NoResults;
+        if (readOperations.Count == 0)
+        {
+            return ResultSetMapping.NoResults;
+        }
+
+        AppendReadBack(commandStringBuilder, command, readOperations, inserted: false);
+
+        return ResultSetMapping.LastInResultSet;
     }
 
     public override ResultSetMapping AppendDeleteOperation(
@@ -79,7 +86,6 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
         out bool requiresTransaction)
     {
         var conditionOperations = command.ColumnModifications.Where(c => c.IsCondition).ToList();
-        RejectReadOperations(command, "delete");
 
         AppendDeleteCommandHeader(commandStringBuilder, command.TableName, command.Schema);
         AppendWhereClause(commandStringBuilder, conditionOperations);
@@ -91,14 +97,16 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     }
 
     /// <summary>
-    /// Reads the generated columns back from the row the insert created. A key column that is
-    /// being read is the identity column, so it is matched with <c>scope_identity()</c>; the
-    /// remaining key columns are matched on their parameters, which are still known here.
+    /// Reads the generated columns back from the row the statement just wrote. An insert is matched
+    /// by the affected row count and the key the insert produced; an update repeats the where clause
+    /// of the statement it follows. Either way a statement that matched nothing reads nothing, so the
+    /// caller reports a concurrency conflict rather than a stale value.
     /// </summary>
     private void AppendReadBack(
         StringBuilder commandStringBuilder,
         IReadOnlyModificationCommand command,
-        IReadOnlyList<IColumnModification> readOperations)
+        IReadOnlyList<IColumnModification> readOperations,
+        bool inserted)
     {
         commandStringBuilder.Append("SELECT ");
 
@@ -118,15 +126,26 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
 
         SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, command.TableName, command.Schema);
 
-        commandStringBuilder
-            .AppendLine()
-            .Append("WHERE sql%ROWCOUNT = 1");
+        var keys = command.ColumnModifications.Where(c => c.IsKey).ToList();
 
-        foreach (var key in ReadKeys(command))
+        if (inserted)
         {
-            commandStringBuilder.Append(" AND ");
-            SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, key.ColumnName);
-            commandStringBuilder.Append(" = ").Append(KeyCondition(command.TableName, key));
+            commandStringBuilder
+                .AppendLine()
+                .Append("WHERE sql%ROWCOUNT = 1");
+
+            foreach (var key in keys)
+            {
+                commandStringBuilder.Append(" AND ");
+                SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, key.ColumnName);
+                commandStringBuilder.Append(" = ").Append(KeyCondition(command.TableName, key));
+            }
+        }
+        else
+        {
+            // The update already matched the row, so the read repeats that where clause and binds to
+            // the same parameters, which only the generator can name.
+            AppendWhereClause(commandStringBuilder, keys);
         }
 
         commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);
@@ -164,21 +183,5 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
         }
 
         return currentValueSql;
-    }
-
-    private static IEnumerable<IColumnModification> ReadKeys(IReadOnlyModificationCommand command)
-        => command.ColumnModifications.Where(c => c.IsKey);
-
-    private static void RejectReadOperations(IReadOnlyModificationCommand command, string operation)
-    {
-        var readOperation = command.ColumnModifications.FirstOrDefault(c => c.IsRead);
-
-        if (readOperation is not null)
-        {
-            throw new NotSupportedException(
-                $"Reading the store generated value of '{command.TableName}.{readOperation.ColumnName}' after an "
-                + $"{operation} is not implemented. This provider reads values back only after an insert, which is "
-                + "where the generated key appears.");
-        }
     }
 }

@@ -156,10 +156,64 @@ public class DmGeneratedValueTests
         Assert.DoesNotContain("SELECT", connection.Commands.Single(), StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// An update reads its generated column back from the row it just wrote, which is the same
+    /// second statement an insert uses. The row is matched on the key, so a statement that matched
+    /// nothing reads nothing.
+    /// </summary>
+    [Fact]
+    public void Update_WithAStoreGeneratedColumn_ReadsItBack()
+    {
+        var connection = new FakeDmConnection { RowsAffected = 1, ReadBackColumns = ["Total"], ReadBackRow = [42] };
+
+        using var context = new ComputedColumnContext(connection);
+        var probe = new ComputedProbe { Id = 1, Amount = 5 };
+        context.Attach(probe);
+        probe.Amount = 10;
+
+        context.SaveChanges();
+
+        Assert.Equal(42, probe.Total);
+        Assert.Equal(
+            Sql(
+                """
+                UPDATE "Probes" SET "Amount" = :p0
+                WHERE "Id" = :p1;
+                SELECT "Total"
+                FROM "Probes"
+                WHERE "Id" = :p1;
+                """),
+            Normalize(connection.Commands.Single()));
+    }
+
     private static string Sql(string sql) => Normalize(sql);
 
     private static string Normalize(string sql) => sql.ReplaceLineEndings("\n").TrimEnd();
 
+    private sealed class ComputedColumnContext : DbContext
+    {
+        private readonly FakeDmConnection _connection;
+
+        public ComputedColumnContext(FakeDmConnection connection) => _connection = connection;
+
+        public DbSet<ComputedProbe> Probes => Set<ComputedProbe>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm(_connection);
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<ComputedProbe>(
+                e => e.Property(p => p.Total).HasComputedColumnSql("\"Amount\" * 2"));
+    }
+
+    private sealed class ComputedProbe
+    {
+        public int Id { get; set; }
+
+        public int Amount { get; set; }
+
+        public int Total { get; set; }
+    }
     private class ProbeContext : DbContext
     {
         private readonly FakeDmConnection _connection;
