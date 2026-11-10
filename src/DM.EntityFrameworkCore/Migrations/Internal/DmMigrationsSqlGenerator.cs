@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
@@ -23,6 +24,60 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     }
 
     private ISqlGenerationHelper Helper => Dependencies.SqlGenerationHelper;
+
+    /// <summary>
+    /// Dameng declares an identity column with <c>IDENTITY(seed, increment)</c> between the type
+    /// and the nullability, so this cannot reuse the base method and append afterwards.
+    /// </summary>
+    protected override void ColumnDefinition(
+        string? schema,
+        string table,
+        string name,
+        ColumnOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        if (operation.ComputedColumnSql is not null)
+        {
+            base.ColumnDefinition(schema, table, name, operation, model, builder);
+
+            return;
+        }
+
+        var columnType = operation.ColumnType ?? GetColumnType(schema, table, name, operation, model);
+
+        builder
+            .Append(Helper.DelimitIdentifier(name))
+            .Append(" ")
+            .Append(columnType);
+
+        if (operation.Collation is not null)
+        {
+            builder
+                .Append(" COLLATE ")
+                .Append(operation.Collation);
+        }
+
+        if (IsIdentityColumn(schema, table, name, model))
+        {
+            builder.Append(" IDENTITY(1,1)");
+        }
+
+        builder.Append(operation.IsNullable ? " NULL" : " NOT NULL");
+
+        DefaultValue(operation.DefaultValue, operation.DefaultValueSql, columnType, builder);
+    }
+
+    /// <summary>
+    /// Reads the strategy from the model rather than from the operation, because the operation
+    /// carries no provider annotation: the differ copies the model, not the conventions.
+    /// </summary>
+    private static bool IsIdentityColumn(string? schema, string table, string name, IModel? model)
+        => model?.GetRelationalModel()
+            .FindTable(table, schema)
+            ?.FindColumn(name)
+            ?.PropertyMappings.FirstOrDefault()
+            ?.Property.GetDmValueGenerationStrategy() is DmValueGenerationStrategy.IdentityColumn;
 
     /// <summary>
     /// Dameng alters a column with <c>MODIFY</c>. The base class does not implement this

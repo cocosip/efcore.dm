@@ -1,6 +1,5 @@
 using System.Data.Common;
 using DM.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Dm;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace Microsoft.EntityFrameworkCore;

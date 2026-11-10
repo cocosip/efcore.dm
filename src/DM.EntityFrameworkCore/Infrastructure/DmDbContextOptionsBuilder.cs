@@ -1,12 +1,11 @@
 using System.Data.Common;
 using DM.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 
-namespace Microsoft.EntityFrameworkCore.Dm;
+namespace Microsoft.EntityFrameworkCore.Infrastructure;
 
 /// <summary>
-/// Dameng-specific options builder. Declared in the <c>Microsoft.EntityFrameworkCore.Dm</c>
-/// namespace so that consumer source compiles unchanged.
+/// Dameng-specific options builder. Declared in the namespace the Dameng provider declares it in,
+/// so that consumer source that names the type compiles unchanged.
 /// </summary>
 public class DmDbContextOptionsBuilder
 {

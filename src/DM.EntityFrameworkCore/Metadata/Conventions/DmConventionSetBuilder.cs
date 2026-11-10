@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 
 namespace DM.EntityFrameworkCore.Metadata.Conventions;
@@ -14,5 +15,14 @@ internal sealed class DmConventionSetBuilder : RelationalConventionSetBuilder
         RelationalConventionSetBuilderDependencies relationalDependencies)
         : base(dependencies, relationalDependencies)
     {
+    }
+
+    public override ConventionSet CreateConventionSet()
+    {
+        var conventionSet = base.CreateConventionSet();
+
+        conventionSet.ModelFinalizingConventions.Add(new DmValueGenerationStrategyConvention());
+
+        return conventionSet;
     }
 }

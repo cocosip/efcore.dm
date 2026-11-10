@@ -26,7 +26,7 @@ public class DmMigrationsSqlTests
             );
             /
             CREATE TABLE "Lines" (
-                "Id" INT NOT NULL,
+                "Id" INT IDENTITY(1,1) NOT NULL,
                 "ProbeId" INT NOT NULL,
                 CONSTRAINT "PK_Lines" PRIMARY KEY ("Id"),
                 CONSTRAINT "FK_Lines_Probes_ProbeId" FOREIGN KEY ("ProbeId") REFERENCES "Probes" ("Id") ON DELETE CASCADE

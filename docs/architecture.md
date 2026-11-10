@@ -110,7 +110,7 @@ Each EF Core major version implements these layers independently. There is no cr
 | Package id | `Cocosip.DM.EntityFrameworkCore` | Follows the EF provider naming convention `<prefix>.EntityFrameworkCore.<database>`. The prefix is the publisher's own GitHub identity, independent of any employer and demonstrably owned. Defined once as `$(DmPackageId)`. |
 | Assembly name | `DM.EntityFrameworkCore` | The product name, deliberately not the publish identity. Naming the assembly after the official provider would ship a Microsoft-prefixed binary under an MIT package, which carries trademark exposure and no functional benefit. |
 | Project directory | `src/DM.EntityFrameworkCore/` | Same as the assembly and the solution. Follows the assembly, not the package id. |
-| Root namespace | `Microsoft.EntityFrameworkCore.Dm` for the compatibility surface; `DM.EntityFrameworkCore` for internals | Preserves source compatibility with existing consumer code, while keeping provider internals under the product's own namespace. See the namespace rule below. |
+| Root namespace | The namespaces the Dameng provider declares for the compatibility surface; `DM.EntityFrameworkCore` for internals | Preserves source compatibility with existing consumer code, while keeping provider internals under the product's own namespace. See the namespace rule below. |
 | Entry point | `optionsBuilder.UseDm(connectionString)` | Preserves source compatibility with existing consumer code |
 | Target framework | EF Core 8/9 branches: `net8.0`; EF Core 10: `net10.0`; EF Core 11: `net11.0` | Follows EF Core requirements |
 | Version | Aligned to the EF Core major version: `8.0.x`, `9.0.x`, `10.0.x` | See branching and release |
@@ -129,9 +129,15 @@ Each EF Core major version implements these layers independently. There is no cr
 
 The project's root namespace is `DM.EntityFrameworkCore`, so a type declared without an explicit namespace block lands there by default. Provider internals live in that namespace tree.
 
-Only the source-compatibility surface is declared under `Microsoft.EntityFrameworkCore.Dm`: `DmDbContextOptionsBuilder`, `DmValueGenerationStrategy`, `DmPropertyExtensions`, `DmModelExtensions`, `DmEntityTypeExtensions`, and the extension classes that must appear in `Microsoft.EntityFrameworkCore` for `UseDm()` and the fluent API to resolve without an extra `using`. Nobody should have to add a `using` directive that was not already required by the official provider.
+Only the source-compatibility surface is declared under the namespaces the official Dameng provider uses, so that consumer source compiles without a new `using` directive:
 
-Rationale: those namespaces are what consumer code compiles against. Everything else is ours and stays under our own root namespace, which also keeps the `Dialect/` isolation rule satisfiable.
+| Namespace | Types |
+|---|---|
+| `Microsoft.EntityFrameworkCore` | `UseDm`, `DmPropertyExtensions`, `DmModelBuilderExtensions`, `DmEntityTypeExtensions`, `DmModelExtensions` |
+| `Microsoft.EntityFrameworkCore.Infrastructure` | `DmDbContextOptionsBuilder` |
+| `Microsoft.EntityFrameworkCore.Metadata` | `DmValueGenerationStrategy` |
+
+Everything else is ours and stays under the `DM.EntityFrameworkCore` root namespace, which also keeps the `Dialect/` isolation rule satisfiable.
 
 ## 8. Repository layout
 
@@ -179,7 +185,7 @@ docs/
 |---|---|---|
 | D1 | Layers L0–L6; only L0 is shared across versions | Measured 80% stability; an abstraction over the volatile 20% becomes a second synchronization burden |
 | D2 | One branch per EF Core major version; no multi-targeting with `#if` | EF Core 8 and 9 both target `net8.0`, so one package cannot select dependency ranges by TFM. Conditional compilation would make the query pipeline unreadable. |
-| D3 | The package id carries the `Cocosip` prefix; the source tree, assembly and internal namespace use the product name `DM.EntityFrameworkCore`; the compatibility surface stays in `Microsoft.EntityFrameworkCore.Dm` | NuGet only grants prefix protection for a prefix the publisher can show is theirs. `Sharp` is a generic word already shared in the EF provider category with an unrelated publisher, so that namespace can never be reserved. An employer's brand ties the package to that employer. `Cocosip` is the publisher's own open-source identity and is already established on NuGet. Publish identity is separated from source identity, so changing the prefix is a one-line edit rather than a repository-wide rename. The compatibility namespace is kept so that consumer source compiles unchanged; only the package reference changes. |
+| D3 | The package id carries the `Cocosip` prefix; the source tree, assembly and internal namespace use the product name `DM.EntityFrameworkCore`; the compatibility surface stays in the namespaces the Dameng provider declares | NuGet only grants prefix protection for a prefix the publisher can show is theirs. `Sharp` is a generic word already shared in the EF provider category with an unrelated publisher, so that namespace can never be reserved. An employer's brand ties the package to that employer. `Cocosip` is the publisher's own open-source identity and is already established on NuGet. Publish identity is separated from source identity, so changing the prefix is a one-line edit rather than a repository-wide rename. The compatibility namespace is kept so that consumer source compiles unchanged; only the package reference changes. |
 | D4 | Do not branch the dialect on `CompatibleMode` | Switching SQL dialect per connection string couples type mapping and SQL generation implicitly. The provider targets default (Oracle-compatible) mode. PostgreSQL mode is a verification target, not an implementation branch. |
 | D5 | EF Core dependency always carries an upper bound | The provider uses internal API shapes; an unbounded dependency leads to `MissingMethodException` and `TypeLoadException` on the next major version. |
 | D6 | The EF Core specification suite is the primary gate; self-authored SQL assertions are secondary | A large suite of self-authored SQL assertions can pass while the provider remains unusable. |

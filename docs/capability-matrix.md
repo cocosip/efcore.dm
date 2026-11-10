@@ -174,11 +174,11 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Identity columns | `Not started` | — | P5 | Yes | |
+| Identity columns | `Partial` | `DmValueGenerationStrategyTests` | P5 | Yes | The model marks an integer key and the DDL emits `IDENTITY(1,1)`, but an insert does not read the generated value back, so inserting is rejected until readback exists |
 | Sequences | `Not started` | — | P5 | Yes | |
 | HiLo over a sequence | `Not started` | — | P5 | Yes | |
 | Value generator selector and cache | `Not started` | — | P5 | Yes | |
-| Store generation convention | `Not started` | — | P5 | Yes | |
+| Store generation convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | An integer key the store generates becomes an identity column unless the model says otherwise |
 | Client-side value generation | `Not started` | — | P5 | Yes | |
 
 ### H. Conventions and metadata
@@ -186,11 +186,11 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Provider convention set builder | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Required for the relational model to be built |
-| Value generation strategy convention | `Not started` | — | P5 | Yes | |
-| Fluent API: property extensions | `Not started` | — | P5 | Yes | Compatibility surface |
+| Value generation strategy convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | Chooses `IdentityColumn`, respects an explicit value, and fails the model for a strategy the provider cannot honour |
+| Fluent API: property extensions | `Partial` | `DmValueGenerationStrategyTests` | P5 | Yes | Annotation access is provided as `DmPropertyExtensions`; there is no `PropertyBuilder` convenience method yet |
 | Fluent API: model builder extensions | `Not started` | — | P5 | Yes | Compatibility surface |
 | Fluent API: model and entity type extensions | `Not started` | — | P5 | Yes | Compatibility surface |
-| `DmValueGenerationStrategy` annotation | `Not started` | — | P5 | Yes | Compatibility surface |
+| `DmValueGenerationStrategy` annotation | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | `DmValueGenerationStrategy` keeps the Dameng member order, so an existing model keeps its annotations |
 | Database facade extensions | `Not started` | — | P1 | Yes | Compatibility surface |
 | `DbFunctions` extensions | `Not started` | — | P2 | Yes | Compatibility surface |
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 42 |
+| `Implemented` | 45 |
 | `In progress` | 0 |
-| `Partial` | 6 |
+| `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 46 |
+| `Not started` | 41 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
