@@ -242,6 +242,27 @@ internal sealed class FakeDmCommand : DbCommand
 
     protected override DbParameter CreateDbParameter() => new FakeDmParameter();
 
+    /// <summary>
+    /// The save path runs a statement that reads a generated value back through a reader, so a
+    /// cancellation test needs the reader to hold the same way a non query does.
+    /// </summary>
+    protected override async Task<DbDataReader> ExecuteDbDataReaderAsync(
+        CommandBehavior behavior,
+        CancellationToken cancellationToken)
+    {
+        if (!_connection.BlocksUntilCancelled)
+        {
+            return await base.ExecuteDbDataReaderAsync(behavior, cancellationToken);
+        }
+
+        Record();
+        _connection.SignalStarted();
+
+        await _connection.WaitForCancellationAsync().WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+
+        throw new OperationCanceledException(cancellationToken);
+    }
+
     private void Record()
     {
         _connection.Commands.Add(CommandText);

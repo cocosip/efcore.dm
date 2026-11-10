@@ -28,16 +28,6 @@ internal static class DmCatalog
         """;
 
     /// <summary>
-    /// User views, excluding the schemas Dameng itself owns.
-    /// </summary>
-    public const string Views = """
-        SELECT OWNER, VIEW_NAME
-        FROM ALL_VIEWS
-        WHERE OWNER NOT IN ('SYS', 'SYSAUDITOR', 'SYSDBA', 'SYSSSO', 'CTISYS')
-        ORDER BY OWNER, VIEW_NAME
-        """;
-
-    /// <summary>
     /// Columns with the attributes the model needs: the store type, the length or the precision, the
     /// identity flag, the default and the comment.
     /// </summary>

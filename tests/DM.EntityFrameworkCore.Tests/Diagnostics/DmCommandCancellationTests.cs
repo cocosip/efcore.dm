@@ -45,13 +45,44 @@ public class DmCommandCancellationTests
         Assert.Equal(0, connection.CancelCount);
     }
 
+    /// <summary>
+    /// The save path builds its command through the modification batch rather than the raw SQL helper,
+    /// so it is a separate path to the same interceptor.
+    /// </summary>
+    [Fact]
+    public async Task CancelledToken_DuringSaveChanges_CancelsTheStatement()
+    {
+        var connection = new FakeDmConnection { BlocksUntilCancelled = true };
+        using var context = new ProbeContext(connection);
+        using var cancellation = new CancellationTokenSource();
+
+        context.Probes.Add(new Probe { Name = "a" });
+
+        var save = context.SaveChangesAsync(cancellation.Token);
+        await connection.Started;
+
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => save);
+        Assert.Equal(1, connection.CancelCount);
+    }
+
     private sealed class ProbeContext : DbContext
     {
         private readonly FakeDmConnection _connection;
 
         public ProbeContext(FakeDmConnection connection) => _connection = connection;
 
+        public DbSet<Probe> Probes => Set<Probe>();
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder.UseDm(_connection);
+    }
+
+    private sealed class Probe
+    {
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
     }
 }

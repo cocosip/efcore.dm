@@ -80,7 +80,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Non-retrying execution strategy | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | A unit of work runs once, because a retry would replay a statement whose failure may already have changed the database |
 | Retrying execution strategy | `Not started` | — | P1 | Yes | Needs Dameng error codes |
 | Transient error classification | `Blocked` | — | P1 | Yes | Error codes must be observed, not guessed |
-| Cancellation token honoured on every async path | `Partial` | `DmInheritedBehaviorTests`, `DmCommandCancellationTests` | P1 | Yes | A token cancelled before the call stops the query from starting, and a token cancelled while an asynchronous statement runs reaches `DbCommand.Cancel` through the provider's interceptor, which the command double records. A synchronous statement takes no token. What the real driver does with `Cancel` is unverified |
+| Cancellation token honoured on every async path | `Partial` | `DmInheritedBehaviorTests`, `DmCommandCancellationTests` | P1 | Yes | A token cancelled before the call stops the query from starting, and a token cancelled while an asynchronous statement runs reaches `DbCommand.Cancel` through the provider's interceptor, which the command double records. The save path is covered as well, since it runs its statement through a reader rather than a non query. A synchronous statement takes no token. What the real driver does with `Cancel` is unverified |
 | Database exists check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Implemented by attempting a connection; exercised indirectly, the failure branch is unverified |
 | Has tables check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Catalog query over `SYS.SYSOBJECTS`, excluding system objects and recycle bin entries |
 | `EnsureCreated` | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Creates the model tables when the database exists and is empty |
@@ -130,7 +130,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `TimeOnly` conversions (`FromDateTime`, `FromTimeSpan`) | `Implemented` | `DmTimeOnlyTranslationTests` | P2 | Yes | A time of day built from a timestamp is a cast to `TIME`; one built from an elapsed time is that `INTERVAL DAY TO SECOND` added to the epoch and cast. The generated SQL is unverified against a server |
 | `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
 | `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date. `DayNumber` is not provided: `TO_DAYS` counts from year zero, and the offset to .NET's day number is unverified. The other members do not translate |
-| `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Not started` | — | P2 | No | Measured: each fails to translate. A `TimeSpan` is stored as `INTERVAL DAY TO SECOND` |
+| `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Partial` | `DmTimeSpanTranslationTests` | P2 | No | The parts `Days`, `Hours`, `Minutes` and `Seconds` read the interval part with `EXTRACT`; the seconds are truncated because `EXTRACT(SECOND ...)` keeps the fraction that .NET's member drops. The total members, `Add` and `Duration` are not translated. Whether Dameng signs each part of a negative interval the way a negative `TimeSpan` does is unverified |
 | `DateTime.Subtract` returning a `TimeSpan` | `Implemented` | `DmDateTimeMethodTranslationTests` | P2 | No | A date minus an interval is a date, and the difference of two dates is declared a `TimeSpan`, which is the interval between them. Whether Dameng answers a number of days for the second shape, as its Oracle compatible mode suggests, is unverified against a server |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
@@ -232,10 +232,10 @@ Rows by status, updated when the matrix changes:
 |---|---|
 | `Implemented` | 82 |
 | `In progress` | 0 |
-| `Partial` | 8 |
+| `Partial` | 9 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 11 |
+| `Not started` | 10 |
 | `Not applicable` | 3 |
 | **Total rows** | **110** |
 

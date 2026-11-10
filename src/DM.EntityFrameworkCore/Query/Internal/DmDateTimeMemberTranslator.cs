@@ -36,6 +36,18 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         [nameof(DateTime.Second)] = "SECOND"
     };
 
+    /// <summary>
+    /// A span is stored as an interval, whose parts are read with the same <c>EXTRACT</c>. The member
+    /// names are plural, and the total members are not parts and are left untranslated.
+    /// </summary>
+    private static readonly Dictionary<string, string> IntervalParts = new(StringComparer.Ordinal)
+    {
+        [nameof(TimeSpan.Days)] = "DAY",
+        [nameof(TimeSpan.Hours)] = "HOUR",
+        [nameof(TimeSpan.Minutes)] = "MINUTE",
+        [nameof(TimeSpan.Seconds)] = "SECOND"
+    };
+
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     public DmDateTimeMemberTranslator(ISqlExpressionFactory sqlExpressionFactory)
@@ -47,6 +59,13 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         Type returnType,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
+        if (member.DeclaringType == typeof(TimeSpan))
+        {
+            return instance is null || !IntervalParts.TryGetValue(member.Name, out var intervalPart)
+                ? null
+                : Extract(intervalPart, instance, returnType, member.Name);
+        }
+
         if (member.DeclaringType != typeof(DateTime) && member.DeclaringType != typeof(DateTimeOffset))
         {
             return null;
@@ -55,6 +74,20 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         return instance is null
             ? Clock(member.Name, returnType)
             : Instance(instance, member.Name, returnType);
+    }
+
+    /// <summary>
+    /// <c>EXTRACT(SECOND ...)</c> keeps the fraction of a second, which .NET's <c>Seconds</c> member
+    /// does not, so the seconds are truncated. A negative interval truncates towards zero, which is
+    /// the direction .NET takes as well.
+    /// </summary>
+    private SqlExpression Extract(string part, SqlExpression instance, Type returnType, string memberName)
+    {
+        var extracted = Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], returnType);
+
+        return memberName == nameof(TimeSpan.Seconds)
+            ? Function(TruncFunction, [extracted], returnType)
+            : extracted;
     }
 
     /// <summary>
