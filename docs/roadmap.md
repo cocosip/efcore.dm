@@ -6,8 +6,9 @@ Status: **decided**. Dates and ordering may change; exit criteria do not.
 
 1. **Vertical slices.** Every phase leaves something runnable end to end. Work is not split as "finish all type mappings, then start queries".
 2. **The skip ledger is the progress bar.** Phase exit is expressed as a reduction in the specification test skip ledger, not as "file X is finished".
-3. **Phases may run in parallel, split by file scope.** P1, P3 and P4 touch disjoint directories.
-4. **EF Core 10 first.** The maintenance branches for EF Core 9 and 8 are created after the EF Core 10 line passes release acceptance.
+3. **Phase exit does not imply coverage.** A phase can close while capabilities inside it remain `Not started` in the [Capability Matrix](capability-matrix.md). The matrix, not the phase list, is the authoritative statement of what is supported.
+4. **Phases may run in parallel, split by file scope.** P1, P3 and P4 touch disjoint directories.
+5. **EF Core 10 first.** The maintenance branches for EF Core 9 and 8 are created after the EF Core 10 line passes release acceptance.
 
 ## 2. Phases
 

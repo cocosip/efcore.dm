@@ -64,6 +64,8 @@ samples/
 
 Tests that do not pass are recorded, never deleted. The ledger is the roadmap.
 
+The ledger and the [Capability Matrix](capability-matrix.md) measure different things and neither replaces the other: the ledger records which specification cases fail, the matrix records which capabilities exist. A capability can be missing while every ledger entry is explained.
+
 Each entry contains the test class or case, the reason, a category, and a tracking issue.
 
 | Test class or case | Reason | Category | Issue |
