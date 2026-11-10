@@ -32,6 +32,15 @@ public class DmQueryPipelineTests
         ["SubqueryCount"] = c => c.Blogs.Where(b => b.Posts.Count() > 2).ToQueryString(),
         ["Any"] = c => c.Blogs.Where(b => b.Posts.Any(p => p.Title == "x")).ToQueryString(),
         ["SkipTake"] = c => c.Blogs.OrderBy(b => b.Id).Skip(10).Take(5).ToQueryString(),
+        ["Take"] = c => c.Blogs.OrderBy(b => b.Id).Take(5).ToQueryString(),
+        ["Skip"] = c => c.Blogs.OrderBy(b => b.Id).Skip(10).ToQueryString(),
+        ["LeftJoin"] = c => c.Blogs
+            .LeftJoin(c.Posts, b => b.Id, p => p.BlogId, (b, p) => new { b.Name, Title = p != null ? p.Title : null })
+            .ToQueryString(),
+        ["RightJoin"] = c => c.Blogs
+            .RightJoin(c.Posts, b => b.Id, p => p.BlogId, (b, p) => new { Name = b != null ? b.Name : null, p.Title })
+            .ToQueryString(),
+        ["Union"] = c => c.Blogs.Select(b => b.Id).Union(c.Posts.Select(p => p.Id)).ToQueryString(),
         ["OrderByDescending"] = c => c.Blogs.OrderByDescending(b => b.Id).ToQueryString()
     };
 
@@ -99,6 +108,37 @@ public class DmQueryPipelineTests
         SELECT "b"."Id", "b"."Name"
         FROM "Blogs" AS "b"
         ORDER BY "b"."Id" DESC
+        """)]
+    [InlineData("Take", """
+        -- :p='5'
+        SELECT "b"."Id", "b"."Name"
+        FROM "Blogs" AS "b"
+        ORDER BY "b"."Id"
+        FETCH FIRST :p ROWS ONLY
+        """)]
+    [InlineData("Skip", """
+        -- :p='10'
+        SELECT "b"."Id", "b"."Name"
+        FROM "Blogs" AS "b"
+        ORDER BY "b"."Id"
+        OFFSET :p ROWS
+        """)]
+    [InlineData("LeftJoin", """
+        SELECT "b"."Name", "p"."Title"
+        FROM "Blogs" AS "b"
+        LEFT JOIN "Posts" AS "p" ON "b"."Id" = "p"."BlogId"
+        """)]
+    [InlineData("RightJoin", """
+        SELECT "b"."Name", "p"."Title"
+        FROM "Blogs" AS "b"
+        RIGHT JOIN "Posts" AS "p" ON "b"."Id" = "p"."BlogId"
+        """)]
+    [InlineData("Union", """
+        SELECT "b"."Id"
+        FROM "Blogs" AS "b"
+        UNION
+        SELECT "p"."Id"
+        FROM "Posts" AS "p"
         """)]
     public void Pipeline_ComposesValidStatement(string name, string expected)
     {
