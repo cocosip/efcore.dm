@@ -14,6 +14,7 @@ public class DmMathTranslationTests
         ["Acos"] = q => q.Where(p => Math.Acos(p.Rate) > 1),
         ["Asin"] = q => q.Where(p => Math.Asin(p.Rate) > 1),
         ["Atan"] = q => q.Where(p => Math.Atan(p.Rate) > 1),
+        ["Atan2"] = q => q.Where(p => Math.Atan2(p.Rate, 2.0) > 1),
         ["Ceiling"] = q => q.Where(p => Math.Ceiling(p.Amount) > 1),
         ["Cos"] = q => q.Where(p => Math.Cos(p.Rate) > 1),
         ["Exp"] = q => q.Where(p => Math.Exp(p.Rate) > 1),
@@ -40,6 +41,7 @@ public class DmMathTranslationTests
     [InlineData("Acos", """ACOS("p"."Rate") > 1.0""")]
     [InlineData("Asin", """ASIN("p"."Rate") > 1.0""")]
     [InlineData("Atan", """ATAN("p"."Rate") > 1.0""")]
+    [InlineData("Atan2", """ATAN2("p"."Rate", 2.0) > 1.0""")]
     [InlineData("Ceiling", """CEIL("p"."Amount") > 1.0""")]
     [InlineData("Cos", """COS("p"."Rate") > 1.0""")]
     [InlineData("Exp", """EXP("p"."Rate") > 1.0""")]

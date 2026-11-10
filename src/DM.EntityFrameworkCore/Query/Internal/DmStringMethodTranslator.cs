@@ -47,6 +47,30 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
     private static readonly MethodInfo SubstringTwoArgumentMethod = typeof(string).GetRuntimeMethod(
         nameof(string.Substring), [typeof(int), typeof(int)])!;
 
+    private static readonly MethodInfo PadLeftMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.PadLeft), [typeof(int)])!;
+
+    private static readonly MethodInfo PadLeftWithCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.PadLeft), [typeof(int), typeof(char)])!;
+
+    private static readonly MethodInfo PadRightMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.PadRight), [typeof(int)])!;
+
+    private static readonly MethodInfo PadRightWithCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.PadRight), [typeof(int), typeof(char)])!;
+
+    private static readonly MethodInfo IndexOfMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.IndexOf), [typeof(string)])!;
+
+    private static readonly MethodInfo IndexOfCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.IndexOf), [typeof(char)])!;
+
+    private static readonly MethodInfo TrimStartCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.TrimStart), [typeof(char)])!;
+
+    private static readonly MethodInfo TrimEndCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.TrimEnd), [typeof(char)])!;
+
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     public DmStringMethodTranslator(ISqlExpressionFactory sqlExpressionFactory)
@@ -106,8 +130,46 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             return StringFunction("SUBSTR", instance, [instance, OneBasedStart(arguments[0]), arguments[1]]);
         }
 
+        if (method == TrimStartCharacterMethod || method == TrimEndCharacterMethod)
+        {
+            return StringFunction(
+                method == TrimStartCharacterMethod ? "LTRIM" : "RTRIM",
+                instance,
+                [instance, arguments[0]]);
+        }
+
+        if (method == PadLeftMethod || method == PadLeftWithCharacterMethod)
+        {
+            return Pad("LPAD", instance, arguments);
+        }
+
+        if (method == PadRightMethod || method == PadRightWithCharacterMethod)
+        {
+            return Pad("RPAD", instance, arguments);
+        }
+
+        // Dameng's INSTR is one-based and answers zero where .NET's IndexOf is zero-based and answers
+        // -1, so subtracting one moves both ends at once.
+        if (method == IndexOfMethod || method == IndexOfCharacterMethod)
+        {
+            return _sqlExpressionFactory.Subtract(
+                _sqlExpressionFactory.Function(
+                    "INSTR",
+                    [instance, arguments[0]],
+                    nullable: true,
+                    argumentsPropagateNullability: [true, true],
+                    typeof(int),
+                    typeMapping: null),
+                _sqlExpressionFactory.Constant(1));
+        }
+
         return null;
     }
+
+    private SqlExpression Pad(string name, SqlExpression instance, IReadOnlyList<SqlExpression> arguments)
+        => arguments.Count == 1
+            ? StringFunction(name, instance, [instance, arguments[0]])
+            : StringFunction(name, instance, [instance, arguments[0], arguments[1]]);
 
     /// <summary>
     /// Shifts a zero-based start index to Dameng's one-based <c>SUBSTR</c> index, folding the

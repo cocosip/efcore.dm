@@ -148,6 +148,94 @@ public class DmStringTranslationTests
             """);
     }
 
+    [Fact]
+    public void PadLeft_GeneratesLpad()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.PadLeft(5) == "x"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE LPAD("p"."Name", 5) = 'x'
+            """);
+    }
+
+    [Fact]
+    public void PadLeft_WithPaddingCharacter_GeneratesLpadWithTheSet()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.PadLeft(5, '0') == "x"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE LPAD("p"."Name", 5, '0') = 'x'
+            """);
+    }
+
+    [Fact]
+    public void PadRight_GeneratesRpad()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.PadRight(5) == "x"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE RPAD("p"."Name", 5) = 'x'
+            """);
+    }
+
+    /// <summary>
+    /// Dameng's INSTR is one-based and answers zero for a value it did not find, so the shift to
+    /// .NET's zero-based index also turns "not found" into -1.
+    /// </summary>
+    [Fact]
+    public void IndexOf_ShiftsToTheZeroBasedIndex()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.IndexOf("x") > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR("p"."Name", 'x') - 1) > 0
+            """);
+    }
+
+    [Fact]
+    public void TrimStart_WithCharacter_GeneratesLtrimWithTheSet()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.TrimStart('x') == "y"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE LTRIM("p"."Name", 'x') = 'y'
+            """);
+    }
+
+    [Fact]
+    public void TrimEnd_WithCharacter_GeneratesRtrimWithTheSet()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.TrimEnd('x') == "y"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE RTRIM("p"."Name", 'x') = 'y'
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 

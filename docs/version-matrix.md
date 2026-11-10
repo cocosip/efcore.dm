@@ -162,7 +162,7 @@ The following are properties of Dameng, identical across EF Core versions. Their
 - DDL syntax: identity columns, sequences, tables, indexes
 - Catalog queries against `SYSOBJECTS` and related system tables
 - Dameng error classification
-- SQL dialect translation rules: `||` concatenation, `TOP` and `OFFSET`/`FETCH`, `CAST` wrapping of aggregates, `GREATEST` and `LEAST`, `DATEDIFF(datepart, date1, date2)` for date differences, `ISDATE(value) = 1` for a validity check, and `CAST(... AS TIME)` for a `TimeOnly` conversion
+- SQL dialect translation rules: `||` concatenation, `TOP` and `OFFSET`/`FETCH`, `CAST` wrapping of aggregates, `GREATEST` and `LEAST`, `DATEDIFF(datepart, date1, date2)` for date differences, `ISDATE(value) = 1` for a validity check, `CAST(... AS TIME)` for a `TimeOnly` conversion, `LPAD`/`RPAD` for padding, `LTRIM`/`RTRIM` with a character set, `INSTR` shifted to a zero-based index, and `ATAN2`
 
 This is the reason the `Dialect/` layer exists: these are written once rather than once per version.
 

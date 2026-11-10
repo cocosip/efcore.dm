@@ -117,15 +117,20 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `Join`, `GroupBy`, aggregates | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | `INNER JOIN`, `LEFT JOIN`, `GROUP BY`, `COUNT`, `SUM`, `MIN` and `MAX` |
 | `Include`, split and single queries | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Collection loading joins and orders by the root key; the split query keeps the root statement separate |
 | Paging (`Skip`, `Take`) | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Emits `OFFSET ... ROWS FETCH NEXT ... ROWS ONLY`, which the DM SQL manual documents as its `ROW_LIMIT` clause in [数据的插入、删除和修改](https://eco.dameng.com/document/dm/zh-cn/pm/insertion-deletion-modification.html). `LIMIT n OFFSET m` is the alternative form and is not used |
-| String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `Replace`, `Substring`, `Length`. Function names follow Oracle-compatible mode and are unverified against a server. |
+| String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `PadLeft`, `PadRight`, `IndexOf`, `Replace`, `Substring`, `Length`. Padding maps to `LPAD` and `RPAD`, a character trim to `LTRIM` and `RTRIM` with that character as the set, and `IndexOf` to `INSTR` shifted by one. Function names follow Oracle-compatible mode and are unverified against a server. |
+| String composition (`IsNullOrWhiteSpace`, `Insert`, `Remove`) | `Not started` | — | P2 | No | Measured: each fails to translate. The rest of the string surface translates |
 | String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
 | Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`; unverified against a server |
 | Date and time methods (`AddDays`, `Now`, `UtcNow`, `Today`, `Date`) | `Implemented` | `DmDateTimeMethodTranslationTests` | P2 | Yes | Day counts are added directly and sub-day units are scaled into a fraction of a day; months use `ADD_MONTHS`; `Date` uses `TRUNC`. The reference emitted SQL Server functions (`GETDATE`, `DATEPART`) for these. `CURRENT_TIMESTAMP` and `SYS_EXTRACT_UTC(SYSTIMESTAMP)` are unverified against a server |
-| Math functions | `Implemented` | `DmMathTranslationTests` | P2 | Yes | `ABS`, `ACOS`, `ASIN`, `ATAN`, `CEIL`, `COS`, `EXP`, `FLOOR`, `SIGN`, `SIN`, `SQRT`, `TAN`, `TRUNC`, `POWER`, `ROUND`, `LN`, `LOG`. `Math.Max` and `Math.Min` resolve to `GREATEST` and `LEAST` through the translating visitor, which also covers `EF.Functions.Greatest` and `Least`. Unverified against a server |
+| Math functions | `Implemented` | `DmMathTranslationTests` | P2 | Yes | `ABS`, `ACOS`, `ASIN`, `ATAN`, `ATAN2`, `CEIL`, `COS`, `EXP`, `FLOOR`, `SIGN`, `SIN`, `SQRT`, `TAN`, `TRUNC`, `POWER`, `ROUND`, `LN`, `LOG`. `Math.Max` and `Math.Min` resolve to `GREATEST` and `LEAST` through the translating visitor, which also covers `EF.Functions.Greatest` and `Least`. Unverified against a server |
 | `Convert` and `ToString` | `Implemented` | `DmConversionTranslationTests` | P2 | Yes | `Convert` becomes `CAST(value AS type)` using the dialect type names; `ToString` becomes `TO_CHAR`, which needs no declared width. Unverified against a server |
 | `new Guid()` and `Guid.NewGuid()` | `Not started` | — | P2 | Yes | Needs confirmation that Dameng exposes a GUID generator such as `SYS_GUID()` |
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
 | `TimeOnly` conversions (`FromDateTime`, `FromTimeSpan`) | `Implemented` | `DmTimeOnlyTranslationTests` | P2 | Yes | A time of day built from a timestamp is a cast to `TIME`; one built from an elapsed time is that `INTERVAL DAY TO SECOND` added to the epoch and cast. The generated SQL is unverified against a server |
+| `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
+| `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date. `DayNumber` is not provided: `TO_DAYS` counts from year zero, and the offset to .NET's day number is unverified. The other members do not translate |
+| `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Not started` | — | P2 | No | Measured: each fails to translate. A `TimeSpan` is stored as `INTERVAL DAY TO SECOND` |
+| `DateTime.Subtract` returning a `TimeSpan` | `Not started` | — | P2 | No | Measured: a subtracted difference compared with a `TimeSpan` fails to translate. Two dates subtract to a day count in Dameng, not an interval |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
 | Compiled query cache key | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | The default key already covers everything the translation depends on, because the translation is a function of the model and the query expression |
@@ -225,12 +230,12 @@ Rows by status, updated when the matrix changes:
 |---|---|
 | `Implemented` | 79 |
 | `In progress` | 0 |
-| `Partial` | 7 |
+| `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 9 |
+| `Not started` | 13 |
 | `Not applicable` | 2 |
-| **Total rows** | **103** |
+| **Total rows** | **108** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 
