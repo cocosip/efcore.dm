@@ -25,6 +25,11 @@ internal sealed class FakeDmConnection : DbConnection
     public int RowsAffected { get; set; } = 1;
 
     /// <summary>
+    /// The timeout the last statement ran with, so a test can see what the context configured.
+    /// </summary>
+    internal int LastCommandTimeout { get; set; }
+
+    /// <summary>
     /// The value every scalar statement returns.
     /// </summary>
     public object ScalarResult { get; set; }
@@ -46,6 +51,20 @@ internal sealed class FakeDmConnection : DbConnection
     /// which is how a statement that affected no row is reported.
     /// </summary>
     public object[] ReadBackRow { get; set; }
+
+    /// <summary>
+    /// Rows the read back statements return one after another, so that a unit of work that inserts
+    /// more than one row can be given the key each insert produced. When this is empty every read
+    /// returns <see cref="ReadBackRow" />.
+    /// </summary>
+    public List<object[]> ReadBackRows { get; } = [];
+
+    private int _readBackIndex;
+
+    internal object[] NextReadBackRow()
+        => ReadBackRows.Count == 0
+            ? ReadBackRow
+            : ReadBackRows[Math.Min(_readBackIndex++, ReadBackRows.Count - 1)];
 
     /// <summary>
     /// Every transaction this connection opened, so that a test can see whether a unit of work was
@@ -146,6 +165,7 @@ internal sealed class FakeDmCommand : DbCommand
     public override int ExecuteNonQuery()
     {
         _connection.Commands.Add(CommandText);
+        _connection.LastCommandTimeout = CommandTimeout;
 
         return _connection.RowsAffected;
     }
@@ -153,6 +173,7 @@ internal sealed class FakeDmCommand : DbCommand
     public override object ExecuteScalar()
     {
         _connection.Commands.Add(CommandText);
+        _connection.LastCommandTimeout = CommandTimeout;
 
         return _connection.ScalarSource is null ? _connection.ScalarResult : _connection.ScalarSource();
     }
@@ -166,12 +187,13 @@ internal sealed class FakeDmCommand : DbCommand
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
     {
         _connection.Commands.Add(CommandText);
+        _connection.LastCommandTimeout = CommandTimeout;
 
         // A statement that reads a generated value back produces the row it read. Anything else
         // produces the affected row count the concurrency check reads.
         return _connection.ReadBackColumns.Count > 0
             ? new FakeDmDataReader(
-                [new FakeResultSet(_connection.ReadBackColumns, _connection.ReadBackRow)],
+                [new FakeResultSet(_connection.ReadBackColumns, _connection.NextReadBackRow())],
                 _connection.RowsAffected)
             : new FakeDmDataReader(
                 [new FakeResultSet(["AFFECTED"], [_connection.RowsAffected])],

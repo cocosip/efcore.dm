@@ -70,16 +70,16 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | Connection string option | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | |
 | Externally owned `DbConnection` | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Ownership is delegated to `RelationalOptionsExtension` |
-| Command timeout | `Not started` | — | P1 | Yes | Base option exists; not exercised |
+| Command timeout | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | The value the context sets reaches the command it executes |
 | Max batch size | `Partial` | — | P3 | Yes | Read by the batch factory, not honoured yet |
 | Open, close, reopen, async | `Implemented` | `DmConnectionTests` | P1 | Yes | Opens are counted, so a nested open needs its own close. Async members are the driver fallbacks, so they run synchronously underneath |
 | Transactions: begin, commit, rollback | `Implemented` | `DmConnectionTests` | P1 | Yes | Commit and rollback reach the driver transaction; disposing without committing disposes it |
 | Savepoints and nested transactions | `Partial` | `DmConnectionTests` | P1 | Yes | The relational layer executes `SAVEPOINT x`, `ROLLBACK TO x` and `RELEASE SAVEPOINT x` as statements rather than through the driver transaction. Dameng support for `RELEASE SAVEPOINT` is unverified |
 | Ambient transaction enlistment | `Blocked` | — | P1 | Yes | Requires observing driver behaviour |
-| Non-retrying execution strategy | `Not started` | — | P1 | Yes | Relational default applies |
+| Non-retrying execution strategy | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | A unit of work runs once, because a retry would replay a statement whose failure may already have changed the database |
 | Retrying execution strategy | `Not started` | — | P1 | Yes | Needs Dameng error codes |
 | Transient error classification | `Blocked` | — | P1 | Yes | Error codes must be observed, not guessed |
-| Cancellation token honoured on every async path | `Not started` | — | P1 | Yes | |
+| Cancellation token honoured on every async path | `Partial` | `DmInheritedBehaviorTests` | P1 | Yes | A cancelled token stops an async query before it starts. A statement already running cannot be interrupted, because the driver exposes no asynchronous cancellation |
 | Database exists check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Implemented by attempting a connection; exercised indirectly, the failure branch is unverified |
 | Has tables check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Catalog query over `SYS.SYSOBJECTS`, excluding system objects and recycle bin entries |
 | `EnsureCreated` | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Creates the model tables when the database exists and is empty |
@@ -126,13 +126,13 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
-| Compiled query cache key | `Not started` | — | P2 | Yes | |
+| Compiled query cache key | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | The default key already covers everything the translation depends on, because the translation is a function of the model and the query expression |
 | Collection parameter translation | `Not started` | — | P2 | No | EF Core 8+ contract |
 | `FromSql` and composable raw SQL | `Implemented` | `DmDmlQueryTests` | P2 | Yes | Passed through verbatim, or wrapped as a derived table when composed |
 | `ExecuteUpdate`, `ExecuteDelete` | `Implemented` | `DmDmlQueryTests` | P3 | No | EF Core 7+ contract. The table alias is declared with `AS`, which the manual writes as `[AS] <表别名>` |
 | Inheritance mapping (TPH, TPT, TPC) | `Implemented` | `DmInheritanceTests` | P2 | Yes | One table per hierarchy with a discriminator, one table per type with the key generated in the base table only, and one table per concrete type. A hierarchy mapped per concrete type has no generated key until the model names a generator, which is what EF Core does for every provider |
 | JSON querying | `Deferred` | — | After P6 | No | The store type exists in the dialect; query translation is not required for the first release |
-| Query filters and global filters | `Not started` | — | P2 | Yes | |
+| Query filters and global filters | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | A filter becomes a predicate of the query, translated like any other |
 
 ### D. Update
 
@@ -179,7 +179,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | HiLo over a sequence | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | A block is reserved per round trip, sized by the sequence increment, and shared by every context. The default sequence is added by the model convention |
 | Value generator selector and cache | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | Chooses the hi-lo generator for the strategy and keeps the block state in the singleton cache |
 | Store generation convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | An integer key the store generates becomes an identity column unless the model or the property says otherwise, and a key that carries a default expression is recorded as sequence generated instead of also becoming an identity column |
-| Client-side value generation | `Not started` | — | P5 | Yes | |
+| Client-side value generation | `Implemented` | `DmInheritedBehaviorTests` | P5 | Yes | A key the store does not generate is filled before the insert, and a key the store does generate is tracked as temporary until the read back replaces it |
 
 ### H. Conventions and metadata
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 62 |
+| `Implemented` | 67 |
 | `In progress` | 0 |
-| `Partial` | 6 |
+| `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 26 |
+| `Not started` | 20 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
