@@ -13,10 +13,18 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 /// Dameng's Oracle-compatible mode reads date parts with <c>EXTRACT(PART FROM value)</c>, which
 /// is not a normal function call shape: the first argument is a keyword, not an expression.
 /// <see cref="DmQuerySqlGenerator" /> renders that shape.
+/// <para>
+/// The clock members are static, so they arrive with no instance. They read the server clock,
+/// which means a query using them is not repeatable within a statement.
+/// </para>
 /// </remarks>
 internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
 {
     private const string ExtractFunction = "EXTRACT";
+    private const string TruncFunction = "TRUNC";
+    private const string CurrentTimestampFunction = "CURRENT_TIMESTAMP";
+    private const string SysTimestampFunction = "SYSTIMESTAMP";
+    private const string UtcFunction = "SYS_EXTRACT_UTC";
 
     private static readonly Dictionary<string, string> DateParts = new(StringComparer.Ordinal)
     {
@@ -39,19 +47,56 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         Type returnType,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
-        if (instance is null
-            || (instance.Type != typeof(DateTime) && instance.Type != typeof(DateTimeOffset))
-            || !DateParts.TryGetValue(member.Name, out var part))
+        if (member.DeclaringType != typeof(DateTime) && member.DeclaringType != typeof(DateTimeOffset))
         {
             return null;
         }
 
-        return _sqlExpressionFactory.Function(
-            ExtractFunction,
-            [_sqlExpressionFactory.Fragment(part), instance],
+        return instance is null
+            ? Clock(member.Name, returnType)
+            : Instance(instance, member.Name, returnType);
+    }
+
+    /// <summary>
+    /// <c>TRUNC</c> drops the time of day, which is what <c>Date</c> means.
+    /// </summary>
+    private SqlExpression? Instance(SqlExpression instance, string memberName, Type returnType)
+    {
+        if (memberName == nameof(DateTime.Date))
+        {
+            return Function(TruncFunction, [instance], returnType);
+        }
+
+        return DateParts.TryGetValue(memberName, out var part)
+            ? Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], returnType)
+            : null;
+    }
+
+    private SqlExpression? Clock(string memberName, Type returnType)
+        => memberName switch
+        {
+            // CURRENT_TIMESTAMP carries the column precision, unlike SYSDATE, which is a DATE and
+            // would round a row created a moment ago into the future.
+            nameof(DateTime.Now) => Function(CurrentTimestampFunction, [], returnType),
+            nameof(DateTime.Today) => Function(
+                TruncFunction,
+                [Function(CurrentTimestampFunction, [], returnType)],
+                returnType),
+
+            // SYSTIMESTAMP carries the server time zone, and SYS_EXTRACT_UTC removes it.
+            nameof(DateTime.UtcNow) => Function(
+                UtcFunction,
+                [Function(SysTimestampFunction, [], returnType)],
+                returnType),
+            _ => null
+        };
+
+    private SqlExpression Function(string name, IReadOnlyList<SqlExpression> arguments, Type returnType)
+        => _sqlExpressionFactory.Function(
+            name,
+            arguments,
             nullable: true,
-            argumentsPropagateNullability: [false, true],
+            argumentsPropagateNullability: arguments.Select(_ => true).ToArray(),
             returnType,
             typeMapping: null);
-    }
 }

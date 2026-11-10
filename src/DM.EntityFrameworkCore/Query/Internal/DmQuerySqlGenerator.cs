@@ -17,6 +17,18 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
 {
     private const string ExtractFunction = "EXTRACT";
 
+    /// <summary>
+    /// Functions Dameng spells without parentheses. Emitting <c>CURRENT_TIMESTAMP()</c> makes the
+    /// statement a syntax error.
+    /// </summary>
+    private static readonly HashSet<string> NiladicFunctions = new(StringComparer.Ordinal)
+    {
+        "CURRENT_TIMESTAMP",
+        "CURRENT_DATE",
+        "SYSTIMESTAMP",
+        "SYSDATE"
+    };
+
     public DmQuerySqlGenerator(QuerySqlGeneratorDependencies dependencies)
         : base(dependencies)
     {
@@ -37,6 +49,15 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     /// </summary>
     protected override Expression VisitSqlFunction(SqlFunctionExpression functionExpression)
     {
+        if (functionExpression.Name is { } name
+            && functionExpression.Arguments is { Count: 0 }
+            && NiladicFunctions.Contains(name))
+        {
+            Visit(new SqlFragmentExpression(name));
+
+            return functionExpression;
+        }
+
         switch (functionExpression.Name, functionExpression.Arguments)
         {
             case (ExtractFunction, [SqlFragmentExpression part, SqlExpression value]):

@@ -1,0 +1,117 @@
+using System.Linq.Expressions;
+using System.Reflection;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+
+namespace DM.EntityFrameworkCore.Query.Internal;
+
+/// <summary>
+/// Translates <see cref="DateTime" /> arithmetic to Dameng SQL.
+/// </summary>
+/// <remarks>
+/// Dameng (in Oracle-compatible mode) adds a day count directly to a date, so sub-day units are
+/// scaled into a fraction of a day. Month arithmetic uses <c>ADD_MONTHS</c>, which clamps to the
+/// end of the month the way .NET does.
+/// <para>
+/// The <c>+</c> node is built directly rather than through <see cref="ISqlExpressionFactory" />:
+/// there is no CLR <c>DateTime + double</c> operator, so the factory would reject it even though
+/// the database accepts it. Both operands still have to carry a type mapping, or the generator
+/// cannot render them.
+/// </para>
+/// </remarks>
+internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
+{
+    private const string AddMonthsFunction = "ADD_MONTHS";
+
+    private static readonly Dictionary<string, int> DaysPerUnit = new(StringComparer.Ordinal)
+    {
+        [nameof(DateTime.AddDays)] = 1,
+        [nameof(DateTime.AddHours)] = 24,
+        [nameof(DateTime.AddMinutes)] = 60 * 24,
+        [nameof(DateTime.AddSeconds)] = 60 * 60 * 24,
+        [nameof(DateTime.AddMilliseconds)] = 1000 * 60 * 60 * 24
+    };
+
+    private readonly ISqlExpressionFactory _sqlExpressionFactory;
+
+    public DmDateTimeMethodTranslator(ISqlExpressionFactory sqlExpressionFactory)
+        => _sqlExpressionFactory = sqlExpressionFactory;
+
+    public SqlExpression? Translate(
+        SqlExpression? instance,
+        MethodInfo method,
+        IReadOnlyList<SqlExpression> arguments,
+        IDiagnosticsLogger<DbLoggerCategory.Query> logger)
+    {
+        if (instance is null
+            || method.DeclaringType != typeof(DateTime)
+            || (instance.Type != typeof(DateTime) && instance.Type != typeof(DateTimeOffset)))
+        {
+            return null;
+        }
+
+        // The amount arrives without a type mapping, because nothing has had to render it yet.
+        var amount = _sqlExpressionFactory.ApplyDefaultTypeMapping(arguments[0]);
+
+        if (DaysPerUnit.TryGetValue(method.Name, out var days))
+        {
+            return AddDays(instance, amount, days);
+        }
+
+        if (method.Name == nameof(DateTime.AddMonths))
+        {
+            return Function(AddMonthsFunction, [instance, amount], instance);
+        }
+
+        if (method.Name == nameof(DateTime.AddYears))
+        {
+            return Function(AddMonthsFunction, [instance, YearsInMonths(amount)], instance);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A literal year count is folded here, so the statement reads <c>ADD_MONTHS(x, 12)</c> rather
+    /// than <c>ADD_MONTHS(x, 1 * 12)</c>.
+    /// </summary>
+    private SqlExpression YearsInMonths(SqlExpression years)
+        => years is SqlConstantExpression { Value: int value }
+            ? _sqlExpressionFactory.Constant(value * 12, years.TypeMapping)
+            : _sqlExpressionFactory.Multiply(years, Constant(12, years));
+
+    private SqlExpression AddDays(SqlExpression instance, SqlExpression days, int daysPerUnit)
+    {
+        var scaled = daysPerUnit == 1
+            ? days
+            : new SqlBinaryExpression(
+                ExpressionType.Divide,
+                days,
+                Constant(daysPerUnit, days),
+                typeof(double),
+                days.TypeMapping);
+
+        return new SqlBinaryExpression(
+            ExpressionType.Add,
+            instance,
+            scaled,
+            instance.Type,
+            instance.TypeMapping);
+    }
+
+    private SqlExpression Constant(int value, SqlExpression like)
+        => _sqlExpressionFactory.Constant(
+            Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture),
+            like.TypeMapping);
+
+    private SqlExpression Function(string name, IReadOnlyList<SqlExpression> arguments, SqlExpression instance)
+        => _sqlExpressionFactory.Function(
+            name,
+            arguments,
+            nullable: true,
+            argumentsPropagateNullability: arguments.Select(_ => true).ToArray(),
+            instance.Type,
+            typeMapping: null);
+}
