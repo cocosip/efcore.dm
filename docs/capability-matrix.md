@@ -108,18 +108,18 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| `ToQueryString()` for a simple projection | `In progress` | — | P0a | Yes | Pipeline registered; translation not yet succeeding |
-| `Where`, `OrderBy`, `Select` | `In progress` | — | P2 | Yes | |
-| `Join`, `GroupBy`, aggregates | `Not started` | — | P2 | Yes | |
+| `ToQueryString()` for a simple projection | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Works with no database involved |
+| `Where`, `OrderBy`, `Select` | `Implemented` | `DmQuerySqlGenerationTests` | P2 | Yes | |
+| `Join`, `GroupBy`, aggregates | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | `GroupBy` with `COUNT(*)` covered; joins not yet |
 | `Include`, split and single queries | `Not started` | — | P2 | Yes | |
-| Paging (`Skip`, `Take`) | `Not started` | — | P2 | Yes | Dameng paging syntax unsettled |
+| Paging (`Skip`, `Take`) | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Emits ANSI `OFFSET ... FETCH NEXT`; Dameng support unverified |
 | String methods and members | `Not started` | — | P2 | Yes | |
 | Date and time members and methods | `Not started` | — | P2 | Yes | |
 | Math functions | `Not started` | — | P2 | Yes | |
 | `Convert`, `ToString`, `new Guid()` | `Not started` | — | P2 | Yes | |
 | `LIKE` with `ESCAPE` | `Not started` | — | P2 | Yes | |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
-| Parameter-based SQL processor | `Not started` | — | P2 | Yes | |
+| Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
 | Compiled query cache key | `Not started` | — | P2 | Yes | |
 | Collection parameter translation | `Not started` | — | P2 | No | EF Core 8+ contract |
 | `FromSql` and composable raw SQL | `Not started` | — | P2 | Yes | |
@@ -203,7 +203,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | T1 unit tests for `Dialect/` | `Implemented` | `DmIdentifierTests`, `DmParametersTests`, `DmDialectConstantsTests` | P0a | Yes | |
 | Dialect isolation guard | `Implemented` | `DialectLayerIsolationTests` | P0a | No | This project's rule |
-| T2 SQL shape tests | `Not started` | — | P0a | Yes | |
+| T2 SQL shape tests | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Complete statement asserted, expression placed where server execution is required |
 | T3 specification suite | `Not started` | — | P0b | **No** | The reference never had one |
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
 | Live validation console | `Not started` | — | P6 | Yes | |
@@ -215,12 +215,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 6 |
-| `In progress` | 3 |
-| `Partial` | 11 |
+| `Implemented` | 9 |
+| `In progress` | 1 |
+| `Partial` | 14 |
 | `Blocked` | 2 |
 | `Deferred` | 2 |
-| `Not started` | 71 |
+| `Not started` | 67 |
 | `Not applicable` | 0 |
 | **Total rows** | **95** |
 
