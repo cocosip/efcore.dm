@@ -54,7 +54,7 @@ Measured from the decompiled source tree, not from its documentation.
 What it did **not** have:
 
 - No specification test project. All 70 test files are self-authored. Nothing in the reference proves its behaviour against EF Core's own contract.
-- No `IRelationalAnnotationProvider`, no `ISqlExpressionFactory`, no `IQueryCompilationContextFactory`, no `IExceptionDetector`, no `INavigationExpansionExtensibilityHelper`, no `IModificationCommandFactory`, no `IAggregateMethodCallTranslatorProvider`.
+- No `ISqlExpressionFactory`, no `IQueryCompilationContextFactory`, no `IExceptionDetector`, no `INavigationExpansionExtensibilityHelper`, no `IModificationCommandFactory`, no `IAggregateMethodCallTranslatorProvider`.
 - No spatial (NetTopologySuite) support.
 - A third-party annotations dependency (`JetBrains.Annotations`), which this project does not take.
 
@@ -154,7 +154,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Migration lock | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Exclusive table lock released by the transaction; no lock row, so a failed run cannot strand one |
 | Schema operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` runs inside a block that asks `SYS.SYSOBJECTS` first, so a schema the database administrator created does not fail the migration. The catalog query is not yet confirmed against a server |
 | User operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Creating a user creates the schema it owns in a second statement. Privileges are not granted: the reference grants DBA as part of the operation, which a migration should not decide |
-| Migrations annotation provider | `Not started` | — | P4 | Yes | |
+| Migrations annotation provider | `Implemented` | `DmAnnotationProviderTests` | P4 | Yes | The identity attribute and a non default seed and increment reach the column operation the differ produces, so the generated migration shows them and a replay reads them; the mirrored key of a table per type hierarchy carries none |
 | `MigrationBuilder` extensions | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `IsDm()` lets one migration assembly guard its provider specific operations |
 | Idempotent script generation | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | The history repository wraps each migration in a block that reads the history table first and runs the create through `EXECUTE IMMEDIATE`. Whether DDL inside the block is accepted is not yet confirmed against a server |
 | Model differ integration | `Not started` | — | P4 | Yes | |
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 67 |
+| `Implemented` | 68 |
 | `In progress` | 0 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 20 |
+| `Not started` | 19 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

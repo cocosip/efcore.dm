@@ -9,6 +9,7 @@ using DM.EntityFrameworkCore.Update.Internal;
 using DM.EntityFrameworkCore.ValueGeneration.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
@@ -40,6 +41,7 @@ public static class DmServiceCollectionExtensions
             .TryAdd<IRelationalDatabaseCreator, DmDatabaseCreator>()
             .TryAdd<IMigrationsSqlGenerator, DmMigrationsSqlGenerator>()
             .TryAdd<IHistoryRepository, DmHistoryRepository>()
+            .TryAdd<IRelationalAnnotationProvider, DmAnnotationProvider>()
             .TryAdd<IQuerySqlGeneratorFactory, DmQuerySqlGeneratorFactory>()
             .TryAdd<IQueryableMethodTranslatingExpressionVisitorFactory, DmQueryableMethodTranslatingExpressionVisitorFactory>()
             .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, DmSqlTranslatingExpressionVisitorFactory>()

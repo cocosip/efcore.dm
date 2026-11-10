@@ -1,4 +1,5 @@
 using System.Globalization;
+using DM.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -58,13 +59,13 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
                 .Append(operation.Collation);
         }
 
-        if (FindIdentityProperty(schema, table, name, model) is { } identity)
+        if (FindIdentity(schema, table, name, operation, model) is var (seed, increment))
         {
             builder
                 .Append(" IDENTITY(")
-                .Append(identity.GetDmIdentitySeed().ToString(CultureInfo.InvariantCulture))
+                .Append(seed.ToString(CultureInfo.InvariantCulture))
                 .Append(",")
-                .Append(identity.GetDmIdentityIncrement().ToString(CultureInfo.InvariantCulture))
+                .Append(increment.ToString(CultureInfo.InvariantCulture))
                 .Append(")");
         }
 
@@ -74,34 +75,40 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     }
 
     /// <summary>
-    /// Reads the strategy from the model rather than from the operation, because the operation
-    /// carries no provider annotation: the differ copies the model, not the conventions.
+    /// The identity a column generates, or null. A migration the differ produced carries the attribute
+    /// as an annotation, which is what the generated migration code shows and what a replay reads; a
+    /// hand written migration carries nothing, so the model decides there.
     /// </summary>
-    /// <remarks>
-    /// The strategy belongs to the property, but a table-to-type mapping decides where the value is
-    /// generated. A key column of a table that only mirrors the row above it, which is what a
-    /// table-per-type hierarchy produces, repeats a value the base table generated and must not
-    /// generate one of its own.
-    /// </remarks>
-    private static IProperty? FindIdentityProperty(string? schema, string table, string name, IModel? model)
+    private static (int Seed, int Increment)? FindIdentity(
+        string? schema,
+        string table,
+        string name,
+        ColumnOperation operation,
+        IModel? model)
     {
-        var property = model?.GetRelationalModel()
-            .FindTable(table, schema)
-            ?.FindColumn(name)
-            ?.PropertyMappings.FirstOrDefault()
-            ?.Property;
-
-        if (property?.GetDmValueGenerationStrategy() is not DmValueGenerationStrategy.IdentityColumn)
+        if (operation[DmPropertyExtensions.ValueGenerationStrategyAnnotation]
+            is DmValueGenerationStrategy.IdentityColumn)
         {
-            return null;
+            return (
+                operation[DmAnnotationNames.IdentitySeed] as int? ?? 1,
+                operation[DmAnnotationNames.IdentityIncrement] as int? ?? 1);
         }
 
-        var declaringTable = property.DeclaringType.GetTableName();
-
-        return declaringTable is not null && !string.Equals(declaringTable, table, StringComparison.Ordinal)
-            ? null
-            : property;
+        return FindIdentityProperty(schema, table, name, model) is { } property
+            ? (property.GetDmIdentitySeed(), property.GetDmIdentityIncrement())
+            : null;
     }
+
+    /// <summary>
+    /// The property the model maps to a column, when that column generates its value. The rule lives
+    /// with the annotation provider, so a migration the differ produced and a hand written one agree.
+    /// </summary>
+    private static IProperty? FindIdentityProperty(string? schema, string table, string name, IModel? model)
+        => model?.GetRelationalModel()
+            .FindTable(table, schema)
+            ?.FindColumn(name) is { } column
+            ? DmAnnotationProvider.IdentityProperty(column)
+            : null;
 
     /// <summary>
     /// Dameng alters a column with <c>MODIFY</c>. The base class does not implement this
