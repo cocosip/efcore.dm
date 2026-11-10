@@ -86,23 +86,23 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| `int`, `long`, `short`, `byte`, `sbyte` | `Partial` | `DmProviderRegistrationTests` | P1 | Yes | Store types provisional until P1 catalog check |
-| `bool` | `Partial` | — | P1 | Yes | |
-| `decimal` with precision and scale | `Partial` | — | P1 | Yes | Facets not honoured yet |
-| `float`, `double` | `Partial` | — | P1 | Yes | |
-| `string` with size, unicode and fixed length | `Partial` | `DmProviderRegistrationTests` | P1 | Yes | Unicode selects `NVARCHAR`; size ignored |
-| `byte[]` with size | `Partial` | — | P1 | Yes | |
-| `DateTime` with fractional seconds | `Partial` | — | P1 | Yes | |
-| `DateTimeOffset` | `Partial` | — | P1 | Yes | |
-| `TimeSpan` | `Partial` | — | P1 | Yes | |
-| `DateOnly`, `TimeOnly` | `Not started` | — | P1 | Yes | |
-| `Guid` | `Partial` | — | P1 | Yes | Stored as `VARCHAR(36)` provisionally |
+| `int`, `long`, `short`, `byte`, `sbyte` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Store type names provisional until the P1 catalog check |
+| `bool` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | |
+| `decimal` with precision and scale | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Defaults to `DECIMAL(29,4)` when no facet is configured |
+| `float`, `double` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | |
+| `string` with size, unicode and fixed length | `Implemented` | `DmTypeMappingTests` | P1 | Yes | `VARCHAR`, `NVARCHAR`, `CHAR` and `NCHAR`, sized when configured |
+| `byte[]` with size | `Implemented` | `DmTypeMappingTests` | P1 | Yes | `BLOB` without a size, `VARBINARY(n)` with one |
+| `DateTime` with fractional seconds | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Precision suffix only when configured |
+| `DateTimeOffset` | `Partial` | — | P1 | Yes | Mapping exists; not covered by a test |
+| `TimeSpan` | `Partial` | — | P1 | Yes | Mapping exists; not covered by a test |
+| `DateOnly`, `TimeOnly` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | |
+| `Guid` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Stored as `VARCHAR(36)` provisionally |
 | `char`, `enum` | `Not started` | — | P1 | Yes | |
 | JSON column type | `Not started` | — | P1 | Yes | |
 | Spatial types (NetTopologySuite) | `Deferred` | — | After P6 | No | Not required by the specification suite core cases; revisit after the first release |
 | Store type to CLR reverse lookup | `Not started` | — | P1 | Yes | Needed by scaffolding |
 | Concurrency token (`rowversion`) | `Not started` | — | P3 | Yes | |
-| Type mapping cache and clone semantics | `Not started` | — | P1 | Yes | |
+| Type mapping clone semantics | `Not applicable` | — | P1 | Yes | The provider builds a mapping per facet set instead of cloning a base mapping, so no clone override is needed |
 
 ### C. Query
 
@@ -217,13 +217,13 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 13 |
+| `Implemented` | 22 |
 | `In progress` | 1 |
-| `Partial` | 14 |
+| `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 2 |
-| `Not started` | 65 |
-| `Not applicable` | 0 |
+| `Not started` | 63 |
+| `Not applicable` | 1 |
 | **Total rows** | **97** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).

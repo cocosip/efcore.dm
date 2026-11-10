@@ -5,32 +5,37 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace DM.EntityFrameworkCore.Storage.Internal;
 
 /// <summary>
-/// Maps CLR types to Dameng store types. The store type names come from the dialect layer,
-/// so this class only carries the EF Core mapping plumbing.
+/// Maps CLR types to Dameng store types, applying size, precision, scale, unicode and fixed
+/// length facets. Store type names come from the dialect layer.
 /// </summary>
+/// <remarks>
+/// Facets are applied by building the store type string here rather than by cloning a base
+/// mapping, so that every mapping the provider hands out is self-describing. A facet that is
+/// not configured produces the unsuffixed type, which is what a plain property should get.
+/// </remarks>
 internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 {
-    private readonly BoolTypeMapping _bool = new(DmStoreTypes.Bit, DbType.Boolean);
-    private readonly ByteTypeMapping _byte = new(DmStoreTypes.SmallInt, DbType.Byte);
-    private readonly SByteTypeMapping _sByte = new(DmStoreTypes.TinyInt, DbType.SByte);
-    private readonly ShortTypeMapping _short = new(DmStoreTypes.SmallInt, DbType.Int16);
-    private readonly IntTypeMapping _int = new(DmStoreTypes.Int, DbType.Int32);
-    private readonly LongTypeMapping _long = new(DmStoreTypes.BigInt, DbType.Int64);
-    private readonly FloatTypeMapping _float = new(DmStoreTypes.Real, DbType.Single);
-    private readonly DoubleTypeMapping _double = new(DmStoreTypes.Double, DbType.Double);
-    private readonly DecimalTypeMapping _decimal = new(
-        DmStoreTypes.Decimal + DmTypeSizes.FormatDecimal(DmTypeSizes.DefaultDecimalPrecision, DmTypeSizes.DefaultDecimalScale),
-        DbType.Decimal);
+    private static readonly RelationalTypeMapping BoolMapping = new BoolTypeMapping(DmStoreTypes.Bit, DbType.Boolean);
+    private static readonly RelationalTypeMapping ByteMapping = new ByteTypeMapping(DmStoreTypes.SmallInt, DbType.Byte);
+    private static readonly RelationalTypeMapping SByteMapping = new SByteTypeMapping(DmStoreTypes.TinyInt, DbType.SByte);
+    private static readonly RelationalTypeMapping ShortMapping = new ShortTypeMapping(DmStoreTypes.SmallInt, DbType.Int16);
+    private static readonly RelationalTypeMapping IntMapping = new IntTypeMapping(DmStoreTypes.Int, DbType.Int32);
+    private static readonly RelationalTypeMapping LongMapping = new LongTypeMapping(DmStoreTypes.BigInt, DbType.Int64);
 
-    private readonly StringTypeMapping _ansiString = new(DmStoreTypes.VarChar, DbType.AnsiString);
-    private readonly StringTypeMapping _unicodeString = new(DmStoreTypes.NVarChar, DbType.String);
-    private readonly ByteArrayTypeMapping _binary = new(DmStoreTypes.Blob, DbType.Binary);
-    private readonly DateTimeTypeMapping _dateTime = new(
-        DmStoreTypes.Timestamp + DmTypeSizes.FormatPrecision(DmTypeSizes.DefaultTemporalPrecision),
-        DbType.DateTime);
-    private readonly DateTimeOffsetTypeMapping _dateTimeOffset = new(DmStoreTypes.DateTimeWithTimeZone, DbType.DateTimeOffset);
-    private readonly TimeSpanTypeMapping _timeSpan = new(DmStoreTypes.IntervalDayToSecond, DbType.Time);
-    private readonly GuidTypeMapping _guid = new(DmStoreTypes.VarChar + DmTypeSizes.FormatLength(36), DbType.Guid);
+    private static readonly RelationalTypeMapping FloatMapping = new FloatTypeMapping(DmStoreTypes.Real, DbType.Single);
+    private static readonly RelationalTypeMapping DoubleMapping = new DoubleTypeMapping(DmStoreTypes.Double, DbType.Double);
+    private static readonly RelationalTypeMapping GuidMapping = new GuidTypeMapping(
+        DmStoreTypes.VarChar + DmTypeSizes.FormatLength(36),
+        DbType.Guid);
+
+    private static readonly RelationalTypeMapping DateOnlyMapping = new DateOnlyTypeMapping(DmStoreTypes.Date, DbType.Date);
+    private static readonly RelationalTypeMapping TimeOnlyMapping = new TimeOnlyTypeMapping(DmStoreTypes.Time, DbType.Time);
+    private static readonly RelationalTypeMapping TimeSpanMapping = new TimeSpanTypeMapping(
+        DmStoreTypes.IntervalDayToSecond,
+        DbType.Time);
+    private static readonly RelationalTypeMapping DateTimeOffsetMapping = new DateTimeOffsetTypeMapping(
+        DmStoreTypes.DateTimeWithTimeZone,
+        DbType.DateTimeOffset);
 
     public DmTypeMappingSource(
         TypeMappingSourceDependencies dependencies,
@@ -40,28 +45,111 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
     }
 
     protected override RelationalTypeMapping? FindMapping(in RelationalTypeMappingInfo mappingInfo)
-    {
-        RelationalTypeMapping? mapping = mappingInfo.ClrType switch
+        => FindByClrType(mappingInfo) ?? base.FindMapping(mappingInfo);
+
+    private static RelationalTypeMapping? FindByClrType(in RelationalTypeMappingInfo mappingInfo)
+        => mappingInfo.ClrType switch
         {
             null => null,
-            var t when t == typeof(bool) => _bool,
-            var t when t == typeof(byte) => _byte,
-            var t when t == typeof(sbyte) => _sByte,
-            var t when t == typeof(short) => _short,
-            var t when t == typeof(int) => _int,
-            var t when t == typeof(long) => _long,
-            var t when t == typeof(float) => _float,
-            var t when t == typeof(double) => _double,
-            var t when t == typeof(decimal) => _decimal,
-            var t when t == typeof(string) => mappingInfo.IsUnicode == true ? _unicodeString : _ansiString,
-            var t when t == typeof(byte[]) => _binary,
-            var t when t == typeof(DateTime) => _dateTime,
-            var t when t == typeof(DateTimeOffset) => _dateTimeOffset,
-            var t when t == typeof(TimeSpan) => _timeSpan,
-            var t when t == typeof(Guid) => _guid,
+            var t when t == typeof(bool) => BoolMapping,
+            var t when t == typeof(byte) => ByteMapping,
+            var t when t == typeof(sbyte) => SByteMapping,
+            var t when t == typeof(short) => ShortMapping,
+            var t when t == typeof(int) => IntMapping,
+            var t when t == typeof(long) => LongMapping,
+            var t when t == typeof(float) => FloatMapping,
+            var t when t == typeof(double) => DoubleMapping,
+            var t when t == typeof(decimal) => Decimal(mappingInfo),
+            var t when t == typeof(string) => String(mappingInfo),
+            var t when t == typeof(byte[]) => Binary(mappingInfo),
+            var t when t == typeof(Guid) => GuidMapping,
+            var t when t == typeof(DateTime) => Temporal(mappingInfo, DmStoreTypes.Timestamp, DbType.DateTime),
+            var t when t == typeof(DateTimeOffset) => DateTimeOffsetMapping,
+            var t when t == typeof(TimeSpan) => TimeSpanMapping,
+            var t when t == typeof(DateOnly) => DateOnlyMapping,
+            var t when t == typeof(TimeOnly) => TimeOnlyMapping,
             _ => null
         };
 
-        return mapping ?? base.FindMapping(mappingInfo);
+    private static RelationalTypeMapping String(in RelationalTypeMappingInfo mappingInfo)
+    {
+        var unicode = mappingInfo.IsUnicode ?? false;
+        var fixedLength = mappingInfo.IsFixedLength ?? false;
+        var size = mappingInfo.Size;
+
+        var storeTypeBase = (unicode, fixedLength) switch
+        {
+            (true, true) => DmStoreTypes.NChar,
+            (true, false) => DmStoreTypes.NVarChar,
+            (false, true) => DmStoreTypes.Char,
+            _ => DmStoreTypes.VarChar
+        };
+
+        var storeType = size is null
+            ? storeTypeBase
+            : storeTypeBase + DmTypeSizes.FormatLength(size.Value);
+
+        var dbType = (unicode, fixedLength) switch
+        {
+            (true, true) => DbType.StringFixedLength,
+            (true, false) => DbType.String,
+            (false, true) => DbType.AnsiStringFixedLength,
+            _ => DbType.AnsiString
+        };
+
+        // EF Core 10 removed the fixed-length constructor parameter: fixed length is expressed
+        // by the store type name itself.
+        return new StringTypeMapping(storeType, dbType, unicode, size);
+    }
+
+    private static RelationalTypeMapping Decimal(in RelationalTypeMappingInfo mappingInfo)
+    {
+        var precision = mappingInfo.Precision;
+        var scale = mappingInfo.Scale;
+
+        if (precision is null && scale is null)
+        {
+            return new DecimalTypeMapping(
+                DmStoreTypes.Decimal
+                + DmTypeSizes.FormatDecimal(DmTypeSizes.DefaultDecimalPrecision, DmTypeSizes.DefaultDecimalScale),
+                DbType.Decimal,
+                DmTypeSizes.DefaultDecimalPrecision,
+                DmTypeSizes.DefaultDecimalScale);
+        }
+
+        var resolvedPrecision = precision ?? DmTypeSizes.DefaultDecimalPrecision;
+        var resolvedScale = scale ?? 0;
+
+        return new DecimalTypeMapping(
+            DmStoreTypes.Decimal + DmTypeSizes.FormatDecimal(resolvedPrecision, resolvedScale),
+            DbType.Decimal,
+            resolvedPrecision,
+            resolvedScale);
+    }
+
+    private static RelationalTypeMapping Binary(in RelationalTypeMappingInfo mappingInfo)
+    {
+        var size = mappingInfo.Size;
+
+        return size is null
+            ? new ByteArrayTypeMapping(DmStoreTypes.Blob, DbType.Binary)
+            : new ByteArrayTypeMapping(
+                DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(size.Value),
+                DbType.Binary,
+                size);
+    }
+
+    private static RelationalTypeMapping Temporal(
+        in RelationalTypeMappingInfo mappingInfo,
+        string storeTypeBase,
+        DbType dbType)
+    {
+        var precision = mappingInfo.Precision;
+
+        var storeType = precision is null
+            ? storeTypeBase
+            : storeTypeBase + DmTypeSizes.FormatPrecision(precision.Value);
+
+        return new DateTimeTypeMapping(storeType, dbType);
     }
 }
