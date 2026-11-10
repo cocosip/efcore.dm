@@ -116,6 +116,9 @@ Each EF Core major version implements these layers independently. There is no cr
 | Version | Aligned to the EF Core major version: `8.0.x`, `9.0.x`, `10.0.x` | See branching and release |
 | EF Core dependency | `[8.0.0,9.0.0)`, `[9.0.0,10.0.0)`, `[10.0.0,11.0.0)` | Upper bound is mandatory (D5). The floor is the first release of the major version, so a consumer on any patch of that major can install the package, and the provider is compiled against that floor. |
 | Driver dependency | `DM.DmProvider` >= 8.3.1.47463 | Lower bound advances with verification |
+| Authors | `$(DmPackagePrefix)`, `Cocosip` by default | The identity that owns the prefix and reserves the package id. It is configured once for the repository, not per project |
+| Repository and project URL | `https://github.com/cocosip/efcore.dm` | Where the source lives, so a consumer reaches it from the package listing. It is a default a satellite package can override, like the author |
+| Tags | `efcore`, `entity-framework-core`, `dameng`, `dm`, `database`, `provider` | The terms a search on the feed matches. They name what the package is for, not what it happens to contain |
 | Public plumbing | `DmOptionsExtension`, public under `DM.EntityFrameworkCore.Infrastructure` | It is the type argument of `DmDbContextOptionsBuilder`'s base class, and a public base type cannot be built over an internal one. The EF Core providers declare their own options extensions the same way. Nothing a consumer calls names it |
 
 ### Naming rules

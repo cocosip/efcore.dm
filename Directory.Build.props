@@ -14,6 +14,18 @@
     <DmProductName Condition="'$(DmProductName)' == ''">DM.EntityFrameworkCore</DmProductName>
     <DmPackageIdBase Condition="'$(DmPackageIdBase)' == ''">$(DmPackagePrefix).$(DmProductName)</DmPackageIdBase>
 
+    <!--
+      Packaging metadata. The author is the prefix's owner, which is the identity that reserves the
+      package id, and the URL is the repository the source lives at, so a consumer reaches the source
+      from the package listing. Both are defaults: a satellite package can override either.
+    -->
+    <DmAuthors Condition="'$(DmAuthors)' == ''">$(DmPackagePrefix)</DmAuthors>
+    <DmRepositoryUrl Condition="'$(DmRepositoryUrl)' == ''">https://github.com/cocosip/efcore.dm</DmRepositoryUrl>
+    <Authors>$(DmAuthors)</Authors>
+    <RepositoryUrl>$(DmRepositoryUrl)</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>$(DmRepositoryUrl)</PackageProjectUrl>
+
     <TargetFramework>$(DmTargetFramework)</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>

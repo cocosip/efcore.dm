@@ -223,6 +223,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
 | Live validation console | `Blocked` | — | P6 | Yes | The program is written and builds, and every step awaits a live instance: it creates its own prefixed tables, marks its rows with a run identifier, drops only what it created, and returns a non-zero exit code when a step fails. Running it against an unreachable server reports the driver's refusal and exits non-zero, which is the extent of what can be observed here |
 | Package consumer smoke test | `Implemented` | `scripts/package-smoke.ps1` | P6 | Yes | Packs the provider, restores a project that references it as a package into its own NuGet cache, compares the SHA-256 of the resolved package with the packed one, and runs the consumer, which builds a model and a create script without connecting to a server |
+| Package metadata | `Implemented` | `PackagingTests` | P6 | Yes | The id, version, MIT licence, README, author, project URL, repository URL and tags are in the packed nuspec. A test reads the version the build defines and asserts the assembly reports it, and that the EF Core dependency range stays bounded |
 
 ## 6. Current position
 
@@ -230,14 +231,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 83 |
+| `Implemented` | 84 |
 | `In progress` | 0 |
 | `Partial` | 10 |
 | `Blocked` | 3 |
 | `Deferred` | 4 |
 | `Not started` | 6 |
 | `Not applicable` | 4 |
-| **Total rows** | **110** |
+| **Total rows** | **111** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 
