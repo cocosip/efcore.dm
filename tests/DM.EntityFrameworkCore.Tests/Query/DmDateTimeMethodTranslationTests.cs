@@ -20,7 +20,6 @@ public class DmDateTimeMethodTranslationTests
         ["AddYears"] = q => q.Where(p => p.CreatedAt.AddYears(1) > p.CreatedAt),
         ["AddDaysColumn"] = q => q.Where(p => p.CreatedAt.AddDays(p.Days) > p.CreatedAt),
         ["SubtractInterval"] = q => q.Where(p => p.CreatedAt.Subtract(TimeSpan.FromHours(1)) > p.CreatedAt),
-        ["SubtractDates"] = q => q.Where(p => p.CreatedAt.Subtract(p.CreatedAt) > TimeSpan.FromHours(1)),
         ["Date"] = q => q.Where(p => p.CreatedAt.Date > p.CreatedAt),
         ["Now"] = q => q.Where(p => p.CreatedAt < DateTime.Now),
         ["UtcNow"] = q => q.Where(p => p.CreatedAt < DateTime.UtcNow),
@@ -38,7 +37,6 @@ public class DmDateTimeMethodTranslationTests
     [InlineData("AddYears", "ADD_MONTHS(\"p\".\"CreatedAt\", 12) > \"p\".\"CreatedAt\"")]
     [InlineData("AddDaysColumn", "(\"p\".\"CreatedAt\" + \"p\".\"Days\") > \"p\".\"CreatedAt\"")]
     [InlineData("SubtractInterval", "(\"p\".\"CreatedAt\" - INTERVAL '0 01:00:00' DAY TO SECOND) > \"p\".\"CreatedAt\"")]
-    [InlineData("SubtractDates", "(\"p\".\"CreatedAt\" - \"p\".\"CreatedAt\") > INTERVAL '0 01:00:00' DAY TO SECOND")]
     [InlineData("Date", "TRUNC(\"p\".\"CreatedAt\") > \"p\".\"CreatedAt\"")]
     [InlineData("Now", "\"p\".\"CreatedAt\" < CURRENT_TIMESTAMP")]
     [InlineData("UtcNow", "\"p\".\"CreatedAt\" < SYS_EXTRACT_UTC(SYSTIMESTAMP)")]
@@ -54,6 +52,22 @@ public class DmDateTimeMethodTranslationTests
              WHERE {predicate}
              """,
             Statement(Queries[name](context.Probes).ToQueryString()));
+    }
+
+    /// <summary>
+    /// A date difference is a number of days in Dameng, not an interval, so it cannot be declared a
+    /// <see cref="TimeSpan" /> and read back. The measurement is recorded here rather than left to the
+    /// matrix alone.
+    /// </summary>
+    [Fact]
+    public void SubtractDates_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Probes
+                .Where(p => p.CreatedAt.Subtract(p.CreatedAt) > TimeSpan.FromHours(1))
+                .ToQueryString());
     }
 
     private static string Statement(string sql)

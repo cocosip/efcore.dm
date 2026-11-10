@@ -164,6 +164,8 @@ The following are properties of Dameng, identical across EF Core versions. Their
 - Dameng error classification
 - SQL dialect translation rules: `||` concatenation, `TOP` and `OFFSET`/`FETCH`, `CAST` wrapping of aggregates, `GREATEST` and `LEAST`, `DATEDIFF(datepart, date1, date2)` for date differences, `ISDATE(value) = 1` for a validity check, `CAST(... AS TIME)` for a `TimeOnly` conversion, `SYS_EXTRACT_UTC(value)` for a UTC conversion, `UPPER` on both sides of an ignore-case comparison, `LPAD`/`RPAD` for padding, `LTRIM`/`RTRIM` with a character set, `INSTR` shifted to a zero-based index, `ATAN2`, and `INTERVAL '...' DAY TO SECOND` rather than a bare time string for an interval literal
 
+A date difference is the exception: subtracting two dates answers a number of days rather than an interval, and the conversion to an interval is not used, so that shape stays untranslated instead of declaring a `TimeSpan` the server would not send back. See §9 for the source.
+
 This is the reason the `Dialect/` layer exists: these are written once rather than once per version.
 
 The concrete values in that layer — store type names, maximum lengths, default precision and scale — are confirmed against a live server catalog in roadmap phase P1. A correction is made in `Dialect/` and propagates to type mapping and DDL generation without touching pipeline code.
@@ -177,5 +179,9 @@ The concrete values in that layer — store type names, maximum lengths, default
 - [EF Core 11 provider-facing changes](https://learn.microsoft.com/ef/core/what-is-new/ef-core-11.0/provider-facing-changes)
 - [EF Core releases and planning](https://learn.microsoft.com/ef/core/what-is-new/)
 - [.NET support policy](https://dotnet.microsoft.com/platform/support/policy/dotnet-core)
+- [DM SQL 开发指南: 日期运算](https://eco.dameng.com/document/dm/zh-cn/sql-dev/practice-date.html) — two dates subtract to a number of days, which is why a date difference is not rendered as an interval
+- [Oracle interval conversion functions under DM8](https://tidba.com/oracle-to-dm/interval-conversion-funcs/) and [a `NUMTODSINTERVAL` report](https://eco.dameng.com/community/question/f9f8c1e1e53e18977f5d541f9a2a900b) — the conversion exists but is behind, or fails under, Oracle compatible mode
+- [Empty string and NULL after a migration from Oracle](https://eco.dameng.com/community/article/20260807112730LSO2E8Z3PLEEGLVZF7) — the two are the same value only when `COMPATIBLE_MODE` is 2, so a translator cannot decide it
+- [`TO_DAYS` returns a count that disagrees with the difference to year zero](https://eco.dameng.com/community/question/84b0feac5606c18936a18edcbab44cde)
 
 Source verification performed directly against the `dotnet/efcore` repository (`release/8.0`, `release/9.0`, `release/10.0`, `main`) and against published package metadata for EF Core 8.0.33, 9.0.22, 10.0.14 and 11.0.0-rc.3.

@@ -99,10 +99,14 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
     }
 
     /// <summary>
-    /// A date or timestamp minus an interval is a timestamp, and the difference between two of them is
-    /// the interval between them, which is what a <see cref="TimeSpan" /> is stored as.
+    /// A date or timestamp minus an interval is a timestamp. The difference of two of them is not the
+    /// interval between them in Dameng: the SQL development guide states that subtracting two dates
+    /// gives a number of days, and turning that number into an interval needs <c>NUMTODSINTERVAL</c>,
+    /// which the migration notes place behind Oracle compatible mode, so a dialect that must work in
+    /// every mode cannot use it. The shape is left untranslated rather than declared a
+    /// <see cref="TimeSpan" /> that the server would not send back.
     /// </summary>
-    private SqlExpression Subtract(SqlExpression instance, SqlExpression amount)
+    private SqlExpression? Subtract(SqlExpression instance, SqlExpression amount)
         => amount.Type == typeof(TimeSpan)
             ? new SqlBinaryExpression(
                 ExpressionType.Subtract,
@@ -110,12 +114,7 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
                 amount,
                 instance.Type,
                 instance.TypeMapping)
-            : new SqlBinaryExpression(
-                ExpressionType.Subtract,
-                instance,
-                amount,
-                typeof(TimeSpan),
-                _timeSpanMapping);
+            : null;
 
     private SqlExpression Interval(ExpressionType operation, SqlExpression instance, SqlExpression amount)
         => new SqlBinaryExpression(

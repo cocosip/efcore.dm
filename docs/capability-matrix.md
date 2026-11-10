@@ -131,8 +131,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
 | `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date. `DayNumber` is not provided: `TO_DAYS` counts from year zero, and the offset to .NET's day number is unverified. The other members do not translate |
 | `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Partial` | `DmTimeSpanTranslationTests` | P2 | No | The parts `Days`, `Hours`, `Minutes` and `Seconds` read the interval part with `EXTRACT`, and a part that is not a total truncates the seconds because `EXTRACT(SECOND ...)` keeps the fraction that the member drops. Each of the five totals sums the parts in seconds and scales the result. `Add` and `Subtract` are the interval operators. `Duration`, `Negate`, `Ticks` and `Milliseconds` are not translated. Whether Dameng signs each part of a negative interval the way a negative `TimeSpan` does is unverified |
-| `DateTime.Subtract` returning a `TimeSpan` | `Implemented` | `DmDateTimeMethodTranslationTests` | P2 | No | A date minus an interval is a date, and the difference of two dates is declared a `TimeSpan`, which is the interval between them. Whether Dameng answers a number of days for the second shape, as its Oracle compatible mode suggests, is unverified against a server |
-| Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
+| `DateTime.Subtract` returning a `TimeSpan` | `Partial` | `DmDateTimeMethodTranslationTests` | P2 | No | A date minus an interval is a date. The difference of two dates is not translated: the SQL development guide states that subtracting two dates answers a number of days rather than an interval, and the conversion to an interval is behind, or fails under, Oracle compatible mode, which a dialect that must work in every mode cannot rely on. The shape stays untranslated instead of declaring a `TimeSpan` the server would not send back, and a test records the measurement. See `version-matrix.md` §9 for the sources |
+| Null semantics processor | `Not applicable` | `DmStringTranslationTests` | P2 | Yes | The difference between an empty string and NULL is a server parameter, not a shape: under `COMPATIBLE_MODE=2` the empty string is NULL, and under the default mode it is a value of its own, so the same statement means both things depending on the instance. A translator cannot see the mode, which is why the dialect never branches on it. `IsNullOrEmpty` and `IsNullOrWhiteSpace` test both conditions, so they hold either way; nothing else is normalised |
 | Parameter-based SQL processor | `Implemented` | `DmQuerySqlGenerationTests`, `DmCollectionParameterTests` | P2 | Yes | The base processor is enough: a parameter renders with a colon prefix, which Oracle-compatible Dameng accepts, and both collection translation modes are verified. Nothing in the processor depends on the database beyond that |
 | Compiled query cache key | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | The default key already covers everything the translation depends on, because the translation is a function of the model and the query expression |
 | Collection parameter translation | `Implemented` | `DmCollectionParameterTests` | P2 | No | The relational layer expands the collection and the provider's generator renders either mode: one parameter per element by default, the values as literals under `UseParameterizedCollectionMode(ParameterTranslationMode.Constant)`. A context that shares a model but differs only in the mode reuses the first translation, because the translation is cached against the compiled query |
@@ -201,7 +201,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Fluent API: model and entity type extensions | `Partial` | `DmFluentApiTests` | P5 | Yes | `DmModelExtensions` exposes the hi-lo sequence, identity seed and increment settings. The temporal and period extensions of the reference are not provided |
 | `DmValueGenerationStrategy` annotation | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | `DmValueGenerationStrategy` keeps the Dameng member order, so an existing model keeps its annotations |
 | Database facade extensions | `Implemented` | `DmDatabaseFacadeTests` | P1 | Yes | `IsDm` compares the provider name with this assembly, which is the same answer the migration builder extension gives |
-| `DbFunctions` extensions | `Partial` | `DmDateDiffTranslationTests`, `DmIsDateTranslationTests` | P2 | Yes | `DateDiffYear`, `DateDiffMonth`, `DateDiffDay`, `DateDiffHour`, `DateDiffMinute`, `DateDiffSecond` and `DateDiffMillisecond` over `DateTime` and `DateTimeOffset`, each in a nullable form, translate to `DATEDIFF(datepart, date1, date2)`, which the DM SQL manual documents; `IsDate` translates to `ISDATE(value) = 1`, because Dameng has no boolean type for the flag to be used as a condition. Called outside a query these compute the answer in memory. Microsecond and nanosecond are not provided, because their datepart spelling in `DATEDIFF` is unverified, and the reference `FreeText` and `Contains`, which need a full-text index, are not provided. The generated SQL is unverified against a server |
+| `DbFunctions` extensions | `Partial` | `DmDateDiffTranslationTests`, `DmIsDateTranslationTests` | P2 | Yes | `DateDiffYear`, `DateDiffMonth`, `DateDiffDay`, `DateDiffHour`, `DateDiffMinute`, `DateDiffSecond` and `DateDiffMillisecond` over `DateTime` and `DateTimeOffset`, each in a nullable form, translate to `DATEDIFF(datepart, date1, date2)`, which the DM SQL manual documents; `IsDate` translates to `ISDATE(value) = 1`, because Dameng has no boolean type for the flag to be used as a condition. A report in the Dameng community has a day difference counted across calendar boundaries rather than in 24 hour spans, so a fractional count is not what `DateDiffDay` answers; the exact rule is unverified. Called outside a query these compute the answer in memory. Microsecond and nanosecond are not provided, because their datepart spelling in `DATEDIFF` is unverified, and the reference `FreeText` and `Contains`, which need a full-text index, are not provided |
 
 ### I. Diagnostics
 
@@ -230,13 +230,13 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 83 |
+| `Implemented` | 82 |
 | `In progress` | 0 |
-| `Partial` | 8 |
+| `Partial` | 9 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 10 |
-| `Not applicable` | 3 |
+| `Not started` | 9 |
+| `Not applicable` | 4 |
 | **Total rows** | **110** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
