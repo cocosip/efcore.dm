@@ -126,10 +126,11 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
 
     /// <summary>
     /// A literal year count is folded here, so the statement reads <c>ADD_MONTHS(x, 12)</c> rather
-    /// than <c>ADD_MONTHS(x, 1 * 12)</c>.
+    /// than <c>ADD_MONTHS(x, 1 * 12)</c>. A count whose product would wrap is left unfolded, so the
+    /// server sees the factor instead of a wrapped number.
     /// </summary>
     private SqlExpression YearsInMonths(SqlExpression years)
-        => years is SqlConstantExpression { Value: int value }
+        => years is SqlConstantExpression { Value: int value } && value is >= int.MinValue / 12 and <= int.MaxValue / 12
             ? _sqlExpressionFactory.Constant(value * 12, years.TypeMapping)
             : _sqlExpressionFactory.Multiply(years, Constant(12, years));
 

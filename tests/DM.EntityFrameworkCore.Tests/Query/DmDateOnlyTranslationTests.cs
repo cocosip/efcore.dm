@@ -15,7 +15,7 @@ public class DmDateOnlyTranslationTests
 
         Assert.Equal(
             """
-            SELECT "p"."Id", "p"."CreatedAt", "p"."Day"
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
             FROM "Probes" AS "p"
             WHERE CAST(TRUNC("p"."CreatedAt") AS DATE) > "p"."Day"
             """,
@@ -32,13 +32,91 @@ public class DmDateOnlyTranslationTests
 
         Assert.Equal(
             """
-            SELECT "p"."Id", "p"."CreatedAt", "p"."Day"
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
             FROM "Probes" AS "p"
             WHERE ("p"."Day" + 1) > "p"."Day"
             """,
             Statement(
                 context.Probes
                     .Where(p => p.Day.AddDays(1) > p.Day)
+                    .ToQueryString()));
+    }
+
+    /// <summary>
+    /// Month arithmetic is <c>ADD_MONTHS</c>, the same function the timestamp path uses, and a year is
+    /// twelve months of it. The counts are literals, because a captured variable reaches the translator
+    /// as a parameter and cannot be folded.
+    /// </summary>
+    [Fact]
+    public void AddMonths_AddsTheMonthCount()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
+            FROM "Probes" AS "p"
+            WHERE ADD_MONTHS("p"."Day", 3) > "p"."Day"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.Day.AddMonths(3) > p.Day)
+                    .ToQueryString()));
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
+            FROM "Probes" AS "p"
+            WHERE ADD_MONTHS("p"."Day", 12) > "p"."Day"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.Day.AddYears(1) > p.Day)
+                    .ToQueryString()));
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
+            FROM "Probes" AS "p"
+            WHERE ADD_MONTHS("p"."Day", -24) > "p"."Day"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.Day.AddYears(-2) > p.Day)
+                    .ToQueryString()));
+    }
+    /// <summary>
+    /// A count whose product would wrap is not folded into a number the server would then apply.
+    /// </summary>
+    [Fact]
+    public void AddYears_WithACountThatWouldWrap_IsNotFolded()
+    {
+        using var context = new ProbeContext();
+
+        var statement = Statement(
+            context.Probes
+                .Where(p => p.Day.AddYears(int.MaxValue) > p.Day)
+                .ToQueryString());
+
+        Assert.Contains($"""ADD_MONTHS("p"."Day", {int.MaxValue} * 12)""", statement, StringComparison.Ordinal);
+    }
+    /// <summary>
+    /// A count that is not a literal cannot be folded, so a year keeps its factor of twelve.
+    /// </summary>
+    [Fact]
+    public void AddMonths_WithAColumnCount_KeepsTheFactor()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
+            FROM "Probes" AS "p"
+            WHERE ADD_MONTHS("p"."Day", "p"."Months" * 12) > "p"."Day"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.Day.AddYears(p.Months) > p.Day)
                     .ToQueryString()));
     }
 
@@ -62,7 +140,7 @@ public class DmDateOnlyTranslationTests
 
         Assert.Equal(
             $"""
-             SELECT "p"."Id", "p"."CreatedAt", "p"."Day"
+             SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
              FROM "Probes" AS "p"
              WHERE {predicate}
              """,
@@ -92,5 +170,7 @@ public class DmDateOnlyTranslationTests
         public DateTime CreatedAt { get; set; }
 
         public DateOnly Day { get; set; }
+
+        public int Months { get; set; }
     }
 }

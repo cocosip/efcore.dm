@@ -73,6 +73,19 @@ public class DmTimeOnlyTranslationTests
             Statement(query.ToQueryString()));
     }
 
+    /// <summary>
+    /// Adding to a time of day wraps at midnight in .NET, and no arithmetic measured on the server
+    /// reproduces that on <c>TIME</c>, so the call is left untranslated rather than answered with an
+    /// interval addition whose wrap-around is unknown.
+    /// </summary>
+    [Fact]
+    public void AddHours_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Probes.Where(p => p.At.AddHours(1) > p.At).ToQueryString());
+    }
     private static string Statement(string sql)
         => string.Join(
             "\n",
