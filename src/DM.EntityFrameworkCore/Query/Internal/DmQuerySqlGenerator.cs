@@ -8,9 +8,10 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 /// Generates SELECT statements.
 /// </summary>
 /// <remarks>
-/// ponytail: the relational base generator is used for everything except three Dameng shapes:
-/// string concatenation, which is <c>||</c> rather than <c>+</c>; <c>EXTRACT</c> and
-/// <c>CAST</c>, whose second token is a keyword rather than a comma-separated argument. Dameng's
+/// ponytail: the relational base generator is used for everything except the Dameng shapes below:
+/// string concatenation, which is <c>||</c> rather than <c>+</c>; <c>EXTRACT</c> and <c>CAST</c>,
+/// whose second token is a keyword rather than a comma-separated argument; and the functions Dameng
+/// spells without parentheses, which the base generator would render with an empty pair. Dameng's
 /// paging shapes and its full function set are settled against a live server in roadmap phase P2.
 /// </remarks>
 internal sealed class DmQuerySqlGenerator : QuerySqlGenerator

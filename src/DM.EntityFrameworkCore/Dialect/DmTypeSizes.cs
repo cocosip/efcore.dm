@@ -19,9 +19,6 @@ internal static class DmTypeSizes
     /// <summary>Scale applied to a decimal property configured without one.</summary>
     public const int DefaultDecimalScale = 4;
 
-    /// <summary>Fractional seconds precision applied to temporal types.</summary>
-    public const int DefaultTemporalPrecision = 6;
-
     /// <summary>Length of the binary type used for concurrency tokens.</summary>
     public const int RowVersionLength = 8;
 

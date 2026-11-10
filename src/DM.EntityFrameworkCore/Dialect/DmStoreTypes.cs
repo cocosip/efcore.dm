@@ -40,8 +40,4 @@ internal static class DmStoreTypes
     public const string TimestampWithTimeZone = "TIMESTAMP WITH TIME ZONE";
     public const string DateTimeWithTimeZone = "DATETIME WITH TIME ZONE";
     public const string IntervalDayToSecond = "INTERVAL DAY TO SECOND";
-
-    public const string Json = "JSON";
-    public const string RowId = "ROWID";
-    public const string Xml = "XML";
 }

@@ -55,6 +55,38 @@ public class CapabilityMatrixTests
     }
 
     /// <summary>
+    /// Every named piece of evidence has to exist. Without this the evidence cell accepts a typo, or
+    /// a class that was renamed or removed, and the matrix claims proof it does not have.
+    /// </summary>
+    [Fact]
+    public void EveryNamedEvidenceExists()
+    {
+        var types = typeof(CapabilityMatrixTests).Assembly
+            .GetTypes()
+            .Select(type => type.Name)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var row in DataRows(MatrixLines()))
+        {
+            foreach (Match match in Regex.Matches(RowCells(row)[2], "`([\\w./-]+)`"))
+            {
+                var name = match.Groups[1].Value;
+
+                if (name.EndsWith("Tests", StringComparison.Ordinal))
+                {
+                    Assert.Contains(name, types);
+                }
+                else
+                {
+                    Assert.True(
+                        File.Exists(Path.Combine([RepositoryRoot.Find(), .. name.Split('/')])),
+                        $"{name} does not exist");
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// The rows of the matrix proper, which are the table rows whose first cell is the capability and
     /// whose second cell is the status. The legend and the summary have the status first.
     /// </summary>
