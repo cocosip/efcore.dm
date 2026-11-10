@@ -34,7 +34,7 @@ public class DmDateDiffTranslationTests
 
         Assert.Equal(
             $"""
-             SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt"
+             SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt", "p"."Span"
              FROM "Probes" AS "p"
              WHERE DATEDIFF({datePart}, "p"."CreatedAt", "p"."CreatedAt") > 0
              """,
@@ -52,7 +52,7 @@ public class DmDateDiffTranslationTests
 
         Assert.Equal(
             """
-            SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt"
+            SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt", "p"."Span"
             FROM "Probes" AS "p"
             WHERE DATEDIFF(DAY, "p"."DeletedAt", "p"."DeletedAt") > 0
             """,
@@ -72,7 +72,7 @@ public class DmDateDiffTranslationTests
 
         Assert.Equal(
             """
-            SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt"
+            SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt", "p"."Span"
             FROM "Probes" AS "p"
             WHERE DATEDIFF(HOUR, "p"."OffsetAt", "p"."OffsetAt") > 0
             """,
@@ -102,6 +102,44 @@ public class DmDateDiffTranslationTests
         Assert.Null(EF.Functions.DateDiffDay((DateTime?)null, end));
     }
 
+    /// <summary>
+    /// An elapsed time is the argument of the same statement: the interval is passed where the date is,
+    /// which is what the previous provider does. Whether <c>DATEDIFF</c> accepts an interval is
+    /// unverified, so the shape is pinned and the matrix records the assumption.
+    /// </summary>
+    [Fact]
+    public void DateDiff_WithAnInterval_TranslatesToDatediff()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE DATEDIFF(HOUR, "p"."Span", "p"."Span") > 0
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => EF.Functions.DateDiffHour(p.Span, p.Span) > 0)
+                    .ToQueryString()));
+    }
+
+    /// <summary>
+    /// Called outside a query the difference is computed here, and the elapsed time is what it counts:
+    /// the previous provider subtracted the hour component only, which answered a value that could not
+    /// grow past a day.
+    /// </summary>
+    [Fact]
+    public void DateDiff_WithAnInterval_ComputesTheElapsedTime()
+    {
+        Assert.Equal(30, EF.Functions.DateDiffHour(TimeSpan.Zero, TimeSpan.FromHours(30)));
+        Assert.Equal(-30, EF.Functions.DateDiffHour(TimeSpan.FromHours(30), TimeSpan.Zero));
+        Assert.Equal(90, EF.Functions.DateDiffMinute(TimeSpan.Zero, TimeSpan.FromMinutes(90)));
+        Assert.Equal(30, EF.Functions.DateDiffSecond(TimeSpan.Zero, TimeSpan.FromSeconds(30.5)));
+        Assert.Equal(1500, EF.Functions.DateDiffMillisecond(TimeSpan.Zero, TimeSpan.FromMilliseconds(1500)));
+        Assert.Null(EF.Functions.DateDiffHour(null, TimeSpan.FromHours(1)));
+        Assert.Null(EF.Functions.DateDiffMinute(TimeSpan.FromMinutes(1), null));
+    }
     private static string Statement(string sql)
         => string.Join(
             "\n",
@@ -127,5 +165,7 @@ public class DmDateDiffTranslationTests
         public DateTime? DeletedAt { get; set; }
 
         public DateTimeOffset OffsetAt { get; set; }
+
+        public TimeSpan Span { get; set; }
     }
 }

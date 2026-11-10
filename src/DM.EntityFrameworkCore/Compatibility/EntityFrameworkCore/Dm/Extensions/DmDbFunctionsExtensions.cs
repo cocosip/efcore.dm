@@ -126,6 +126,24 @@ public static class DmDbFunctionsExtensions
             : null;
 
     /// <summary>
+    /// The number of hours between two elapsed times, for a value stored as an interval rather than a
+    /// date.
+    /// </summary>
+    /// <remarks>
+    /// The statement receives the interval where it takes a date, which is what the previous provider
+    /// does; whether <c>DATEDIFF</c> accepts one is unverified. The in-memory form counts the elapsed
+    /// time and truncates it, so it can differ by one from a boundary count, as the date forms do.
+    /// </remarks>
+    public static int DateDiffHour(this DbFunctions _, TimeSpan startTimeSpan, TimeSpan endTimeSpan)
+        => (int)(endTimeSpan - startTimeSpan).TotalHours;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int? DateDiffHour(this DbFunctions _, TimeSpan? startTimeSpan, TimeSpan? endTimeSpan)
+        => startTimeSpan.HasValue && endTimeSpan.HasValue
+            ? (int)(endTimeSpan.Value - startTimeSpan.Value).TotalHours
+            : null;
+
+    /// <summary>
     /// The number of minute boundaries crossed between two dates.
     /// </summary>
     public static int DateDiffMinute(this DbFunctions _, DateTime startDate, DateTime endDate)
@@ -148,6 +166,16 @@ public static class DmDbFunctionsExtensions
         DateTimeOffset? endDate)
         => startDate.HasValue && endDate.HasValue
             ? (int)(endDate.Value.UtcDateTime - startDate.Value.UtcDateTime).TotalMinutes
+            : null;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int DateDiffMinute(this DbFunctions _, TimeSpan startTimeSpan, TimeSpan endTimeSpan)
+        => (int)(endTimeSpan - startTimeSpan).TotalMinutes;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int? DateDiffMinute(this DbFunctions _, TimeSpan? startTimeSpan, TimeSpan? endTimeSpan)
+        => startTimeSpan.HasValue && endTimeSpan.HasValue
+            ? (int)(endTimeSpan.Value - startTimeSpan.Value).TotalMinutes
             : null;
 
     /// <summary>
@@ -175,6 +203,16 @@ public static class DmDbFunctionsExtensions
             ? (int)(endDate.Value.UtcDateTime - startDate.Value.UtcDateTime).TotalSeconds
             : null;
 
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int DateDiffSecond(this DbFunctions _, TimeSpan startTimeSpan, TimeSpan endTimeSpan)
+        => (int)(endTimeSpan - startTimeSpan).TotalSeconds;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int? DateDiffSecond(this DbFunctions _, TimeSpan? startTimeSpan, TimeSpan? endTimeSpan)
+        => startTimeSpan.HasValue && endTimeSpan.HasValue
+            ? (int)(endTimeSpan.Value - startTimeSpan.Value).TotalSeconds
+            : null;
+
     /// <summary>
     /// The number of millisecond boundaries crossed between two dates.
     /// </summary>
@@ -198,6 +236,16 @@ public static class DmDbFunctionsExtensions
         DateTimeOffset? endDate)
         => startDate.HasValue && endDate.HasValue
             ? (int)(endDate.Value.UtcDateTime - startDate.Value.UtcDateTime).TotalMilliseconds
+            : null;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int DateDiffMillisecond(this DbFunctions _, TimeSpan startTimeSpan, TimeSpan endTimeSpan)
+        => (int)(endTimeSpan - startTimeSpan).TotalMilliseconds;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int? DateDiffMillisecond(this DbFunctions _, TimeSpan? startTimeSpan, TimeSpan? endTimeSpan)
+        => startTimeSpan.HasValue && endTimeSpan.HasValue
+            ? (int)(endTimeSpan.Value - startTimeSpan.Value).TotalMilliseconds
             : null;
 
     /// <summary>

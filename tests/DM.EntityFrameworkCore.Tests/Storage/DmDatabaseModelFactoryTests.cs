@@ -218,6 +218,24 @@ public class DmDatabaseModelFactoryTests
         Assert.IsType<DmDatabaseModelFactory>(services.GetRequiredService<IDatabaseModelFactory>());
     }
 
+    /// <summary>
+    /// EF Core 10 gives reverse engineering no place for a view: the factory options carry tables and
+    /// schemas, and the model carries tables and sequences. The public <c>DatabaseView</c> type exists,
+    /// but nothing in the pipeline consumes it, so a provider cannot report one. When this changes, the
+    /// matrix row that records views as unread has to change with it.
+    /// </summary>
+    [Fact]
+    public void TheReverseEngineeringContract_HasNoViews()
+    {
+        Assert.True(
+            typeof(DatabaseModelFactoryOptions).GetProperty("Views") is null,
+            "The factory options now carry views; the matrix row that defers them must be revisited.");
+
+        Assert.True(
+            typeof(DatabaseModel).GetProperty("Views") is null,
+            "The database model now carries views; the matrix row that defers them must be revisited.");
+    }
+
     private static DatabaseModel Create(
         FakeResultSet[] resultSets,
         IEnumerable<string> schemas = null,
