@@ -170,7 +170,7 @@ tests/DM.EntityFrameworkCore.Tests/                        unit and SQL-shape te
 tests/DM.EntityFrameworkCore.PackageConsumer/              package smoke test: consumes the packed provider
 tests/DM.EntityFrameworkCore.SpecificationTests/           EF Core specification suite (planned)
 scripts/package-smoke.ps1                                  packs, restores the consumer in an isolated cache, runs it
-samples/DmProviderValidation/                              live-database acceptance console (written, awaiting an instance)
+samples/DmProviderValidation/                              live-database acceptance console (written, awaiting an instance; --dry-run builds the model and generates the schema without one)
 docs/
 ```
 

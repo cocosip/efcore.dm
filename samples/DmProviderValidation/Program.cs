@@ -29,6 +29,11 @@ internal static class Program
 
     private static async Task<int> Main(string[] args)
     {
+        if (args.Contains("--dry-run", StringComparer.OrdinalIgnoreCase))
+        {
+            return DryRun();
+        }
+
         var connectionString = Connection(args);
 
         if (connectionString is null)
@@ -97,6 +102,61 @@ internal static class Program
         return failures == 0 ? 0 : 1;
     }
 
+    /// <summary>
+    /// Builds the model and generates the DDL a run would need, without a database. A build machine has
+    /// no Dameng instance, so this is what keeps the sample from rotting between the runs that do: it
+    /// fails when the model stops building or stops producing the tables and the sequence.
+    /// </summary>
+    private static int DryRun()
+    {
+        Console.WriteLine("Dameng provider acceptance, dry run");
+        Console.WriteLine();
+
+        try
+        {
+            using var context = new ValidationContext(DryRunConnectionString);
+
+            var script = context.Database.GenerateCreateScript();
+
+            var expected = Tables.Append("DM_VALIDATION_SEQ")
+                .Where(name => !script.Contains(name, StringComparison.Ordinal))
+                .ToArray();
+
+            if (expected.Length > 0)
+            {
+                Console.Error.WriteLine("  fail  the generated script has no " + string.Join(", ", expected));
+            }
+            else
+            {
+                Console.WriteLine($"  pass  create script covers {Tables.Length} tables and the sequence");
+            }
+
+            foreach (var (name, _) in Steps.All)
+            {
+                Console.WriteLine($"  step  {name}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine(
+                expected.Length == 0
+                    ? $"dry run passed; {Steps.All.Count} steps declared"
+                    : "the model does not generate the schema a run needs");
+
+            return expected.Length == 0 ? 0 : 1;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"  fail  model: {exception.GetType().Name}: {exception.Message}");
+
+            return 1;
+        }
+    }
+
+    /// <summary>
+    /// A connection string for a dry run, which never opens a connection: the model builds from it and
+    /// the driver is not asked to resolve anything.
+    /// </summary>
+    private const string DryRunConnectionString = "Server=localhost;Port=5236;User Id=SYSDBA;Password=SYSDBA";
     /// <summary>
     /// Drops what a previous run left, and the sequence with it. Dameng has no
     /// <c>DROP TABLE IF EXISTS</c>, so a table that is not there answers an error that has to be
