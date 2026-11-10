@@ -1,5 +1,7 @@
+using DM.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Migrations.Operations;
 
@@ -306,6 +308,189 @@ public class DmMigrationsSqlTests
             .Replace("\n\n/", "\n/", StringComparison.Ordinal)
             .TrimEnd('\n');
 
+    /// <summary>
+    /// The operations the generated migrations use, by name. Each shape is what Dameng spells, read
+    /// from the statement the generator produces rather than borrowed from another provider.
+    /// </summary>
+    private static readonly Dictionary<string, MigrationOperation> Operations = new()
+    {
+        ["DropTable"] = new DropTableOperation { Name = "Probes", Schema = "APP" },
+        ["DropColumn"] = new DropColumnOperation { Table = "Probes", Name = "Name", Schema = "APP" },
+        ["AddPrimaryKey"] = new AddPrimaryKeyOperation { Table = "Probes", Name = "PK_Probes", Columns = ["Id"] },
+        ["DropPrimaryKey"] = new DropPrimaryKeyOperation { Table = "Probes", Name = "PK_Probes" },
+        ["AddUnique"] = new AddUniqueConstraintOperation { Table = "Probes", Name = "UQ_Probes_Name", Columns = ["Name"] },
+        ["DropUnique"] = new DropUniqueConstraintOperation { Table = "Probes", Name = "UQ_Probes_Name" },
+        ["AddForeignKey"] = new AddForeignKeyOperation
+        {
+            Table = "Lines",
+            Name = "FK_Lines_Probes",
+            Columns = ["ProbeId"],
+            PrincipalTable = "Probes",
+            PrincipalColumns = ["Id"],
+            OnDelete = ReferentialAction.Cascade
+        },
+        ["DropForeignKey"] = new DropForeignKeyOperation { Table = "Lines", Name = "FK_Lines_Probes" },
+        ["RestartSequence"] = new RestartSequenceOperation { Name = "ProbeSeq", StartValue = 100L },
+        ["DropSequence"] = new DropSequenceOperation { Name = "ProbeSeq" },
+        ["DropSchema"] = new DropSchemaOperation { Name = "REPORTING" },
+        ["Sql"] = new SqlOperation { Sql = "SELECT 1 FROM DUAL" },
+        ["InsertData"] = new InsertDataOperation
+        {
+            Table = "Probes",
+            Columns = ["Id", "Name"],
+            Values = new object[,] { { 1, "a" }, { 2, "b" } }
+        },
+        ["UpdateData"] = new UpdateDataOperation
+        {
+            Table = "Probes",
+            KeyColumns = ["Id"],
+            KeyValues = new object[,] { { 1 } },
+            Columns = ["Name"],
+            Values = new object[,] { { "c" } }
+        },
+        ["DeleteData"] = new DeleteDataOperation
+        {
+            Table = "Probes",
+            KeyColumns = ["Id"],
+            KeyValues = new object[,] { { 1 } }
+        }
+    };
+
+    [Theory]
+    [InlineData("DropTable", """DROP TABLE "APP"."Probes";""")]
+    [InlineData("DropColumn", """ALTER TABLE "APP"."Probes" DROP COLUMN "Name";""")]
+    [InlineData("AddPrimaryKey", """ALTER TABLE "Probes" ADD CONSTRAINT "PK_Probes" PRIMARY KEY ("Id");""")]
+    [InlineData("DropPrimaryKey", """ALTER TABLE "Probes" DROP CONSTRAINT "PK_Probes";""")]
+    [InlineData("AddUnique", """ALTER TABLE "Probes" ADD CONSTRAINT "UQ_Probes_Name" UNIQUE ("Name");""")]
+    [InlineData("DropUnique", """ALTER TABLE "Probes" DROP CONSTRAINT "UQ_Probes_Name";""")]
+    [InlineData("AddForeignKey", """
+        ALTER TABLE "Lines" ADD CONSTRAINT "FK_Lines_Probes" FOREIGN KEY ("ProbeId") REFERENCES "Probes" ("Id") ON DELETE CASCADE;
+        """)]
+    [InlineData("DropForeignKey", """ALTER TABLE "Lines" DROP CONSTRAINT "FK_Lines_Probes";""")]
+    // The sequence restart is the shape the row limiting clause uses; whether the server accepts it on
+    // every supported version is unverified.
+    [InlineData("RestartSequence", """ALTER SEQUENCE "ProbeSeq" RESTART WITH 100;""")]
+    [InlineData("DropSequence", """DROP SEQUENCE "ProbeSeq";""")]
+    [InlineData("DropSchema", """DROP SCHEMA "REPORTING";""")]
+    [InlineData("Sql", """SELECT 1 FROM DUAL""")]
+    [InlineData("InsertData", """
+        INSERT INTO "Probes" ("Id", "Name")
+        VALUES (1, 'a');
+        INSERT INTO "Probes" ("Id", "Name")
+        VALUES (2, 'b');
+        """)]
+    [InlineData("UpdateData", """
+        UPDATE "Probes" SET "Name" = 'c'
+        WHERE "Id" = 1;
+        """)]
+    [InlineData("DeleteData", """
+        DELETE FROM "Probes"
+        WHERE "Id" = 1;
+        """)]
+    public void Operation_GeneratesTheStatement(string name, string expected)
+        => AssertSql(Operations[name], expected);
+
+    /// <summary>
+    /// A column that stops generating its value has to lose the attribute before the type is modified,
+    /// which the provider writes as a statement of its own in front of the modification. The table is
+    /// the one this model does not map, because the model in a migration states the state after it and
+    /// this one maps its own key as an identity column.
+    /// </summary>
+    [Fact]
+    public void AlterColumn_FromIdentity_DropsTheAttributeFirst()
+        => AssertSql(
+            new AlterColumnOperation
+            {
+                Table = "History",
+                Name = "Id",
+                ClrType = typeof(int),
+                ColumnType = "INT",
+                OldColumn = IdentityColumn()
+            },
+            """
+            ALTER TABLE "History" DROP IDENTITY;
+            ALTER TABLE "History" MODIFY ("Id" INT NOT NULL);
+            """);
+
+    /// <summary>
+    /// Changing anything else about an identity column keeps the attribute, so no drop is written.
+    /// </summary>
+    [Fact]
+    public void AlterColumn_IdentityStays_KeepsTheAttribute()
+        => AssertSql(
+            new AlterColumnOperation
+            {
+                Table = "Lines",
+                Name = "Id",
+                ClrType = typeof(long),
+                ColumnType = "BIGINT",
+                [DmPropertyExtensions.ValueGenerationStrategyAnnotation] = DmValueGenerationStrategy.IdentityColumn,
+                OldColumn = IdentityColumn()
+            },
+            """ALTER TABLE "Lines" MODIFY ("Id" BIGINT NOT NULL);""");
+
+    /// <summary>
+    /// The other direction is rejected rather than left undone: no statement that turns an existing
+    /// column into an identity column has been verified, and a migration that silently does nothing
+    /// leaves a column the model treats as generated without the attribute that generates it.
+    /// </summary>
+    [Fact]
+    public void AlterColumn_ToIdentity_IsRejected()
+    {
+        using var context = new ProbeContext();
+
+        var operation = new AlterColumnOperation
+        {
+            Table = "Lines",
+            Name = "Id",
+            ClrType = typeof(int),
+            ColumnType = "INT",
+            [DmPropertyExtensions.ValueGenerationStrategyAnnotation] = DmValueGenerationStrategy.IdentityColumn,
+            OldColumn = new AddColumnOperation { ClrType = typeof(int), ColumnType = "INT", IsNullable = false }
+        };
+
+        Assert.Throws<NotSupportedException>(
+            () => context.GetService<IMigrationsSqlGenerator>().Generate([operation], context.Model));
+    }
+
+    /// <summary>
+    /// A snapshot the previous provider wrote marks an identity column with its own annotation rather
+    /// than with the strategy. Reading that name keeps such a migration from being read as a column
+    /// without identity, which would both skip the drop and reject the change as an unsupported gain.
+    /// </summary>
+    [Fact]
+    public void AlterColumn_FromIdentityWrittenByThePreviousProvider_DropsTheAttribute()
+    {
+        var oldColumn = new AddColumnOperation { ClrType = typeof(int), ColumnType = "INT", IsNullable = false };
+        oldColumn[DmAnnotationNames.Identity] = true;
+
+        AssertSql(
+            new AlterColumnOperation
+            {
+                Table = "History",
+                Name = "Id",
+                ClrType = typeof(int),
+                ColumnType = "INT",
+                OldColumn = oldColumn
+            },
+            """
+            ALTER TABLE "History" DROP IDENTITY;
+            ALTER TABLE "History" MODIFY ("Id" INT NOT NULL);
+            """);
+    }
+    private static AddColumnOperation IdentityColumn()
+    {
+        var column = new AddColumnOperation
+        {
+            ClrType = typeof(int),
+            ColumnType = "INT",
+            IsNullable = false
+        };
+
+        column[DmPropertyExtensions.ValueGenerationStrategyAnnotation] = DmValueGenerationStrategy.IdentityColumn;
+
+        return column;
+    }
     private static void AssertSql(MigrationOperation operation, string expected)
     {
         using var context = new ProbeContext();

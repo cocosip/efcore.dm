@@ -14,6 +14,13 @@ internal static class DmAnnotationNames
     /// <summary>The schema of the sequence a hi-lo property takes its blocks from.</summary>
     public const string HiLoSequenceSchema = Prefix + "HiLoSequenceSchema";
 
+    /// <summary>
+    /// The attribute an identity column carries. This provider writes the value generation strategy
+    /// instead; the name is read so that a migration snapshot written by the previous provider, which
+    /// carries it, is understood rather than read as a column that has no identity.
+    /// </summary>
+    public const string Identity = Prefix + "Identity";
+
     /// <summary>The first value an identity column produces.</summary>
     public const string IdentitySeed = Prefix + "IdentitySeed";
 

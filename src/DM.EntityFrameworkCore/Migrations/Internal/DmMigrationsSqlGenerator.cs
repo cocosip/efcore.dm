@@ -86,8 +86,9 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         ColumnOperation operation,
         IModel? model)
     {
-        if (operation[DmPropertyExtensions.ValueGenerationStrategyAnnotation]
-            is DmValueGenerationStrategy.IdentityColumn)
+        if (operation[DmAnnotationNames.Identity] is not null
+            || operation[DmPropertyExtensions.ValueGenerationStrategyAnnotation]
+                is DmValueGenerationStrategy.IdentityColumn)
         {
             return (
                 operation[DmAnnotationNames.IdentitySeed] as int? ?? 1,
@@ -121,6 +122,8 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(builder);
+
+        DropIdentityIfLost(operation, model, builder);
 
         builder
             .Append("ALTER TABLE ")
@@ -683,6 +686,44 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
 
     /// <summary>Quotes a string literal for a statement body.</summary>
     private static string Quote(string value) => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
+
+    /// <summary>
+    /// A column that stops generating its value keeps the attribute until it is dropped, and Dameng
+    /// spells that <c>DROP IDENTITY</c>, which the reference provider also emits. The operation carries
+    /// the state the column had, so the drop is written only when the column had one; the other
+    /// direction is rejected rather than silently left undone, because neither provider knows a
+    /// statement that turns an existing column into an identity column.
+    /// </summary>
+    private void DropIdentityIfLost(
+        AlterColumnOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        if (operation.OldColumn is not { } oldColumn)
+        {
+            return;
+        }
+
+        var before = FindIdentity(operation.Schema, operation.Table, operation.Name, oldColumn, model: null);
+        var after = FindIdentity(operation.Schema, operation.Table, operation.Name, operation, model);
+
+        if (before is not null && after is null)
+        {
+            builder
+                .Append("ALTER TABLE ")
+                .Append(Helper.DelimitIdentifier(operation.Table, operation.Schema))
+                .Append(" DROP IDENTITY");
+
+            EndStatement(builder);
+        }
+        else if (before is null && after is not null)
+        {
+            throw new NotSupportedException(
+                $"The column '{operation.Name}' becomes an identity column, which this provider does not "
+                + "alter in place: the statement for it is not verified against a server. Drop and add "
+                + "the column again, or generate the value from a sequence.");
+        }
+    }
 
     private void EndStatement(MigrationCommandListBuilder builder)
         => builder.AppendLine(Helper.StatementTerminator).EndCommand();
