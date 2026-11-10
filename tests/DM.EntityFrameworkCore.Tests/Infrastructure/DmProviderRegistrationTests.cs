@@ -30,7 +30,7 @@ public class DmProviderRegistrationTests
         var name = entity.FindProperty(nameof(Probe.Name))!;
 
         Assert.Equal("INT", id.GetColumnType());
-        Assert.Equal("CLOB", name.GetColumnType());
+        Assert.Equal("NCLOB", name.GetColumnType());
     }
 
     private sealed class ProbeContext : DbContext

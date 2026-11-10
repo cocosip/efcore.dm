@@ -24,7 +24,7 @@ public class DmInheritanceTests
         var script = Normalize(context.Database.GenerateCreateScript());
 
         Assert.Contains("\"Id\" INT IDENTITY(1,1) NOT NULL", script, StringComparison.Ordinal);
-        Assert.Contains("\"Discriminator\" VARCHAR(8) NOT NULL", script, StringComparison.Ordinal);
+        Assert.Contains("\"Discriminator\" NVARCHAR(8) NOT NULL", script, StringComparison.Ordinal);
         Assert.Equal(1, Counted(context, "CREATE TABLE"));
         Assert.Contains("WHERE \"a\".\"Discriminator\" = 'Cat'", context.Animals.OfType<Cat>().ToQueryString(), StringComparison.Ordinal);
     }

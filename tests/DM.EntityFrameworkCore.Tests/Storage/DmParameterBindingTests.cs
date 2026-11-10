@@ -27,7 +27,7 @@ public class DmParameterBindingTests
                 """
                 CREATE TABLE "Samples" (
                     "Id" INT IDENTITY(1,1) NOT NULL,
-                    "Letter" VARCHAR(1) NOT NULL,
+                    "Letter" NVARCHAR(1) NOT NULL,
                     "Grade" INT NOT NULL,
                     "NullableGrade" INT NULL,
                     "When" DATETIME WITH TIME ZONE NOT NULL,
@@ -68,7 +68,7 @@ public class DmParameterBindingTests
         var expected = new (string Name, object Value, DbType DbType)[]
         {
             (":p0", (object)1, DbType.Int32),
-            (":p1", "x", DbType.AnsiString),
+            (":p1", "x", DbType.String),
             (":p2", (object)0, DbType.Int32),
             (":p3", TimeSpan.FromMinutes(90), DbType.Time),
             (":p4", When, DbType.DateTimeOffset)

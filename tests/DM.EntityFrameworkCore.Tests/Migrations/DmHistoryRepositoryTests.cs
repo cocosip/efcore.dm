@@ -15,8 +15,8 @@ public class DmHistoryRepositoryTests
 
     private const string CreateSql = """
         CREATE TABLE "__EFMigrationsHistory" (
-        "MigrationId" VARCHAR(150) NOT NULL,
-        "ProductVersion" VARCHAR(32) NOT NULL,
+        "MigrationId" NVARCHAR(150) NOT NULL,
+        "ProductVersion" NVARCHAR(32) NOT NULL,
         CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
         );
         """;
@@ -92,8 +92,8 @@ public class DmHistoryRepositoryTests
             BEGIN
             IF (SELECT COUNT(*) FROM SYS.SYSOBJECTS WHERE NAME = '__EFMigrationsHistory' AND SCHID = (SELECT ID FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' AND NAME = (SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')))) = 0 THEN
             EXECUTE IMMEDIATE 'CREATE TABLE "__EFMigrationsHistory" (
-            "MigrationId" VARCHAR(150) NOT NULL,
-            "ProductVersion" VARCHAR(32) NOT NULL,
+            "MigrationId" NVARCHAR(150) NOT NULL,
+            "ProductVersion" NVARCHAR(32) NOT NULL,
             CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
             )';
             END IF;

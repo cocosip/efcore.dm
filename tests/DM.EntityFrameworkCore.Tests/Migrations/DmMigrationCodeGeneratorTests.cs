@@ -57,7 +57,7 @@ public class DmMigrationCodeGeneratorTests
         var file = MigrationFile(new CodeContext());
 
         Assert.Contains("name: \"PROBES\"", file, StringComparison.Ordinal);
-        Assert.Contains("type: \"VARCHAR(20)\", maxLength: 20, nullable: false", file, StringComparison.Ordinal);
+        Assert.Contains("type: \"NVARCHAR(20)\", maxLength: 20, nullable: false", file, StringComparison.Ordinal);
         Assert.Contains("unique: true", file, StringComparison.Ordinal);
     }
 

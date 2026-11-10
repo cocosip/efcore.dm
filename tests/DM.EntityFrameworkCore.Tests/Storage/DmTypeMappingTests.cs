@@ -9,14 +9,16 @@ namespace DM.EntityFrameworkCore.Tests.Storage;
 public class DmTypeMappingTests
 {
     [Theory]
-    [InlineData(nameof(Facets.DefaultString), "CLOB")]
+    [InlineData(nameof(Facets.DefaultString), "NCLOB")]
+    [InlineData(nameof(Facets.AnsiDefaultString), "CLOB")]
     [InlineData(nameof(Facets.UnicodeDefaultString), "NCLOB")]
-    [InlineData(nameof(Facets.LongString), "CLOB")]
+    [InlineData(nameof(Facets.LongString), "NCLOB")]
     [InlineData(nameof(Facets.UnicodeLongString), "NCLOB")]
-    [InlineData(nameof(Facets.LongestBoundedString), "VARCHAR(8188)")]
-    [InlineData(nameof(Facets.SizedString), "VARCHAR(50)")]
+    [InlineData(nameof(Facets.LongestBoundedString), "NVARCHAR(8188)")]
+    [InlineData(nameof(Facets.SizedString), "NVARCHAR(50)")]
+    [InlineData(nameof(Facets.AnsiSizedString), "VARCHAR(50)")]
     [InlineData(nameof(Facets.UnicodeString), "NVARCHAR(50)")]
-    [InlineData(nameof(Facets.FixedString), "CHAR(50)")]
+    [InlineData(nameof(Facets.FixedString), "NCHAR(50)")]
     [InlineData(nameof(Facets.UnicodeFixedString), "NCHAR(50)")]
     [InlineData(nameof(Facets.SizedBinary), "VARBINARY(64)")]
     [InlineData(nameof(Facets.UnsizedBinary), "BLOB")]
@@ -46,10 +48,11 @@ public class DmTypeMappingTests
     /// table with a string key could not be created at all.
     /// </summary>
     [Theory]
-    [InlineData("TextKey", "VARCHAR(900)")]
+    [InlineData("TextKey", "NVARCHAR(450)")]
+    [InlineData("AnsiKey", "VARCHAR(900)")]
     [InlineData("UnicodeIndexedKey", "NVARCHAR(450)")]
-    [InlineData("IndexedKey", "VARCHAR(900)")]
-    [InlineData("FixedKey", "CHAR(1)")]
+    [InlineData("IndexedKey", "NVARCHAR(450)")]
+    [InlineData("FixedKey", "NCHAR(1)")]
     public void AStringUsedAsAKeyOrIndex_NamesABoundedLength(string property, string expected)
     {
         using var context = new KeyedContext();
@@ -88,6 +91,8 @@ public class DmTypeMappingTests
             => modelBuilder.Entity<Keyed>(entity =>
             {
                 entity.HasKey(entry => entry.TextKey);
+                entity.Property(entry => entry.AnsiKey).IsUnicode(false);
+                entity.HasIndex(entry => entry.AnsiKey);
                 entity.Property(entry => entry.UnicodeIndexedKey).IsUnicode();
                 entity.HasIndex(entry => entry.UnicodeIndexedKey);
                 entity.Property(entry => entry.IndexedKey);
@@ -99,6 +104,8 @@ public class DmTypeMappingTests
     private sealed class Keyed
     {
         public string TextKey { get; set; } = string.Empty;
+
+        public string AnsiKey { get; set; } = string.Empty;
 
         public string UnicodeIndexedKey { get; set; } = string.Empty;
 
@@ -118,6 +125,8 @@ public class DmTypeMappingTests
             => modelBuilder.Entity<Facets>(entity =>
             {
                 entity.Property(e => e.SizedString).HasMaxLength(50);
+                entity.Property(e => e.AnsiSizedString).HasMaxLength(50).IsUnicode(false);
+                entity.Property(e => e.AnsiDefaultString).IsUnicode(false);
                 entity.Property(e => e.UnicodeDefaultString).IsUnicode();
                 entity.Property(e => e.LongString).HasMaxLength(40000);
                 entity.Property(e => e.UnicodeLongString).HasMaxLength(40000).IsUnicode();
@@ -139,6 +148,10 @@ public class DmTypeMappingTests
         public string DefaultString { get; set; } = string.Empty;
 
         public string SizedString { get; set; } = string.Empty;
+
+        public string AnsiSizedString { get; set; } = string.Empty;
+
+        public string AnsiDefaultString { get; set; } = string.Empty;
 
         public string UnicodeDefaultString { get; set; } = string.Empty;
 

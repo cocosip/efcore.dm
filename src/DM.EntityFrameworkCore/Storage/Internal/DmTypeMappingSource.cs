@@ -104,7 +104,12 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
                 mappingInfo.Size,
                 mappingInfo.Precision,
                 mappingInfo.Scale,
-                mappingInfo.IsUnicode ?? false,
+                // A .NET string is UTF-16, so the type a string property gets by default is the one that
+                // stores any character: Dameng's ansi `VARCHAR` is written in the database character set,
+                // and a gb18030 database has no encoding for characters outside it. `IsUnicode(false)`
+                // chooses the ansi type, which is what the reference provider does and what its own
+                // migrations show for a column it declared `unicode: false`.
+                mappingInfo.IsUnicode ?? true,
                 mappingInfo.IsFixedLength ?? false,
                 mappingInfo.IsKeyOrIndex);
         }
@@ -136,7 +141,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             size,
             precision,
             scale,
-            unicode ?? false,
+            unicode ?? true,
             mappingInfo.IsFixedLength ?? false,
             mappingInfo.IsKeyOrIndex);
     }

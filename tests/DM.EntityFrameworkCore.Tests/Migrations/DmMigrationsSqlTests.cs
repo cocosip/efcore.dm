@@ -22,7 +22,7 @@ public class DmMigrationsSqlTests
             """
             CREATE TABLE "Probes" (
                 "Id" INT NOT NULL,
-                "Name" VARCHAR(50) NOT NULL,
+                "Name" NVARCHAR(50) NOT NULL,
                 "Amount" DECIMAL(18,2) NOT NULL,
                 CONSTRAINT "PK_Probes" PRIMARY KEY ("Id")
             );
