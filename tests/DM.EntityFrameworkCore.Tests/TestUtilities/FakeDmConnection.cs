@@ -30,6 +30,18 @@ internal sealed class FakeDmConnection : DbConnection
     public object ScalarResult { get; set; }
 
     /// <summary>
+    /// The columns and the row a statement that reads a generated value back returns. An empty
+    /// column list makes the command answer with an affected row count instead.
+    /// </summary>
+    public IReadOnlyList<string> ReadBackColumns { get; set; } = [];
+
+    /// <summary>
+    /// The row <see cref="ReadBackColumns" /> describes. A null row makes the read return nothing,
+    /// which is how a statement that affected no row is reported.
+    /// </summary>
+    public object[] ReadBackRow { get; set; }
+
+    /// <summary>
     /// Every transaction this connection opened, so that a test can see whether a unit of work was
     /// wrapped in one and how it ended.
     /// </summary>
@@ -84,11 +96,9 @@ internal sealed class FakeDmTransaction : DbTransaction
 
     public bool Disposed { get; private set; }
 
-
     public override void Commit() => Committed = true;
 
     public override void Rollback() => RolledBack = true;
-
 
     protected override void Dispose(bool disposing)
     {
@@ -151,9 +161,15 @@ internal sealed class FakeDmCommand : DbCommand
     {
         _connection.Commands.Add(CommandText);
 
-        // One result set per terminated statement, which is the shape EF Core consumes after a
-        // modification batch.
-        return new FakeDmDataReader(_connection.RowsAffected, CommandText.Count(c => c == ';'));
+        // A statement that reads a generated value back produces the row it read. Anything else
+        // produces the affected row count the concurrency check reads.
+        return _connection.ReadBackColumns.Count > 0
+            ? new FakeDmDataReader(
+                [new FakeResultSet(_connection.ReadBackColumns, _connection.ReadBackRow)],
+                _connection.RowsAffected)
+            : new FakeDmDataReader(
+                [new FakeResultSet(["AFFECTED"], [_connection.RowsAffected])],
+                _connection.RowsAffected);
     }
 }
 

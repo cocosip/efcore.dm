@@ -138,9 +138,9 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| `INSERT`, `UPDATE`, `DELETE` | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | Generated without a `RETURNING` clause, which Dameng only accepts as `RETURNING ... INTO` |
+| `INSERT`, `UPDATE`, `DELETE` | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | No `RETURNING` clause, because Dameng accepts it only as `RETURNING ... INTO`, which binds to a variable and not to a result set. An insert that has to read a generated value adds a second statement |
 | Multiple statements per batch | `Deferred` | `DmUpdateSqlTests` | P3 | Yes | One statement per round trip; the affected row count comes from the driver return value and could not be attributed to individual commands in a shared batch |
-| Store-generated value readback | `Not started` | `DmUpdateSqlTests` | P3 | Yes | Needs `RETURNING ... INTO` with output parameters; such an operation is rejected instead of leaving the property stale |
+| Store-generated value readback | `Implemented` | `DmGeneratedValueTests` | P3 | Yes | After an insert, a second statement selects the generated columns, matched by `sql%ROWCOUNT = 1` and `scope_identity()`. Update and delete still reject a read, and the statement shape has not been run against a server |
 | Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException` |
 | Modification command factory | `Not started` | — | P3 | No | EF Core 9+ contract |
 | `SaveChanges` transaction wrapping | `Implemented` | `DmConnectionTests` | P3 | Yes | A unit of work that builds more than one command is wrapped and committed; a single command runs without a transaction |
@@ -174,7 +174,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Identity columns | `Partial` | `DmValueGenerationStrategyTests` | P5 | Yes | The model marks an integer key and the DDL emits `IDENTITY(1,1)`, but an insert does not read the generated value back, so inserting is rejected until readback exists |
+| Identity columns | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | The model marks an integer key, the DDL emits `IDENTITY(1,1)`, and an insert reads the generated key back |
 | Sequences | `Not started` | — | P5 | Yes | |
 | HiLo over a sequence | `Not started` | — | P5 | Yes | |
 | Value generator selector and cache | `Not started` | — | P5 | Yes | |
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 45 |
+| `Implemented` | 47 |
 | `In progress` | 0 |
-| `Partial` | 8 |
+| `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 41 |
+| `Not started` | 40 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

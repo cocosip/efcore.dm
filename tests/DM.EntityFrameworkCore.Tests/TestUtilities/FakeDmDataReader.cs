@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Data;
 using System.Data.Common;
 
 // See FakeDmConnection: the ADO.NET annotations cannot be satisfied by a test double.
@@ -8,32 +7,48 @@ using System.Data.Common;
 namespace DM.EntityFrameworkCore.Tests.TestUtilities;
 
 /// <summary>
-/// Serves the result shape EF Core reads after a modification batch: one result set per statement
-/// in the batch, each holding a single affected row count. Store-generated values are not served.
+/// One result set the fake serves: the column names and at most one row, because every statement
+/// the provider reads from here returns a single row. A null row makes the result set empty.
+/// </summary>
+internal sealed class FakeResultSet
+{
+    public FakeResultSet(IReadOnlyList<string> columns, object[] row)
+    {
+        Columns = columns;
+        Row = row;
+    }
+
+    public IReadOnlyList<string> Columns { get; }
+
+    public object[] Row { get; }
+}
+
+/// <summary>
+/// Serves the result shape EF Core reads after a modification batch.
 /// </summary>
 internal sealed class FakeDmDataReader : DbDataReader
 {
-    private const string AffectedColumn = "AFFECTED";
-
-    private readonly int _rowsAffected;
-    private readonly int _resultSets;
+    private readonly IReadOnlyList<FakeResultSet> _resultSets;
+    private readonly int _recordsAffected;
     private bool _closed;
     private int _resultSet;
     private bool _read;
 
-    public FakeDmDataReader(int rowsAffected, int resultSets)
+    public FakeDmDataReader(IReadOnlyList<FakeResultSet> resultSets, int recordsAffected = 0)
     {
-        _rowsAffected = rowsAffected;
-        _resultSets = Math.Max(1, resultSets);
+        _resultSets = resultSets.Count == 0 ? [new FakeResultSet(["AFFECTED"], [recordsAffected])] : resultSets;
+        _recordsAffected = recordsAffected;
     }
 
-    public override int RecordsAffected => _rowsAffected;
+    private FakeResultSet Current => _resultSets[_resultSet];
 
-    public override int FieldCount => 1;
+    public override int RecordsAffected => _recordsAffected;
+
+    public override int FieldCount => Current.Columns.Count;
 
     public override int Depth => 0;
 
-    public override bool HasRows => true;
+    public override bool HasRows => Current.Row is not null;
 
     public override bool IsClosed => _closed;
 
@@ -43,7 +58,7 @@ internal sealed class FakeDmDataReader : DbDataReader
 
     public override bool Read()
     {
-        if (_read)
+        if (_read || Current.Row is null)
         {
             return false;
         }
@@ -55,7 +70,7 @@ internal sealed class FakeDmDataReader : DbDataReader
 
     public override bool NextResult()
     {
-        if (_resultSet + 1 >= _resultSets)
+        if (_resultSet + 1 >= _resultSets.Count)
         {
             return false;
         }
@@ -68,66 +83,72 @@ internal sealed class FakeDmDataReader : DbDataReader
 
     public override void Close() => _closed = true;
 
-    public override IEnumerator GetEnumerator() => new object[] { _rowsAffected }.GetEnumerator();
+    public override IEnumerator GetEnumerator() => (Current.Row ?? []).GetEnumerator();
 
-    public override string GetName(int ordinal)
-        => ordinal == 0 ? AffectedColumn : throw Column(ordinal);
+    public override string GetName(int ordinal) => Current.Columns[ordinal];
 
     public override int GetOrdinal(string name)
-        => string.Equals(name, AffectedColumn, StringComparison.OrdinalIgnoreCase) ? 0 : throw Column(0);
+    {
+        for (var i = 0; i < Current.Columns.Count; i++)
+        {
+            if (string.Equals(Current.Columns[i], name, StringComparison.OrdinalIgnoreCase))
+            {
+                return i;
+            }
+        }
+
+        throw new IndexOutOfRangeException($"The fake result set has no column named '{name}'.");
+    }
 
     public override Type GetFieldType(int ordinal)
-        => ordinal == 0 ? typeof(int) : throw Column(ordinal);
+        => Current.Row?[ordinal]?.GetType() ?? typeof(object);
 
     public override string GetDataTypeName(int ordinal) => GetFieldType(ordinal).Name;
 
-    public override object GetValue(int ordinal)
-        => ordinal == 0 ? _rowsAffected : throw Column(ordinal);
+    public override object GetValue(int ordinal) => Current.Row![ordinal];
 
-    public override int GetInt32(int ordinal) => ordinal == 0 ? _rowsAffected : throw Column(ordinal);
+    public override int GetInt32(int ordinal) => (int)GetValue(ordinal);
 
-    public override bool IsDBNull(int ordinal) => GetFieldType(ordinal) is not null && false;
+    public override long GetInt64(int ordinal) => (long)GetValue(ordinal);
+
+    public override short GetInt16(int ordinal) => (short)GetValue(ordinal);
+
+    public override byte GetByte(int ordinal) => (byte)GetValue(ordinal);
+
+    public override bool GetBoolean(int ordinal) => (bool)GetValue(ordinal);
+
+    public override decimal GetDecimal(int ordinal) => (decimal)GetValue(ordinal);
+
+    public override double GetDouble(int ordinal) => (double)GetValue(ordinal);
+
+    public override float GetFloat(int ordinal) => (float)GetValue(ordinal);
+
+    public override Guid GetGuid(int ordinal) => (Guid)GetValue(ordinal);
+
+    public override DateTime GetDateTime(int ordinal) => (DateTime)GetValue(ordinal);
+
+    public override string GetString(int ordinal) => (string)GetValue(ordinal);
+
+    public override char GetChar(int ordinal) => (char)GetValue(ordinal);
+
+    public override bool IsDBNull(int ordinal) => GetValue(ordinal) is DBNull;
 
     public override int GetValues(object[] values)
     {
-        if (values.Length == 0)
+        if (Current.Row is null)
         {
             return 0;
         }
 
-        values[0] = _rowsAffected;
+        var count = Math.Min(values.Length, Current.Row.Length);
+        Array.Copy(Current.Row, values, count);
 
-        return 1;
+        return count;
     }
 
-    public override bool GetBoolean(int ordinal) => throw Column(ordinal);
-
-    public override byte GetByte(int ordinal) => throw Column(ordinal);
-
     public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length)
-        => throw Column(ordinal);
-
-    public override char GetChar(int ordinal) => throw Column(ordinal);
+        => throw new NotSupportedException("The fake reader serves no binary columns.");
 
     public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length)
-        => throw Column(ordinal);
-
-    public override DateTime GetDateTime(int ordinal) => throw Column(ordinal);
-
-    public override decimal GetDecimal(int ordinal) => throw Column(ordinal);
-
-    public override double GetDouble(int ordinal) => throw Column(ordinal);
-
-    public override float GetFloat(int ordinal) => throw Column(ordinal);
-
-    public override Guid GetGuid(int ordinal) => throw Column(ordinal);
-
-    public override short GetInt16(int ordinal) => throw Column(ordinal);
-
-    public override long GetInt64(int ordinal) => throw Column(ordinal);
-
-    public override string GetString(int ordinal) => throw Column(ordinal);
-
-    private static IndexOutOfRangeException Column(int ordinal)
-        => new($"The fake reader serves one affected row count column, so column {ordinal} cannot be read.");
+        => throw new NotSupportedException("The fake reader serves no character columns.");
 }

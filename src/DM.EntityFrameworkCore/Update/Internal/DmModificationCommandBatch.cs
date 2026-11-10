@@ -9,11 +9,15 @@ namespace DM.EntityFrameworkCore.Update.Internal;
 /// Executes one modification statement per round trip.
 /// </summary>
 /// <remarks>
-/// The relational base batch reads the affected row count from a result set produced by a
-/// <c>RETURNING</c> clause. Dameng cannot produce that result set for a plain statement, so the
-/// batch uses the driver's non-query return value instead, which is why the batch size is one:
-/// with more than one statement in a round trip the return value no longer maps to a single
-/// entity, and the concurrency check could not attribute it.
+/// A statement that returns no result set is executed as a non-query, and the driver's return
+/// value is the row count the concurrency check uses. A statement that has to read a
+/// store-generated value back runs as two statements and produces one result set, so it takes the
+/// relational reader path, which consumes that result set and fills the properties.
+/// <para>
+/// The batch size is one for the same reason: with more than one statement in a round trip the
+/// non-query return value no longer maps to a single entity, and the concurrency check could not
+/// attribute it.
+/// </para>
 /// </remarks>
 internal sealed class DmModificationCommandBatch : AffectedCountModificationCommandBatch
 {
@@ -22,13 +26,35 @@ internal sealed class DmModificationCommandBatch : AffectedCountModificationComm
     {
     }
 
+    private bool RequiresResultSet
+        => ModificationCommands.Any(
+            command => command.ColumnModifications.Any(modification => modification.IsRead));
+
     public override void Execute(IRelationalConnection connection)
-        => CheckRowsAffected(ExecuteCommand(connection));
+    {
+        if (RequiresResultSet)
+        {
+            base.Execute(connection);
+
+            return;
+        }
+
+        CheckRowsAffected(ExecuteCommand(connection));
+    }
 
     public override async Task ExecuteAsync(
         IRelationalConnection connection,
         CancellationToken cancellationToken = default)
-        => CheckRowsAffected(await ExecuteCommandAsync(connection, cancellationToken).ConfigureAwait(false));
+    {
+        if (RequiresResultSet)
+        {
+            await base.ExecuteAsync(connection, cancellationToken).ConfigureAwait(false);
+
+            return;
+        }
+
+        CheckRowsAffected(await ExecuteCommandAsync(connection, cancellationToken).ConfigureAwait(false));
+    }
 
     private int ExecuteCommand(IRelationalConnection connection)
     {

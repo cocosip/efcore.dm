@@ -88,19 +88,6 @@ public class DmUpdateSqlTests
         Assert.Single(exception.Entries);
     }
 
-    [Fact]
-    public void Insert_WithStoreGeneratedValue_IsRejected()
-    {
-        var connection = new FakeDmConnection();
-        using var context = new GeneratedKeyContext(connection);
-
-        context.Probes.Add(new GeneratedKeyProbe { Name = "a" });
-
-        var exception = Assert.Throws<NotSupportedException>(() => context.SaveChanges());
-
-        Assert.Contains("RETURNING ... INTO", exception.Message, StringComparison.Ordinal);
-    }
-
     private static string Statement(string sql)
         => sql.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
 
@@ -123,26 +110,7 @@ public class DmUpdateSqlTests
             });
     }
 
-    private sealed class GeneratedKeyContext : DbContext
-    {
-        private readonly FakeDmConnection _connection;
-
-        public GeneratedKeyContext(FakeDmConnection connection) => _connection = connection;
-
-        public DbSet<GeneratedKeyProbe> Probes => Set<GeneratedKeyProbe>();
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder.UseDm(_connection);
-    }
-
     private sealed class Probe
-    {
-        public int Id { get; set; }
-
-        public string Name { get; set; } = string.Empty;
-    }
-
-    private sealed class GeneratedKeyProbe
     {
         public int Id { get; set; }
 
