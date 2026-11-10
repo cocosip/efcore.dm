@@ -133,7 +133,7 @@ Only the source-compatibility surface is declared under the namespaces the offic
 
 | Namespace | Types |
 |---|---|
-| `Microsoft.EntityFrameworkCore` | `UseDm`, `DmPropertyExtensions`, `DmModelBuilderExtensions`, `DmEntityTypeExtensions`, `DmModelExtensions` |
+| `Microsoft.EntityFrameworkCore` | `UseDm`, `DmPropertyExtensions`, `DmPropertyBuilderExtensions`, `DmModelBuilderExtensions`, `DmModelExtensions` |
 | `Microsoft.EntityFrameworkCore.Infrastructure` | `DmDbContextOptionsBuilder` |
 | `Microsoft.EntityFrameworkCore.Metadata` | `DmValueGenerationStrategy` |
 

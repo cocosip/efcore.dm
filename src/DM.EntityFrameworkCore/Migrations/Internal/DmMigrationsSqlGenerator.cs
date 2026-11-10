@@ -58,9 +58,14 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
                 .Append(operation.Collation);
         }
 
-        if (IsIdentityColumn(schema, table, name, model))
+        if (FindIdentityProperty(schema, table, name, model) is { } identity)
         {
-            builder.Append(" IDENTITY(1,1)");
+            builder
+                .Append(" IDENTITY(")
+                .Append(identity.GetDmIdentitySeed().ToString(CultureInfo.InvariantCulture))
+                .Append(",")
+                .Append(identity.GetDmIdentityIncrement().ToString(CultureInfo.InvariantCulture))
+                .Append(")");
         }
 
         builder.Append(operation.IsNullable ? " NULL" : " NOT NULL");
@@ -72,12 +77,16 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     /// Reads the strategy from the model rather than from the operation, because the operation
     /// carries no provider annotation: the differ copies the model, not the conventions.
     /// </summary>
-    private static bool IsIdentityColumn(string? schema, string table, string name, IModel? model)
-        => model?.GetRelationalModel()
+    private static IProperty? FindIdentityProperty(string? schema, string table, string name, IModel? model)
+    {
+        var property = model?.GetRelationalModel()
             .FindTable(table, schema)
             ?.FindColumn(name)
             ?.PropertyMappings.FirstOrDefault()
-            ?.Property.GetDmValueGenerationStrategy() is DmValueGenerationStrategy.IdentityColumn;
+            ?.Property;
+
+        return property?.GetDmValueGenerationStrategy() is DmValueGenerationStrategy.IdentityColumn ? property : null;
+    }
 
     /// <summary>
     /// Dameng alters a column with <c>MODIFY</c>. The base class does not implement this

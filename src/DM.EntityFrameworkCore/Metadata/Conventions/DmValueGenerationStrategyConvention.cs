@@ -6,11 +6,12 @@ using Microsoft.EntityFrameworkCore.Metadata.Conventions;
 namespace DM.EntityFrameworkCore.Metadata.Conventions;
 
 /// <summary>
-/// Chooses the value generation strategy for keys the store has to fill.
+/// Chooses the value generation strategy for a property the store has to fill.
 /// </summary>
 /// <remarks>
-/// An integer key that the model asks the store to generate becomes an identity column, which is
-/// what Dameng does by default and what a model written for the Dameng provider already relies on.
+/// A strategy the model or the property names is used as given. Otherwise an integer key the model
+/// asks the store to generate becomes an identity column, which is what Dameng does by default and
+/// what a model written for the Dameng provider already relies on.
 /// <para>
 /// A strategy the provider cannot honour fails the model rather than being ignored: a silently
 /// dropped strategy produces an insert that never reads the generated key back.
@@ -32,9 +33,22 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
         IConventionModelBuilder modelBuilder,
         IConventionContext<IConventionModelBuilder> context)
     {
+        var modelDefault = modelBuilder.Metadata.GetDmValueGenerationStrategy();
+
         foreach (var property in modelBuilder.Metadata.GetEntityTypes().SelectMany(e => e.GetDeclaredProperties()))
         {
-            var strategy = property.GetDmValueGenerationStrategy();
+            var declared = property.GetDmValueGenerationStrategy();
+            var strategy = declared ?? StrategyFor(property, modelDefault);
+
+            if (strategy is null)
+            {
+                continue;
+            }
+
+            if (declared is null)
+            {
+                property.SetDmValueGenerationStrategy(strategy);
+            }
 
             if (strategy is DmValueGenerationStrategy.Sequence)
             {
@@ -46,17 +60,40 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
                     + $"{nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.None)}.");
             }
 
-            if (strategy is null && IsIdentityCandidate(property))
-            {
-                property.SetDmValueGenerationStrategy(DmValueGenerationStrategy.IdentityColumn);
-            }
-
             if (strategy is DmValueGenerationStrategy.SequenceHiLo)
             {
                 EnsureHiLoSequence(modelBuilder, property);
             }
         }
     }
+
+    /// <summary>
+    /// The strategy for a property that names none: the model's default when the store generates the
+    /// value, and an identity column for an integer key when the model has no default.
+    /// </summary>
+    private static DmValueGenerationStrategy? StrategyFor(IConventionProperty property, DmValueGenerationStrategy? modelDefault)
+    {
+        if (!IsGenerated(property))
+        {
+            return null;
+        }
+
+        if (modelDefault is not null)
+        {
+            return modelDefault;
+        }
+
+        return property.IsKey() ? DmValueGenerationStrategy.IdentityColumn : null;
+    }
+
+    /// <summary>
+    /// A column can only carry a strategy if the store is the one producing the value, the type is
+    /// one Dameng accepts, and nothing else already supplies a default.
+    /// </summary>
+    private static bool IsGenerated(IConventionProperty property)
+        => property.ValueGenerated == ValueGenerated.OnAdd
+            && IdentityTypes.Contains(Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType)
+            && property.GetDefaultValueSql() is null;
 
     /// <summary>
     /// A hi-lo property needs the sequence it takes blocks from to be part of the model, so that a
@@ -74,14 +111,4 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
             modelBuilder.HasSequence(name, schema)?.IncrementsBy(DefaultHiLoBlockSize);
         }
     }
-
-    /// <summary>
-    /// A column can only be an identity column if the store is the one producing the value, the
-    /// type is one Dameng accepts, and nothing else already supplies a default.
-    /// </summary>
-    private static bool IsIdentityCandidate(IConventionProperty property)
-        => property.ValueGenerated == ValueGenerated.OnAdd
-            && property.IsKey()
-            && IdentityTypes.Contains(Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType)
-            && property.GetDefaultValueSql() is null;
 }

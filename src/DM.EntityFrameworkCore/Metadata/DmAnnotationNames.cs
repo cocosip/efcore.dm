@@ -13,4 +13,10 @@ internal static class DmAnnotationNames
 
     /// <summary>The schema of the sequence a hi-lo property takes its blocks from.</summary>
     public const string HiLoSequenceSchema = Prefix + "HiLoSequenceSchema";
+
+    /// <summary>The first value an identity column produces.</summary>
+    public const string IdentitySeed = Prefix + "IdentitySeed";
+
+    /// <summary>The step between the values an identity column produces.</summary>
+    public const string IdentityIncrement = Prefix + "IdentityIncrement";
 }

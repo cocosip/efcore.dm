@@ -174,7 +174,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Identity columns | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | The model marks an integer key, the DDL emits `IDENTITY(1,1)`, and an insert reads the generated key back |
+| Identity columns | `Implemented` | `DmValueGenerationStrategyTests`, `DmFluentApiTests` | P5 | Yes | The model marks an integer key, the DDL emits `IDENTITY(seed,increment)` from the model or property setting, and an insert reads the generated key back |
 | Sequences | `Partial` | `DmHiLoValueGenerationTests` | P5 | Yes | A sequence can be declared in the model, created by a migration and read with `seq.NEXTVAL FROM DUAL`. The plain `Sequence` strategy is still rejected, so a property cannot take one value per insert from a sequence |
 | HiLo over a sequence | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | A block is reserved per round trip, sized by the sequence increment, and shared by every context. The default sequence is added by the model convention |
 | Value generator selector and cache | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | Chooses the hi-lo generator for the strategy and keeps the block state in the singleton cache |
@@ -187,9 +187,9 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | Provider convention set builder | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Required for the relational model to be built |
 | Value generation strategy convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | Chooses `IdentityColumn`, respects an explicit value, and fails the model for a strategy the provider cannot honour |
-| Fluent API: property extensions | `Partial` | `DmValueGenerationStrategyTests` | P5 | Yes | Annotation access is provided as `DmPropertyExtensions`; there is no `PropertyBuilder` convenience method yet |
-| Fluent API: model builder extensions | `Not started` | — | P5 | Yes | Compatibility surface |
-| Fluent API: model and entity type extensions | `Not started` | — | P5 | Yes | Compatibility surface |
+| Fluent API: property extensions | `Implemented` | `DmFluentApiTests` | P5 | Yes | `UseHiLo` and `UseIdentityColumn`, each with a typed overload, plus the annotation accessors behind them. The `IConventionPropertyBuilder` helpers are not provided |
+| Fluent API: model builder extensions | `Implemented` | `DmFluentApiTests` | P5 | Yes | `UseHiLo` and `UseIdentityColumns`, which set the strategy every generated property inherits. The size, service tier and performance level settings of the reference are not provided |
+| Fluent API: model and entity type extensions | `Partial` | `DmFluentApiTests` | P5 | Yes | `DmModelExtensions` exposes the hi-lo sequence, identity seed and increment settings. The temporal and period extensions of the reference are not provided |
 | `DmValueGenerationStrategy` annotation | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | `DmValueGenerationStrategy` keeps the Dameng member order, so an existing model keeps its annotations |
 | Database facade extensions | `Not started` | — | P1 | Yes | Compatibility surface |
 | `DbFunctions` extensions | `Not started` | — | P2 | Yes | Compatibility surface |
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 49 |
+| `Implemented` | 51 |
 | `In progress` | 0 |
 | `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 37 |
+| `Not started` | 35 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

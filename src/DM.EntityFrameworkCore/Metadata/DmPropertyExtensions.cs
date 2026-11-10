@@ -67,4 +67,32 @@ public static class DmPropertyExtensions
     /// </summary>
     public static void SetDmHiLoSequenceSchema(this IMutableProperty property, string? schema)
         => property.SetOrRemoveAnnotation(DmAnnotationNames.HiLoSequenceSchema, schema);
+
+    /// <summary>
+    /// Returns the first value this property's identity column produces, falling back to the
+    /// model's default.
+    /// </summary>
+    public static int GetDmIdentitySeed(this IReadOnlyProperty property)
+        => (int?)property.FindAnnotation(DmAnnotationNames.IdentitySeed)?.Value
+            ?? property.DeclaringType.Model.GetIdentitySeed();
+
+    /// <summary>
+    /// Sets the first value this property's identity column produces.
+    /// </summary>
+    public static void SetDmIdentitySeed(this IMutableProperty property, int? seed)
+        => property.SetOrRemoveAnnotation(DmAnnotationNames.IdentitySeed, seed);
+
+    /// <summary>
+    /// Returns the step between the values this property's identity column produces, falling back
+    /// to the model's default.
+    /// </summary>
+    public static int GetDmIdentityIncrement(this IReadOnlyProperty property)
+        => (int?)property.FindAnnotation(DmAnnotationNames.IdentityIncrement)?.Value
+            ?? property.DeclaringType.Model.GetIdentityIncrement();
+
+    /// <summary>
+    /// Sets the step between the values this property's identity column produces.
+    /// </summary>
+    public static void SetDmIdentityIncrement(this IMutableProperty property, int? increment)
+        => property.SetOrRemoveAnnotation(DmAnnotationNames.IdentityIncrement, increment);
 }
