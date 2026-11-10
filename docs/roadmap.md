@@ -75,7 +75,7 @@ Largest phase, roughly 35–40% of the total effort.
 | Item | Detail |
 |---|---|
 | Precondition | P6 complete and tagged |
-| Delivers | Branch created from the tag; target framework `net8.0`; EF Core dependency `[9.0.x,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md) |
+| Delivers | Branch created from the tag; target framework `net8.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md) |
 | Exit criteria | Specification tests pass for every executable case; live acceptance passes; `v9.0.x` published |
 
 ### P8 — EF Core 8 maintenance branch

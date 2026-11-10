@@ -10,9 +10,9 @@ Governing rule:
 
 | Branch | Role | EF Core | Target framework | Package line | EF Core dependency |
 |---|---|---|---|---|---|
-| `dev` | Primary development. New capabilities land only here. | 10 | `net10.0` | `10.0.x` | `[10.0.x,11.0.0)` |
-| `efcore9` | Maintenance: capability backport on demand, defect fixes | 9 | `net8.0` | `9.0.x` | `[9.0.x,10.0.0)` |
-| `efcore8` | Maintenance: baseline capabilities, defect fixes | 8 | `net8.0` | `8.0.x` | `[8.0.x,9.0.0)` |
+| `dev` | Primary development. New capabilities land only here. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
+| `efcore9` | Maintenance: capability backport on demand, defect fixes | 9 | `net8.0` | `9.0.x` | `[9.0.0,10.0.0)` |
+| `efcore8` | Maintenance: baseline capabilities, defect fixes | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
 | `hotfix/X.Y.Z` | Temporary, created from a release tag | as source tag | as source tag | as source tag | as source tag |
 
 `dev` always targets the newest EF Core major version this project supports. When a newer major version is adopted, `dev` moves to it and the previous major version receives a maintenance branch, created from the last release tag of that line.

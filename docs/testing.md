@@ -45,6 +45,8 @@ The specification test package pins its own dependency versions, which must be h
 
 Rule: the **specification test project** is exempt from central package management, because the EF Core test package pins `xunit.core` and `xunit.assert` at 2.9.3 and its own analysis and templating versions. The unit test project follows the central versions, since it inherits nothing from EF Core. Do not raise the specification test project's xunit versions independently of the EF Core version: they move together.
 
+`Microsoft.EntityFrameworkCore.Design` is build and test tooling and is never part of the package, so it is pinned to a current patch (`$(EfCoreDesignVersion)`) instead of the dependency range. Resolving the range floor for it also resolves transitive packages that NuGet audit reports as vulnerable, and pinning keeps `TreatWarningsAsErrors` meaningful for everything else. The provider itself still compiles against the floor of the range.
+
 ### Test framework follows the EF Core version
 
 The test framework version is bound to the EF Core version and is not unified across the repository. EF Core 11 moved its specification assemblies from xUnit v2 to xUnit v3. The EF Core 11 branch migrates its specification test project to `xunit.v3` packages, the `Microsoft.Testing.Platform` runner, and the v3 assertion API, and converts `[ConditionalFact]` to `[Fact]` and `[ConditionalTheory]` to `[Theory]`.

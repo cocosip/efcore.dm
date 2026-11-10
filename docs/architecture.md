@@ -114,7 +114,7 @@ Each EF Core major version implements these layers independently. There is no cr
 | Entry point | `optionsBuilder.UseDm(connectionString)` | Preserves source compatibility with existing consumer code |
 | Target framework | EF Core 8/9 branches: `net8.0`; EF Core 10: `net10.0`; EF Core 11: `net11.0` | Follows EF Core requirements |
 | Version | Aligned to the EF Core major version: `8.0.x`, `9.0.x`, `10.0.x` | See branching and release |
-| EF Core dependency | `[8.0.x,9.0.0)`, `[9.0.x,10.0.0)`, `[10.0.x,11.0.0)` | Upper bound is mandatory. See D5. |
+| EF Core dependency | `[8.0.0,9.0.0)`, `[9.0.0,10.0.0)`, `[10.0.0,11.0.0)` | Upper bound is mandatory (D5). The floor is the first release of the major version, so a consumer on any patch of that major can install the package, and the provider is compiled against that floor. |
 | Driver dependency | `DM.DmProvider` >= 8.3.1.47463 | Lower bound advances with verification |
 
 ### Naming rules
