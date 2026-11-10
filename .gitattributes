@@ -1,0 +1,5 @@
+# Line endings are part of what this repository tests. The SQL shape tests compare the exact text a
+# generator produces against a raw string literal, and a raw string literal carries the line endings of
+# the file it was written in. A checkout that converts them therefore fails tests that pass in review.
+# Keep every working tree on LF, on every platform.
+* text=auto eol=lf
