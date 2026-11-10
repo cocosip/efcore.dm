@@ -36,6 +36,7 @@ public static class DmServiceCollectionExtensions
             .TryAdd<IModificationCommandBatchFactory, DmModificationCommandBatchFactory>()
             .TryAdd<IRelationalDatabaseCreator, DmDatabaseCreator>()
             .TryAdd<IMigrationsSqlGenerator, DmMigrationsSqlGenerator>()
+            .TryAdd<IHistoryRepository, DmHistoryRepository>()
             .TryAdd<IQuerySqlGeneratorFactory, DmQuerySqlGeneratorFactory>()
             .TryAdd<IQueryableMethodTranslatingExpressionVisitorFactory, DmQueryableMethodTranslatingExpressionVisitorFactory>()
             .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, DmSqlTranslatingExpressionVisitorFactory>()

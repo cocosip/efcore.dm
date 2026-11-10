@@ -146,8 +146,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Migrations SQL generator (DDL) | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Table, index, constraint, sequence and data shapes; alter and rename operations are provider-specific and implemented here |
-| History repository | `Not started` | — | P4 | Yes | |
-| Migration lock | `Not started` | — | P4 | Yes | Lock table, per D7 |
+| History repository | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Catalog existence check against `SYS.SYSOBJECTS`, unverified against a server |
+| Migration lock | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Exclusive table lock released by the transaction; no lock row, so a failed run cannot strand one |
 | Schema operations | `Partial` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` is rejected: Dameng has no schema DDL separate from users |
 | User operations | `Not started` | — | P4 | Yes | |
 | Migrations annotation provider | `Not started` | — | P4 | Yes | |
@@ -217,12 +217,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 25 |
+| `Implemented` | 27 |
 | `In progress` | 2 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 57 |
+| `Not started` | 55 |
 | `Not applicable` | 1 |
 | **Total rows** | **97** |
 
