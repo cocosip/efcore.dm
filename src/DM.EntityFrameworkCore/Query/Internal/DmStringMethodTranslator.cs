@@ -117,6 +117,12 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
     private static readonly MethodInfo TrimEndCharactersMethod = typeof(string).GetRuntimeMethod(
         nameof(string.TrimEnd), [typeof(char[])])!;
 
+    private static readonly MethodInfo TrimCharactersMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.Trim), [typeof(char[])])!;
+
+    private static readonly MethodInfo IndexOfWithStartMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.IndexOf), [typeof(string), typeof(int)])!;
+
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     public DmStringMethodTranslator(ISqlExpressionFactory sqlExpressionFactory)
@@ -275,6 +281,32 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
                 [instance, _sqlExpressionFactory.Constant(new string(characters))]);
         }
 
+        // TRIM takes one character, so a set of them is taken off from both ends by the pair that
+        // takes a set.
+        if (method == TrimCharactersMethod)
+        {
+            if (arguments[0] is not SqlConstantExpression { Value: char[] set })
+            {
+                return null;
+            }
+
+            var trimmed = StringFunction(
+                "LTRIM",
+                instance,
+                [instance, _sqlExpressionFactory.Constant(new string(set))]);
+
+            return StringFunction("RTRIM", instance, [trimmed, _sqlExpressionFactory.Constant(new string(set))]);
+        }
+
+        // The position .NET takes is zero-based, and the answer is still measured from the start of
+        // the string, which is where INSTR starts counting when it is moved one place.
+        if (method == IndexOfWithStartMethod)
+        {
+            return _sqlExpressionFactory.Subtract(
+                IndexOf(instance, arguments[0], OneBasedStart(arguments[1])),
+                _sqlExpressionFactory.Constant(1));
+        }
+
         // Insert and Remove keep the part in front of the index and join the part behind it back on.
         if (method == RemoveMethod)
         {
@@ -345,12 +377,12 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             ? _sqlExpressionFactory.Constant(start + 1)
             : _sqlExpressionFactory.Add(startIndex, _sqlExpressionFactory.Constant(1));
 
-    private SqlExpression IndexOf(SqlExpression subject, SqlExpression value)
+    private SqlExpression IndexOf(SqlExpression subject, SqlExpression value, SqlExpression? position = null)
         => _sqlExpressionFactory.Function(
             "INSTR",
-            [subject, value],
+            position is null ? [subject, value] : [subject, value, position],
             nullable: true,
-            argumentsPropagateNullability: [true, true],
+            argumentsPropagateNullability: position is null ? [true, true] : [true, true, true],
             typeof(int),
             typeMapping: null);
 

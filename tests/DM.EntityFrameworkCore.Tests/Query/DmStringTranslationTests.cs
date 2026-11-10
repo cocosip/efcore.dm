@@ -456,6 +456,42 @@ public class DmStringTranslationTests
             """);
     }
 
+    /// <summary>
+    /// The position argument moves where the search starts, and the answer is still measured from the
+    /// start of the string.
+    /// </summary>
+    [Fact]
+    public void IndexOf_WithAStartPosition_UsesTheThreeArgumentInstr()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.IndexOf("a", 2) > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR("p"."Name", 'a', 3) - 1) > 0
+            """);
+    }
+
+    /// <summary>
+    /// <c>TRIM</c> takes one character, so a set of them is taken off from both ends by the pair that
+    /// takes a set.
+    /// </summary>
+    [Fact]
+    public void Trim_WithTheCharacterArray_TakesTheSetOffBothEnds()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Trim(new[] { 'a', 'b' }) == "c"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE RTRIM(LTRIM("p"."Name", 'ab'), 'ab') = 'c'
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 
