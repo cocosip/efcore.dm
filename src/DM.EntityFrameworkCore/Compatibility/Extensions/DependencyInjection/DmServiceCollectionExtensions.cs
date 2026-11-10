@@ -31,6 +31,7 @@ public static class DmServiceCollectionExtensions
 
         var builder = new EntityFrameworkRelationalServicesBuilder(serviceCollection)
             .TryAdd<LoggingDefinitions, DmLoggingDefinitions>()
+            .TryAdd<IInterceptor, DmCommandCancellationInterceptor>()
             .TryAdd<IDatabaseProvider, DatabaseProvider<DmOptionsExtension>>()
             .TryAdd<IRelationalTypeMappingSource, DmTypeMappingSource>()
             .TryAdd<ISqlGenerationHelper, DmSqlGenerationHelper>()

@@ -79,7 +79,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Non-retrying execution strategy | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | A unit of work runs once, because a retry would replay a statement whose failure may already have changed the database |
 | Retrying execution strategy | `Not started` | — | P1 | Yes | Needs Dameng error codes |
 | Transient error classification | `Blocked` | — | P1 | Yes | Error codes must be observed, not guessed |
-| Cancellation token honoured on every async path | `Partial` | `DmInheritedBehaviorTests` | P1 | Yes | A cancelled token stops an async query before it starts. A statement already running cannot be interrupted, because the driver exposes no asynchronous cancellation |
+| Cancellation token honoured on every async path | `Partial` | `DmInheritedBehaviorTests`, `DmCommandCancellationTests` | P1 | Yes | A token cancelled before the call stops the query from starting, and a token cancelled while an asynchronous statement runs reaches `DbCommand.Cancel` through the provider's interceptor, which the command double records. A synchronous statement takes no token. What the real driver does with `Cancel` is unverified |
 | Database exists check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Implemented by attempting a connection; exercised indirectly, the failure branch is unverified |
 | Has tables check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Catalog query over `SYS.SYSOBJECTS`, excluding system objects and recycle bin entries |
 | `EnsureCreated` | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Creates the model tables when the database exists and is empty |
@@ -192,7 +192,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Fluent API: model and entity type extensions | `Partial` | `DmFluentApiTests` | P5 | Yes | `DmModelExtensions` exposes the hi-lo sequence, identity seed and increment settings. The temporal and period extensions of the reference are not provided |
 | `DmValueGenerationStrategy` annotation | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | `DmValueGenerationStrategy` keeps the Dameng member order, so an existing model keeps its annotations |
 | Database facade extensions | `Implemented` | `DmDatabaseFacadeTests` | P1 | Yes | `IsDm` compares the provider name with this assembly, which is the same answer the migration builder extension gives |
-| `DbFunctions` extensions | `Not started` | — | P2 | Yes | Compatibility surface |
+| `DbFunctions` extensions | `Partial` | `DmDateDiffTranslationTests` | P2 | Yes | `DateDiffYear`, `DateDiffMonth`, `DateDiffDay`, `DateDiffHour`, `DateDiffMinute`, `DateDiffSecond` and `DateDiffMillisecond` over `DateTime` and `DateTimeOffset`, each in a nullable form, translate to `DATEDIFF(datepart, date1, date2)`, which the DM SQL manual documents; called outside a query they compute the difference in memory. Microsecond and nanosecond are not provided, because their datepart spelling in `DATEDIFF` is unverified, and the reference `FreeText`, `Contains` and `IsDate` are not provided. The generated SQL is unverified against a server |
 
 ### I. Diagnostics
 
@@ -200,7 +200,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | Provider logging definitions | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | |
 | Provider event ids | `Implemented` | `DmDiagnosticsTests` | P6 | Yes | `DmEventId` declares the provider range from 30000 under the model validation category, starting with the decimal default warning |
-| Command cancellation interceptor | `Not started` | — | P1 | Yes | |
+| Command cancellation interceptor | `Implemented` | `DmCommandCancellationTests` | P1 | Yes | Registered for the whole provider. It binds the token of the three asynchronous execution entry points to `DbCommand.Cancel`, keeps the binding while a reader is consumed, and releases it when the command ends; the binding is held weakly, so the interceptor never retains a command. A synchronous statement takes no token and is not covered |
 | Sensitive data logging compliance | `Implemented` | `DmUpdateSqlTests`, `DmQueryPipelineTests` | P6 | Yes | Every statement the provider builds carries parameters through the relational command builder, so a value never enters the log text, and the provider formats no value of its own |
 
 ### J. Testing and tooling
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 75 |
+| `Implemented` | 76 |
 | `In progress` | 0 |
-| `Partial` | 6 |
+| `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 12 |
+| `Not started` | 10 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

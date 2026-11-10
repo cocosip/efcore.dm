@@ -73,6 +73,38 @@ internal sealed class FakeDmConnection : DbConnection
 
     private int _readBackIndex;
 
+    /// <summary>
+    /// Makes an asynchronous statement run until the provider cancels it, so that a test can observe
+    /// what happens to a statement that is already executing when the token fires. Left off, an
+    /// asynchronous call is the base fallback and returns at once.
+    /// </summary>
+    public bool BlocksUntilCancelled { get; set; }
+
+    /// <summary>
+    /// Completed as soon as a statement described by <see cref="BlocksUntilCancelled" /> is issued, so
+    /// that a test cancels while the statement runs rather than before it starts.
+    /// </summary>
+    public Task Started => _started.Task;
+
+    /// <summary>
+    /// How many times <see cref="DbCommand.Cancel" /> was called. A cancelled token does not reach the
+    /// command on its own, so this is what the provider's bridge has to produce.
+    /// </summary>
+    public int CancelCount { get; private set; }
+
+    private readonly TaskCompletionSource _started = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly TaskCompletionSource _cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    internal void SignalStarted() => _started.TrySetResult();
+
+    internal void SignalCancelled()
+    {
+        CancelCount++;
+        _cancelled.TrySetResult();
+    }
+
+    internal Task WaitForCancellationAsync() => _cancelled.Task;
+
     internal object[] NextReadBackRow()
         => ReadBackRows.Count == 0
             ? ReadBackRow
@@ -170,8 +202,24 @@ internal sealed class FakeDmCommand : DbCommand
 
     protected override DbTransaction DbTransaction { get; set; }
 
-    public override void Cancel()
+    public override void Cancel() => _connection.SignalCancelled();
+
+    public override async Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
     {
+        if (!_connection.BlocksUntilCancelled)
+        {
+            return await base.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        Record();
+        _connection.SignalStarted();
+
+        // The statement runs until the driver cancels it; a cancelled token alone stops nothing, which
+        // is the driver behaviour the provider bridges. The timeout keeps a missing bridge a failed
+        // test rather than a hung run.
+        await _connection.WaitForCancellationAsync().WaitAsync(TimeSpan.FromSeconds(5), CancellationToken.None);
+
+        throw new OperationCanceledException(cancellationToken);
     }
 
     public override int ExecuteNonQuery()

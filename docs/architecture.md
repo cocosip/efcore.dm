@@ -143,10 +143,11 @@ Each directory declares exactly one namespace. The path under `Compatibility/` i
 | `Microsoft.EntityFrameworkCore.Migrations` | `Compatibility/EntityFrameworkCore/Migrations/` | `DmMigrationBuilderExtensions` |
 | `Microsoft.EntityFrameworkCore.Migrations.Operations` | `Compatibility/EntityFrameworkCore/Migrations/Operations/` | `DmCreateSchemaOperation`, `DmDropSchemaOperation`, `DmCreateUserOperation`, `DmDropUserOperation` |
 | `Microsoft.Extensions.DependencyInjection` | `Compatibility/Extensions/DependencyInjection/` | `AddEntityFrameworkDm` |
+| `Microsoft.EntityFrameworkCore.Dm.Extensions` | `Compatibility/EntityFrameworkCore/Dm/Extensions/` | `DmDbFunctionsExtensions` |
 
 Provider internals are ours and stay under `DM.EntityFrameworkCore.*`, which also keeps the `Dialect/` isolation rule satisfiable.
 
-The official provider declares its own internals under `Microsoft.EntityFrameworkCore.Dm.*`. Consumer code does not reference those, so this provider does not reproduce them. The single public type in that tree a consumer can call is `DmDbFunctionsExtensions`, which extends `EF.Functions`; it is not shipped yet and is recorded in the capability matrix.
+The official provider declares its own internals under `Microsoft.EntityFrameworkCore.Dm.*`. Consumer code does not reference those, so this provider does not reproduce them. The single public type in that tree a consumer can call is `DmDbFunctionsExtensions`, which extends `EF.Functions`; it carries the date difference methods, and what it does and does not cover is recorded in the capability matrix.
 
 ## 8. Repository layout
 
