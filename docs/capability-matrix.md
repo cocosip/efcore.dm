@@ -164,11 +164,11 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Database model factory (reverse engineering) | `Not started` | — | P4 | Yes | Catalog queries come from `Dialect/` |
-| Code generator | `Not started` | — | P4 | Yes | |
+| Code generator | `Partial` | `DmProviderConfigurationCodeGeneratorTests` | P4 | Yes | The provider configuration code is generated: `UseDm` with the connection string and no provider options, since the provider declares none. The model it is generated from comes from the database model factory, which is not implemented |
 | Annotation code generator | `Implemented` | `DmSnapshotTests` | P4 | Yes | The relational generator is enough: an annotation the generator does not name is written to the snapshot as `HasAnnotation`, which is how the value generation strategy, the identity seed and the hi-lo sequence reach the next migration |
 | Design-time services | `Implemented` | `DmSnapshotTests` | P4 | Yes | Declared through `DesignTimeProviderServices`, with the runtime services and the relational design services. A generated snapshot file was produced through it, so the tooling can build one and it compiles |
 | Provider model validator | `Implemented` | `DmModelValidatorTests` | P1 | Yes | Rejects an identity column that is not an integer, one that also has a default expression, and a table with two of them, all while the model is built |
-| Compiled model support | `Not started` | — | P6 | Yes | |
+| Compiled model support | `Not started` | — | P6 | Yes | The design time services already resolve the relational runtime annotation code generator, so a compiled model is built. Provider annotations are not emitted by a generator of our own, so a compiled model built today would lose the value generation strategy, the identity seed and the hi-lo sequence name; a provider generator has to emit them |
 
 ### G. Value generation
 
