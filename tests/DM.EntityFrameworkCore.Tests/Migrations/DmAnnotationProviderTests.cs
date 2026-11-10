@@ -79,6 +79,24 @@ public class DmAnnotationProviderTests
     }
 
     /// <summary>
+    /// The same question asked of the property belongs to a table, so the hierarchy above is answerable
+    /// without walking the model: the base table generates the key and the derived table does not.
+    /// </summary>
+    [Fact]
+    public void Strategy_IsAskedPerTable()
+    {
+        using var context = new TptContext(new FakeDmConnection());
+        var property = context.Model.FindEntityType(typeof(Animal))!.FindProperty(nameof(Animal.Id))!;
+
+        Assert.Equal(
+            DmValueGenerationStrategy.IdentityColumn,
+            property.GetDmValueGenerationStrategy(StoreObjectIdentifier.Table("Animals", null)));
+
+        Assert.Equal(
+            DmValueGenerationStrategy.None,
+            property.GetDmValueGenerationStrategy(StoreObjectIdentifier.Table("Cats", null)));
+    }
+    /// <summary>
     /// The statement generator reads the annotation the differ wrote, so a migration that carries only
     /// the model state it was written from still creates the attribute.
     /// </summary>

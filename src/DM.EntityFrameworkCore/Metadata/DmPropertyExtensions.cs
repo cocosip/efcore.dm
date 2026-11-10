@@ -25,6 +25,33 @@ public static class DmPropertyExtensions
         => (DmValueGenerationStrategy?)property.FindAnnotation(ValueGenerationStrategyAnnotation)?.Value;
 
     /// <summary>
+    /// Returns the strategy the property takes in one table, or
+    /// <see cref="DmValueGenerationStrategy.None" /> when that table does not generate the value.
+    /// </summary>
+    /// <remarks>
+    /// Where a value is generated is a property of the table and type mapping, not of the property alone.
+    /// A key column of a table that only mirrors the row above it, which is what a table per type hierarchy
+    /// produces, repeats a value the base table generated.
+    /// </remarks>
+    public static DmValueGenerationStrategy GetDmValueGenerationStrategy(
+        this IReadOnlyProperty property,
+        in StoreObjectIdentifier storeObject)
+    {
+        var strategy = property.GetDmValueGenerationStrategy();
+
+        if (strategy != DmValueGenerationStrategy.IdentityColumn)
+        {
+            return strategy ?? DmValueGenerationStrategy.None;
+        }
+
+        var declaringTable = property.DeclaringType.GetTableName();
+
+        return declaringTable is null || string.Equals(declaringTable, storeObject.Name, StringComparison.Ordinal)
+            ? DmValueGenerationStrategy.IdentityColumn
+            : DmValueGenerationStrategy.None;
+    }
+
+    /// <summary>
     /// Sets the strategy, or clears it when <paramref name="value" /> is <see langword="null" />.
     /// </summary>
     public static void SetDmValueGenerationStrategy(this IMutableProperty property, DmValueGenerationStrategy? value)

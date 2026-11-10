@@ -187,11 +187,11 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | Provider convention set builder | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Required for the relational model to be built |
 | Value generation strategy convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | Chooses `IdentityColumn`, respects an explicit value, and fails the model for a strategy the provider cannot honour |
-| Fluent API: property extensions | `Implemented` | `DmFluentApiTests` | P5 | Yes | `UseHiLo` and `UseIdentityColumn`, each with a typed overload, plus the annotation accessors behind them. The `IConventionPropertyBuilder` helpers are not provided |
+| Fluent API: property extensions | `Implemented` | `DmFluentApiTests`, `DmAnnotationProviderTests` | P5 | Yes | `UseHiLo` and `UseIdentityColumn`, each with a typed overload, plus the annotation accessors behind them, including the strategy of one table which answers whether that table generates the value. The `IConventionPropertyBuilder` helpers are not provided |
 | Fluent API: model builder extensions | `Implemented` | `DmFluentApiTests` | P5 | Yes | `UseHiLo` and `UseIdentityColumns`, which set the strategy every generated property inherits. The size, service tier and performance level settings of the reference are not provided |
 | Fluent API: model and entity type extensions | `Partial` | `DmFluentApiTests` | P5 | Yes | `DmModelExtensions` exposes the hi-lo sequence, identity seed and increment settings. The temporal and period extensions of the reference are not provided |
 | `DmValueGenerationStrategy` annotation | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | `DmValueGenerationStrategy` keeps the Dameng member order, so an existing model keeps its annotations |
-| Database facade extensions | `Not started` | — | P1 | Yes | Compatibility surface |
+| Database facade extensions | `Implemented` | `DmDatabaseFacadeTests` | P1 | Yes | `IsDm` compares the provider name with this assembly, which is the same answer the migration builder extension gives |
 | `DbFunctions` extensions | `Not started` | — | P2 | Yes | Compatibility surface |
 
 ### I. Diagnostics
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 71 |
+| `Implemented` | 72 |
 | `In progress` | 0 |
 | `Partial` | 5 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 18 |
+| `Not started` | 17 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

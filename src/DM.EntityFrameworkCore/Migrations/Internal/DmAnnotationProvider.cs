@@ -64,17 +64,15 @@ internal sealed class DmAnnotationProvider : RelationalAnnotationProvider
     /// </summary>
     internal static IProperty? IdentityProperty(IColumn column)
     {
-        var property = column.PropertyMappings.FirstOrDefault()?.Property;
-
-        if (property?.GetDmValueGenerationStrategy() is not DmValueGenerationStrategy.IdentityColumn)
+        if (column.PropertyMappings.FirstOrDefault()?.Property is not { } property)
         {
             return null;
         }
 
-        var declaringTable = property.DeclaringType.GetTableName();
+        var table = StoreObjectIdentifier.Table(column.Table.Name, column.Table.Schema);
 
-        return declaringTable is not null && !string.Equals(declaringTable, column.Table.Name, StringComparison.Ordinal)
-            ? null
-            : property;
+        return property.GetDmValueGenerationStrategy(table) == DmValueGenerationStrategy.IdentityColumn
+            ? property
+            : null;
     }
 }
