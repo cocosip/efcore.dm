@@ -1,5 +1,7 @@
 using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace DmProviderValidation;
 
@@ -27,7 +29,8 @@ internal static class Steps
         ("execute delete", ExecuteDeleteAsync),
         ("left join", LeftJoinAsync),
         ("right join", RightJoinAsync),
-        ("cancellation", CancellationAsync)
+        ("cancellation", CancellationAsync),
+        ("migrations: apply, read back and apply again", MigrationsAsync)
     ];
 
     private static async Task ConnectionAsync(ValidationContext context, CancellationToken cancellationToken)
@@ -424,6 +427,49 @@ internal static class Steps
         };
     }
 
+    /// <summary>
+    /// Applies the migration the sample ships and reads the table it created back through the model. The
+    /// second apply is the part that matters: it runs against a database where every statement has already
+    /// been applied, which is what a deployment pipeline does after a partial failure.
+    /// </summary>
+    private static async Task MigrationsAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        await using var journal = new JournalContext(context.ConnectionString);
+
+        var migrations = journal.GetService<IMigrationsAssembly>().Migrations.Count;
+
+        Expect(
+            (await journal.Database.GetPendingMigrationsAsync(cancellationToken)).Count() == migrations,
+            "every migration must be pending on a database no migration has run against");
+
+        await journal.Database.MigrateAsync(cancellationToken);
+
+        Expect(
+            !(await journal.Database.GetPendingMigrationsAsync(cancellationToken)).Any(),
+            "no migration must be pending once they have been applied");
+
+        await using (var write = new JournalContext(context.ConnectionString))
+        {
+            write.Journal.Add(new Journal { Note = "migrated" });
+
+            await write.SaveChangesAsync(cancellationToken);
+        }
+
+        await using (var read = new JournalContext(context.ConnectionString))
+        {
+            Expect(
+                await read.Journal.AnyAsync(entry => entry.Note == "migrated", cancellationToken),
+                "a row written through the model must be readable from the migrated table");
+        }
+
+        await journal.Database.MigrateAsync(cancellationToken);
+
+        var history = await journal.Database
+            .SqlQuery<int>($"SELECT COUNT(*) AS \"Value\" FROM \"__EFMigrationsHistory\"")
+            .SingleAsync(cancellationToken);
+
+        Expect(history == migrations, $"the history table must hold {migrations} row(s), not {history}");
+    }
     private static void Expect(bool condition, string message)
     {
         if (!condition)

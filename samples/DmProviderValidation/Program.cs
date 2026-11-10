@@ -1,6 +1,8 @@
 using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DmProviderValidation;
@@ -112,46 +114,130 @@ internal static class Program
         Console.WriteLine("Dameng provider acceptance, dry run");
         Console.WriteLine();
 
+        var failures = 0;
+
         try
         {
             using var context = new ValidationContext(DryRunConnectionString);
 
             var script = context.Database.GenerateCreateScript();
 
-            var expected = Tables.Append("DM_VALIDATION_SEQ")
+            var missing = Tables.Append("DM_VALIDATION_SEQ")
                 .Where(name => !script.Contains(name, StringComparison.Ordinal))
                 .ToArray();
 
-            if (expected.Length > 0)
+            if (missing.Length > 0)
             {
-                Console.Error.WriteLine("  fail  the generated script has no " + string.Join(", ", expected));
+                failures++;
+                Console.Error.WriteLine("  fail  the generated script has no " + string.Join(", ", missing));
             }
             else
             {
                 Console.WriteLine($"  pass  create script covers {Tables.Length} tables and the sequence");
             }
 
-            foreach (var (name, _) in Steps.All)
-            {
-                Console.WriteLine($"  step  {name}");
-            }
-
-            Console.WriteLine();
-            Console.WriteLine(
-                expected.Length == 0
-                    ? $"dry run passed; {Steps.All.Count} steps declared"
-                    : "the model does not generate the schema a run needs");
-
-            return expected.Length == 0 ? 0 : 1;
+            failures += MigrationChecks();
         }
         catch (Exception exception)
         {
+            failures++;
             Console.Error.WriteLine($"  fail  model: {exception.GetType().Name}: {exception.Message}");
-
-            return 1;
         }
+
+        foreach (var (name, _) in Steps.All)
+        {
+            Console.WriteLine($"  step  {name}");
+        }
+
+        Console.WriteLine();
+        Console.WriteLine(
+            failures == 0
+                ? $"dry run passed; {Steps.All.Count} steps declared"
+                : "the sample does not describe the run it would make");
+
+        return failures == 0 ? 0 : 1;
     }
 
+    /// <summary>
+    /// Checks what a run would apply, without a database: that the migration the sample ships still matches
+    /// the model it was generated from, and that the idempotent script of it is a script this provider's
+    /// shape. Both fail when a change to the model is committed without the migration that carries it.
+    /// </summary>
+    private static int MigrationChecks()
+    {
+        using var journal = new JournalContext(DryRunConnectionString);
+
+        var failures = 0;
+        var snapshot = journal.GetService<IMigrationsAssembly>().ModelSnapshot;
+
+        if (snapshot is null)
+        {
+            failures++;
+            Console.Error.WriteLine("  fail  the sample ships no migration snapshot");
+        }
+        else
+        {
+            var model = journal.GetService<IDesignTimeModel>().Model;
+
+            // The model the snapshot carries is not finalized: nothing builds it until something reads it,
+            // and the differ needs the relational shape of it.
+            var written = journal.GetService<IModelRuntimeInitializer>()
+                .Initialize(snapshot.Model, designTime: true, validationLogger: null);
+
+            var differences = journal.GetService<IMigrationsModelDiffer>()
+                .GetDifferences(written.GetRelationalModel(), model.GetRelationalModel());
+
+            if (differences.Count > 0)
+            {
+                failures++;
+                Console.Error.WriteLine(
+                    $"  fail  the migration snapshot no longer matches the model ({differences.Count} difference(s))");
+            }
+            else
+            {
+                Console.WriteLine("  pass  the migration snapshot matches the model");
+            }
+        }
+
+        var idempotent = journal.GetService<IMigrator>()
+            .GenerateScript(null, null, MigrationsSqlGenerationOptions.Idempotent);
+
+        var problems = new List<string>();
+
+        if (!idempotent.Contains("DM_VALIDATION_JOURNAL", StringComparison.Ordinal))
+        {
+            problems.Add("no statement of the migration");
+        }
+
+        if (!idempotent.Contains("FROM \"__EFMigrationsHistory\"", StringComparison.Ordinal))
+        {
+            problems.Add("no history guard");
+        }
+
+        if (!idempotent.Contains("FROM ALL_TABLES", StringComparison.Ordinal))
+        {
+            problems.Add("no catalog guard");
+        }
+
+        // The separator placement is pinned by the dialect test, and the statement that used to be glued to
+        // it by the script writer is gone; what is left to check here is that nothing puts one back.
+        if (idempotent.Contains("START TRANSACTION", StringComparison.OrdinalIgnoreCase))
+        {
+            problems.Add("a transaction statement Dameng does not define");
+        }
+
+        if (problems.Count > 0)
+        {
+            failures++;
+            Console.Error.WriteLine("  fail  the idempotent script carries " + string.Join(", ", problems));
+        }
+        else
+        {
+            Console.WriteLine("  pass  the idempotent script carries its guards and names no transaction statement");
+        }
+
+        return failures;
+    }
     /// <summary>
     /// A connection string for a dry run, which never opens a connection: the model builds from it and
     /// the driver is not asked to resolve anything.
@@ -167,7 +253,13 @@ internal static class Program
         await using var connection = new Dm.DmConnection(context.ConnectionString);
         await connection.OpenAsync(cancellationToken);
 
-        foreach (var statement in Tables.Select(table => $"DROP TABLE \"{table}\" CASCADE CONSTRAINTS")
+        // The last two belong to the migration steps: the table its migration creates, and the history the
+        // relational layer keeps beside it. A run that left them behind would find the migration already
+        // applied and stop exercising it.
+        foreach (var statement in Tables
+                     .Append("DM_VALIDATION_JOURNAL")
+                     .Append("__EFMigrationsHistory")
+                     .Select(table => $"DROP TABLE \"{table}\" CASCADE CONSTRAINTS")
                      .Append("DROP SEQUENCE \"DM_VALIDATION_SEQ\""))
         {
             await using var command = connection.CreateCommand();
