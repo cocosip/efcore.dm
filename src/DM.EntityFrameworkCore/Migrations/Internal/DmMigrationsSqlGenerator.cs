@@ -77,6 +77,12 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     /// Reads the strategy from the model rather than from the operation, because the operation
     /// carries no provider annotation: the differ copies the model, not the conventions.
     /// </summary>
+    /// <remarks>
+    /// The strategy belongs to the property, but a table-to-type mapping decides where the value is
+    /// generated. A key column of a table that only mirrors the row above it, which is what a
+    /// table-per-type hierarchy produces, repeats a value the base table generated and must not
+    /// generate one of its own.
+    /// </remarks>
     private static IProperty? FindIdentityProperty(string? schema, string table, string name, IModel? model)
     {
         var property = model?.GetRelationalModel()
@@ -85,7 +91,16 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
             ?.PropertyMappings.FirstOrDefault()
             ?.Property;
 
-        return property?.GetDmValueGenerationStrategy() is DmValueGenerationStrategy.IdentityColumn ? property : null;
+        if (property?.GetDmValueGenerationStrategy() is not DmValueGenerationStrategy.IdentityColumn)
+        {
+            return null;
+        }
+
+        var declaringTable = property.DeclaringType.GetTableName();
+
+        return declaringTable is not null && !string.Equals(declaringTable, table, StringComparison.Ordinal)
+            ? null
+            : property;
     }
 
     /// <summary>

@@ -130,7 +130,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Collection parameter translation | `Not started` | — | P2 | No | EF Core 8+ contract |
 | `FromSql` and composable raw SQL | `Implemented` | `DmDmlQueryTests` | P2 | Yes | Passed through verbatim, or wrapped as a derived table when composed |
 | `ExecuteUpdate`, `ExecuteDelete` | `Implemented` | `DmDmlQueryTests` | P3 | No | EF Core 7+ contract. The table alias is declared with `AS`, which the manual writes as `[AS] <表别名>` |
-| Inheritance mapping (TPH, TPT, TPC) | `Not started` | — | P2 | Yes | |
+| Inheritance mapping (TPH, TPT, TPC) | `Implemented` | `DmInheritanceTests` | P2 | Yes | One table per hierarchy with a discriminator, one table per type with the key generated in the base table only, and one table per concrete type. A hierarchy mapped per concrete type has no generated key until the model names a generator, which is what EF Core does for every provider |
 | JSON querying | `Deferred` | — | After P6 | No | The store type exists in the dialect; query translation is not required for the first release |
 | Query filters and global filters | `Not started` | — | P2 | Yes | |
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 61 |
+| `Implemented` | 62 |
 | `In progress` | 0 |
 | `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 27 |
+| `Not started` | 26 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
