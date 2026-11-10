@@ -14,10 +14,10 @@ public class DmTypeMappingTests
     [InlineData(nameof(Facets.UnicodeDefaultString), "NCLOB")]
     [InlineData(nameof(Facets.LongString), "NCLOB")]
     [InlineData(nameof(Facets.UnicodeLongString), "NCLOB")]
-    [InlineData(nameof(Facets.LongestBoundedString), "NVARCHAR(8188)")]
-    [InlineData(nameof(Facets.SizedString), "NVARCHAR(50)")]
-    [InlineData(nameof(Facets.AnsiSizedString), "VARCHAR(50)")]
-    [InlineData(nameof(Facets.UnicodeString), "NVARCHAR(50)")]
+    [InlineData(nameof(Facets.LongestBoundedString), "NVARCHAR2(8188)")]
+    [InlineData(nameof(Facets.SizedString), "NVARCHAR2(50)")]
+    [InlineData(nameof(Facets.AnsiSizedString), "VARCHAR2(50)")]
+    [InlineData(nameof(Facets.UnicodeString), "NVARCHAR2(50)")]
     [InlineData(nameof(Facets.FixedString), "NCHAR(50)")]
     [InlineData(nameof(Facets.UnicodeFixedString), "NCHAR(50)")]
     [InlineData(nameof(Facets.SizedBinary), "VARBINARY(64)")]
@@ -48,10 +48,10 @@ public class DmTypeMappingTests
     /// table with a string key could not be created at all.
     /// </summary>
     [Theory]
-    [InlineData("TextKey", "NVARCHAR(450)")]
-    [InlineData("AnsiKey", "VARCHAR(900)")]
-    [InlineData("UnicodeIndexedKey", "NVARCHAR(450)")]
-    [InlineData("IndexedKey", "NVARCHAR(450)")]
+    [InlineData("TextKey", "NVARCHAR2(450)")]
+    [InlineData("AnsiKey", "VARCHAR2(900)")]
+    [InlineData("UnicodeIndexedKey", "NVARCHAR2(450)")]
+    [InlineData("IndexedKey", "NVARCHAR2(450)")]
     [InlineData("FixedKey", "NCHAR(1)")]
     public void AStringUsedAsAKeyOrIndex_NamesABoundedLength(string property, string expected)
     {

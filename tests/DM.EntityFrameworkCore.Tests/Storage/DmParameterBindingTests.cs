@@ -27,7 +27,7 @@ public class DmParameterBindingTests
                 """
                 CREATE TABLE "Samples" (
                     "Id" INT IDENTITY(1,1) NOT NULL,
-                    "Letter" NVARCHAR(1) NOT NULL,
+                    "Letter" NVARCHAR2(1) NOT NULL,
                     "Grade" INT NOT NULL,
                     "NullableGrade" INT NULL,
                     "When" DATETIME WITH TIME ZONE NOT NULL,

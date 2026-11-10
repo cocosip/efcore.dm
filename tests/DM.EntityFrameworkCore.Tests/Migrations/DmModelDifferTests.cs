@@ -39,7 +39,7 @@ public class DmModelDifferTests
         Assert.Equal("Code", added.Name);
 
         Assert.Contains(
-            """ALTER TABLE "ORDERS" ADD "Code" NVARCHAR(10) NULL;""",
+            """ALTER TABLE "ORDERS" ADD "Code" NVARCHAR2(10) NULL;""",
             Sql(target, operations));
     }
 
@@ -54,7 +54,7 @@ public class DmModelDifferTests
         Assert.Equal(100, altered.MaxLength);
 
         Assert.Contains(
-            """ALTER TABLE "ORDERS" MODIFY ("Name" NVARCHAR(100) NOT NULL);""",
+            """ALTER TABLE "ORDERS" MODIFY ("Name" NVARCHAR2(100) NOT NULL);""",
             Sql(target, operations));
     }
 

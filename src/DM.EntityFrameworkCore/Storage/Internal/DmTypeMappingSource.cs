@@ -241,12 +241,16 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
                 size: null);
         }
 
+        // The variable length names are the ones the reference provider writes and the ones its own
+        // migrations show. Dameng documents VARCHAR2 as usable the same way as VARCHAR, and its catalog
+        // reports the type of a column it created that way, so the names a model produces and the names a
+        // scaffolded model reads are the same and a migration diff between them is empty.
         var storeTypeBase = (unicode, fixedLength) switch
         {
             (true, true) => DmStoreTypes.NChar,
-            (true, false) => DmStoreTypes.NVarChar,
+            (true, false) => DmStoreTypes.NVarChar2,
             (false, true) => DmStoreTypes.Char,
-            _ => DmStoreTypes.VarChar
+            _ => DmStoreTypes.VarChar2
         };
 
         if (storeType is null)
