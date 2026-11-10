@@ -65,6 +65,8 @@ The provider implements locking with a lock table (D7). The implementation is wr
 | Complex type column names are uniquified; nested complex type properties use the full path | Migrations and reverse engineering must reproduce the naming | same |
 | `ExecuteUpdateAsync` accepts a regular, non-expression lambda | Update pipeline entry shape | same |
 | `IDiscriminatorPropertySetConvention` takes `IConventionTypeBaseBuilder` | Custom convention implementations | same |
+| `RelationalMethodCallTranslatorProvider` and `RelationalMemberTranslatorProvider` no longer call `AddTranslators` from their constructors; `AddTranslators` is only defined, never invoked | A derived provider that relied on overriding `AddTranslators` silently loses its translators. Call `AddTranslators` in the derived constructor instead. Measured: overriding it compiles and does nothing. | `release/10.0` sources of both classes |
+| `IMethodCallTranslator.Translate` and `IMemberTranslator.Translate` take `IDiagnosticsLogger<DbLoggerCategory.Query>` instead of a type mapping | Every translator signature changes | same |
 | `net10.0` only | Target framework switch | package metadata |
 
 ## 4. EF Core 10 to 11

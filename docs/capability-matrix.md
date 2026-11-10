@@ -113,11 +113,12 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `Join`, `GroupBy`, aggregates | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | `GroupBy` with `COUNT(*)` covered; joins not yet |
 | `Include`, split and single queries | `Not started` | — | P2 | Yes | |
 | Paging (`Skip`, `Take`) | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Emits ANSI `OFFSET ... FETCH NEXT`; Dameng support unverified |
-| String methods and members | `Not started` | — | P2 | Yes | |
-| Date and time members and methods | `Not started` | — | P2 | Yes | |
+| String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `Replace`, `Substring`, `Length`. Function names follow Oracle-compatible mode and are unverified against a server. |
+| String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
+| Date and time members and methods | `Not started` | — | P2 | Yes | `EXTRACT` needs a custom function shape |
 | Math functions | `Not started` | — | P2 | Yes | |
 | `Convert`, `ToString`, `new Guid()` | `Not started` | — | P2 | Yes | |
-| `LIKE` with `ESCAPE` | `Not started` | — | P2 | Yes | |
+| `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
 | Compiled query cache key | `Not started` | — | P2 | Yes | |
@@ -215,14 +216,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 9 |
+| `Implemented` | 12 |
 | `In progress` | 1 |
 | `Partial` | 14 |
 | `Blocked` | 2 |
 | `Deferred` | 2 |
-| `Not started` | 67 |
+| `Not started` | 65 |
 | `Not applicable` | 0 |
-| **Total rows** | **95** |
+| **Total rows** | **96** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 
