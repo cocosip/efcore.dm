@@ -49,7 +49,7 @@ Measured from the decompiled source tree, not from its documentation.
 | Value generation | 7 | HiLo sequence generator, factory, state, cache, selector |
 | Conventions | 4 | Convention set builder, value generation and store generation conventions |
 | Design time | 2 | Design time services, annotation code generator |
-| Diagnostics | 2 | Logging definitions, command cancellation interceptor |
+| Diagnostics | 3 | Event ids, logging definitions, command cancellation interceptor |
 
 What it did **not** have:
 
@@ -199,9 +199,9 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Provider logging definitions | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | |
-| Provider event ids | `Not started` | — | P6 | Yes | Own id range, never reusing EF Core ids |
+| Provider event ids | `Implemented` | `DmDiagnosticsTests` | P6 | Yes | `DmEventId` declares the provider range from 30000 under the model validation category, starting with the decimal default warning |
 | Command cancellation interceptor | `Not started` | — | P1 | Yes | |
-| Sensitive data logging compliance | `Not started` | — | P6 | Yes | |
+| Sensitive data logging compliance | `Implemented` | `DmUpdateSqlTests`, `DmQueryPipelineTests` | P6 | Yes | Every statement the provider builds carries parameters through the relational command builder, so a value never enters the log text, and the provider formats no value of its own |
 
 ### J. Testing and tooling
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 53 |
+| `Implemented` | 55 |
 | `In progress` | 0 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 34 |
+| `Not started` | 32 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

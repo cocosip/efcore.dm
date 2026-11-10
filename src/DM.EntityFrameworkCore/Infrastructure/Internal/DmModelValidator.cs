@@ -1,3 +1,4 @@
+using DM.EntityFrameworkCore.Diagnostics.Internal;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -36,6 +37,28 @@ internal sealed class DmModelValidator : RelationalModelValidator
         base.Validate(model, logger);
 
         ValidateIdentityColumns(model);
+        WarnOnDecimalDefaults(model, logger);
+    }
+
+    /// <summary>
+    /// A decimal property without a precision takes the provider default, and a value that does not
+    /// fit is rounded without a word. The warning names each property so the model can be corrected
+    /// before data is lost.
+    /// </summary>
+    private static void WarnOnDecimalDefaults(IModel model, IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
+    {
+        foreach (var property in model.GetEntityTypes().SelectMany(entityType => entityType.GetDeclaredProperties()))
+        {
+            // A column type set on the property is used verbatim, so the provider default never
+            // applies. The annotation is what tells an explicit setting from the type the mapping
+            // infers for every property.
+            if ((Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType) == typeof(decimal)
+                && property.GetPrecision() is null
+                && property.FindAnnotation(RelationalAnnotationNames.ColumnType) is null)
+            {
+                logger.DecimalTypeDefaultWarning(property);
+            }
+        }
     }
 
     /// <summary>
