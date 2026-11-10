@@ -175,9 +175,9 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Identity columns | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | The model marks an integer key, the DDL emits `IDENTITY(1,1)`, and an insert reads the generated key back |
-| Sequences | `Not started` | — | P5 | Yes | |
-| HiLo over a sequence | `Not started` | — | P5 | Yes | |
-| Value generator selector and cache | `Not started` | — | P5 | Yes | |
+| Sequences | `Partial` | `DmHiLoValueGenerationTests` | P5 | Yes | A sequence can be declared in the model, created by a migration and read with `seq.NEXTVAL FROM DUAL`. The plain `Sequence` strategy is still rejected, so a property cannot take one value per insert from a sequence |
+| HiLo over a sequence | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | A block is reserved per round trip, sized by the sequence increment, and shared by every context. The default sequence is added by the model convention |
+| Value generator selector and cache | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | Chooses the hi-lo generator for the strategy and keeps the block state in the singleton cache |
 | Store generation convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | An integer key the store generates becomes an identity column unless the model says otherwise |
 | Client-side value generation | `Not started` | — | P5 | Yes | |
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 47 |
+| `Implemented` | 49 |
 | `In progress` | 0 |
-| `Partial` | 7 |
+| `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 40 |
+| `Not started` | 37 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

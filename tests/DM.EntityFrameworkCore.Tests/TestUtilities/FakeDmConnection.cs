@@ -30,6 +30,12 @@ internal sealed class FakeDmConnection : DbConnection
     public object ScalarResult { get; set; }
 
     /// <summary>
+    /// Answers a scalar statement with the next value of this source instead of
+    /// <see cref="ScalarResult" />, so that a sequence can advance across calls.
+    /// </summary>
+    public Func<object> ScalarSource { get; set; }
+
+    /// <summary>
     /// The columns and the row a statement that reads a generated value back returns. An empty
     /// column list makes the command answer with an affected row count instead.
     /// </summary>
@@ -148,7 +154,7 @@ internal sealed class FakeDmCommand : DbCommand
     {
         _connection.Commands.Add(CommandText);
 
-        return _connection.ScalarResult;
+        return _connection.ScalarSource is null ? _connection.ScalarResult : _connection.ScalarSource();
     }
 
     public override void Prepare()

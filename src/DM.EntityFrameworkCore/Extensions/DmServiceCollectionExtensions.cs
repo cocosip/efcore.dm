@@ -5,6 +5,7 @@ using DM.EntityFrameworkCore.Migrations.Internal;
 using DM.EntityFrameworkCore.Query.Internal;
 using DM.EntityFrameworkCore.Storage.Internal;
 using DM.EntityFrameworkCore.Update.Internal;
+using DM.EntityFrameworkCore.ValueGeneration.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
@@ -12,6 +13,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
+using Microsoft.EntityFrameworkCore.ValueGeneration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -44,7 +46,9 @@ public static class DmServiceCollectionExtensions
             .TryAdd<IMethodCallTranslatorProvider, DmMethodCallTranslatorProvider>()
             .TryAdd<IQueryTranslationPostprocessorFactory, DmQueryTranslationPostprocessorFactory>()
             .TryAdd<IRelationalParameterBasedSqlProcessorFactory, DmParameterBasedSqlProcessorFactory>()
-            .TryAdd<IProviderConventionSetBuilder, DmConventionSetBuilder>();
+            .TryAdd<IProviderConventionSetBuilder, DmConventionSetBuilder>()
+            .TryAdd<IValueGeneratorSelector, DmValueGeneratorSelector>()
+            .TryAdd<IValueGeneratorCache, DmValueGeneratorCache>();
 
         builder.TryAddCoreServices();
 

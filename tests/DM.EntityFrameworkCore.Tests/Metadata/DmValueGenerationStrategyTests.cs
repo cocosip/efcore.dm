@@ -95,11 +95,11 @@ public class DmValueGenerationStrategyTests
     [Fact]
     public void UnimplementedStrategy_FailsTheModel()
     {
-        using var context = new SequenceHiLoContext();
+        using var context = new SequenceContext();
 
         var exception = Assert.ThrowsAny<Exception>(() => context.Model);
 
-        Assert.Contains(nameof(DmValueGenerationStrategy.SequenceHiLo), exception.Message, StringComparison.Ordinal);
+        Assert.Contains(nameof(DmValueGenerationStrategy.Sequence), exception.Message, StringComparison.Ordinal);
     }
 
     private static IProperty Key(DbContext context, Type entityType)
@@ -145,13 +145,13 @@ public class DmValueGenerationStrategyTests
         }
     }
 
-    private sealed class SequenceHiLoContext : ProbeContext
+    private sealed class SequenceContext : ProbeContext
     {
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<IdentityProbe>(
-                e => e.Property(p => p.Id).Metadata.SetDmValueGenerationStrategy(DmValueGenerationStrategy.SequenceHiLo));
+                e => e.Property(p => p.Id).Metadata.SetDmValueGenerationStrategy(DmValueGenerationStrategy.Sequence));
         }
     }
 

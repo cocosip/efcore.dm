@@ -1,3 +1,4 @@
+using DM.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata;
 
 namespace Microsoft.EntityFrameworkCore;
@@ -40,4 +41,30 @@ public static class DmPropertyExtensions
             ValueGenerationStrategyAnnotation,
             value,
             fromDataAnnotation)?.Value;
+
+    /// <summary>
+    /// Returns the sequence this property takes hi-lo blocks from, or <see langword="null" /> when
+    /// the property names none and the model's default applies.
+    /// </summary>
+    public static string? GetDmHiLoSequenceName(this IReadOnlyProperty property)
+        => (string?)property.FindAnnotation(DmAnnotationNames.HiLoSequenceName)?.Value;
+
+    /// <summary>
+    /// Sets the sequence this property takes hi-lo blocks from.
+    /// </summary>
+    public static void SetDmHiLoSequenceName(this IMutableProperty property, string? name)
+        => property.SetOrRemoveAnnotation(DmAnnotationNames.HiLoSequenceName, name);
+
+    /// <summary>
+    /// Returns the schema of the sequence this property takes hi-lo blocks from, or
+    /// <see langword="null" /> when the connection's default schema applies.
+    /// </summary>
+    public static string? GetDmHiLoSequenceSchema(this IReadOnlyProperty property)
+        => (string?)property.FindAnnotation(DmAnnotationNames.HiLoSequenceSchema)?.Value;
+
+    /// <summary>
+    /// Sets the schema of the sequence this property takes hi-lo blocks from.
+    /// </summary>
+    public static void SetDmHiLoSequenceSchema(this IMutableProperty property, string? schema)
+        => property.SetOrRemoveAnnotation(DmAnnotationNames.HiLoSequenceSchema, schema);
 }

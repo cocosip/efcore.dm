@@ -23,6 +23,11 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
     /// </summary>
     private static readonly HashSet<Type> IdentityTypes = [typeof(byte), typeof(sbyte), typeof(short), typeof(int), typeof(long)];
 
+    /// <summary>
+    /// The number of values a default hi-lo sequence hands out per round trip.
+    /// </summary>
+    private const int DefaultHiLoBlockSize = 10;
+
     public void ProcessModelFinalizing(
         IConventionModelBuilder modelBuilder,
         IConventionContext<IConventionModelBuilder> context)
@@ -31,12 +36,13 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
         {
             var strategy = property.GetDmValueGenerationStrategy();
 
-            if (strategy is DmValueGenerationStrategy.SequenceHiLo or DmValueGenerationStrategy.Sequence)
+            if (strategy is DmValueGenerationStrategy.Sequence)
             {
                 throw new NotSupportedException(
                     $"The value generation strategy {strategy} is declared for "
                     + $"'{property.DeclaringType.DisplayName()}.{property.Name}' but this provider does not implement it yet. "
-                    + $"Use {nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.IdentityColumn)} or "
+                    + $"Use {nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.SequenceHiLo)}, "
+                    + $"{nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.IdentityColumn)} or "
                     + $"{nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.None)}.");
             }
 
@@ -44,6 +50,28 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
             {
                 property.SetDmValueGenerationStrategy(DmValueGenerationStrategy.IdentityColumn);
             }
+
+            if (strategy is DmValueGenerationStrategy.SequenceHiLo)
+            {
+                EnsureHiLoSequence(modelBuilder, property);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A hi-lo property needs the sequence it takes blocks from to be part of the model, so that a
+    /// migration creates it. The default one is added here, with an increment that makes a block
+    /// worth a round trip; a sequence the model already declares is left exactly as declared.
+    /// </summary>
+    private static void EnsureHiLoSequence(IConventionModelBuilder modelBuilder, IConventionProperty property)
+    {
+        var model = modelBuilder.Metadata;
+        var name = property.GetDmHiLoSequenceName() ?? model.GetHiLoSequenceName();
+        var schema = property.GetDmHiLoSequenceSchema() ?? model.GetHiLoSequenceSchema();
+
+        if (model.FindSequence(name, schema) is null)
+        {
+            modelBuilder.HasSequence(name, schema)?.IncrementsBy(DefaultHiLoBlockSize);
         }
     }
 
