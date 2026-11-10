@@ -29,6 +29,12 @@ internal sealed class FakeDmConnection : DbConnection
     /// </summary>
     public object ScalarResult { get; set; }
 
+    /// <summary>
+    /// Every transaction this connection opened, so that a test can see whether a unit of work was
+    /// wrapped in one and how it ended.
+    /// </summary>
+    public List<FakeDmTransaction> Transactions { get; } = [];
+
     public override string ConnectionString { get; set; } = "Server=fake";
 
     public override string Database => "fake";
@@ -48,7 +54,12 @@ internal sealed class FakeDmConnection : DbConnection
     public override void Open() => _state = ConnectionState.Open;
 
     protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
-        => new FakeDmTransaction(this, isolationLevel);
+    {
+        var transaction = new FakeDmTransaction(this, isolationLevel);
+        Transactions.Add(transaction);
+
+        return transaction;
+    }
 
     protected override DbCommand CreateDbCommand() => new FakeDmCommand(this);
 }
@@ -65,14 +76,24 @@ internal sealed class FakeDmTransaction : DbTransaction
 
     public override IsolationLevel IsolationLevel { get; }
 
+    public bool Committed { get; private set; }
+
+    public bool RolledBack { get; private set; }
+
     protected override DbConnection DbConnection => _connection;
 
-    public override void Commit()
-    {
-    }
+    public bool Disposed { get; private set; }
 
-    public override void Rollback()
+
+    public override void Commit() => Committed = true;
+
+    public override void Rollback() => RolledBack = true;
+
+
+    protected override void Dispose(bool disposing)
     {
+        Disposed = true;
+        base.Dispose(disposing);
     }
 }
 

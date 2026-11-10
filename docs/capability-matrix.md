@@ -72,9 +72,9 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Externally owned `DbConnection` | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Ownership is delegated to `RelationalOptionsExtension` |
 | Command timeout | `Not started` | — | P1 | Yes | Base option exists; not exercised |
 | Max batch size | `Partial` | — | P3 | Yes | Read by the batch factory, not honoured yet |
-| Open, close, reopen, async | `Not started` | — | P1 | Yes | Inherited from `RelationalConnection`; unverified |
-| Transactions: begin, commit, rollback | `Not started` | — | P1 | Yes | |
-| Savepoints and nested transactions | `Not started` | — | P1 | Yes | |
+| Open, close, reopen, async | `Implemented` | `DmConnectionTests` | P1 | Yes | Opens are counted, so a nested open needs its own close. Async members are the driver fallbacks, so they run synchronously underneath |
+| Transactions: begin, commit, rollback | `Implemented` | `DmConnectionTests` | P1 | Yes | Commit and rollback reach the driver transaction; disposing without committing disposes it |
+| Savepoints and nested transactions | `Partial` | `DmConnectionTests` | P1 | Yes | The relational layer executes `SAVEPOINT x`, `ROLLBACK TO x` and `RELEASE SAVEPOINT x` as statements rather than through the driver transaction. Dameng support for `RELEASE SAVEPOINT` is unverified |
 | Ambient transaction enlistment | `Blocked` | — | P1 | Yes | Requires observing driver behaviour |
 | Non-retrying execution strategy | `Not started` | — | P1 | Yes | Relational default applies |
 | Retrying execution strategy | `Not started` | — | P1 | Yes | Needs Dameng error codes |
@@ -143,7 +143,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Store-generated value readback | `Not started` | `DmUpdateSqlTests` | P3 | Yes | Needs `RETURNING ... INTO` with output parameters; such an operation is rejected instead of leaving the property stale |
 | Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException` |
 | Modification command factory | `Not started` | — | P3 | No | EF Core 9+ contract |
-| `SaveChanges` transaction wrapping | `In progress` | `DmUpdateSqlTests` | P3 | Yes | The transaction is opened by the relational layer; not covered by a test |
+| `SaveChanges` transaction wrapping | `Implemented` | `DmConnectionTests` | P3 | Yes | A unit of work that builds more than one command is wrapped and committed; a single command runs without a transaction |
 
 ### E. Migrations
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 39 |
-| `In progress` | 1 |
-| `Partial` | 5 |
+| `Implemented` | 42 |
+| `In progress` | 0 |
+| `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 49 |
+| `Not started` | 46 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

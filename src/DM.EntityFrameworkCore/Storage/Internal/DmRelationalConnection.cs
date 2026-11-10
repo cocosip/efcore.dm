@@ -13,5 +13,11 @@ internal class DmRelationalConnection : RelationalConnection
     {
     }
 
-    protected override DbConnection CreateDbConnection() => new global::Dm.DmConnection(ConnectionString);
+    /// <summary>
+    /// The driver's second constructor argument is named <c>forEFCore</c>, so it is the vendor's
+    /// own switch for a connection driven by Entity Framework. Leaving it off would run the
+    /// provider on the path the driver keeps for other consumers.
+    /// </summary>
+    protected override DbConnection CreateDbConnection()
+        => new global::Dm.DmConnection(ConnectionString, forEFCore: true);
 }

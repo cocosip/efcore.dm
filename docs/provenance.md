@@ -49,6 +49,14 @@ The strategy is to **inherit public extension points**, not to copy internal imp
 
 `DM.DmProvider` is a third-party ADO.NET driver supplied by Dameng. It is consumed as a NuGet dependency. Its source is not modified and not redistributed.
 
+The driver exposes behaviour the provider has to adopt rather than invent:
+
+| Member | Fact | Consequence |
+|---|---|---|
+| `DmConnection(string connectionString, bool forEFCore)` | The second parameter is the vendor's own switch for a connection driven by Entity Framework | The provider passes `true`. Leaving it off would run the provider on the path the driver keeps for other consumers |
+| `DmTransaction.Save`, `Rollback(string)`, `Release` | Public overrides exist from `8.3.1.47463`; the `8.3.1.36935` line declares only the internal `do_Save`, `do_Rollback` and `do_Release` | Not the path savepoints take. The relational layer runs them as statements instead, so the driver floor is set by other members |
+| `DmConnection.OpenAsync`, `CloseAsync`, `BeginTransactionAsync` | Not overridden: the asynchronous members are the `DbConnection` fallbacks | An asynchronous call is synchronous underneath. Cancellation of an in-flight statement therefore depends on the provider's own handling |
+
 ## 5. Third-party code register
 
 | File | Source | Version | Licence | Modifications |
