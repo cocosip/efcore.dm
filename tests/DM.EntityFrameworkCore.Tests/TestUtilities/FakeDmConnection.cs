@@ -65,6 +65,12 @@ internal sealed class FakeDmConnection : DbConnection
     /// </summary>
     public List<object[]> ReadBackRows { get; } = [];
 
+    /// <summary>
+    /// Result sets served to a statement that reads a catalog, one per statement in the order the
+    /// provider issues them. A queued set takes precedence over the single read back row.
+    /// </summary>
+    public Queue<FakeResultSet> ResultSets { get; } = new();
+
     private int _readBackIndex;
 
     internal object[] NextReadBackRow()
@@ -202,6 +208,12 @@ internal sealed class FakeDmCommand : DbCommand
     protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
     {
         Record();
+
+        // A queued catalog result set serves a statement that reads metadata.
+        if (_connection.ResultSets.Count > 0)
+        {
+            return new FakeDmDataReader([_connection.ResultSets.Dequeue()], _connection.RowsAffected);
+        }
 
         // A statement that reads a generated value back produces the row it read. Anything else
         // produces the affected row count the concurrency check reads.

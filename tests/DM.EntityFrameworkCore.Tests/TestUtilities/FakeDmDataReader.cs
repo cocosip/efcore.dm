@@ -7,20 +7,26 @@ using System.Data.Common;
 namespace DM.EntityFrameworkCore.Tests.TestUtilities;
 
 /// <summary>
-/// One result set the fake serves: the column names and at most one row, because every statement
-/// the provider reads from here returns a single row. A null row makes the result set empty.
+/// One result set the fake serves: the column names and the rows. The single-row constructor is what
+/// the modification pipeline needs, because every statement it reads from here returns one row. The
+/// catalog reader needs many rows per statement.
 /// </summary>
 internal sealed class FakeResultSet
 {
     public FakeResultSet(IReadOnlyList<string> columns, object[] row)
+        : this(columns, row is null ? new List<object[]>() : new List<object[]> { row })
+    {
+    }
+
+    public FakeResultSet(IReadOnlyList<string> columns, IReadOnlyList<object[]> rows)
     {
         Columns = columns;
-        Row = row;
+        Rows = rows;
     }
 
     public IReadOnlyList<string> Columns { get; }
 
-    public object[] Row { get; }
+    public IReadOnlyList<object[]> Rows { get; }
 }
 
 /// <summary>
@@ -32,7 +38,7 @@ internal sealed class FakeDmDataReader : DbDataReader
     private readonly int _recordsAffected;
     private bool _closed;
     private int _resultSet;
-    private bool _read;
+    private int _row = -1;
 
     public FakeDmDataReader(IReadOnlyList<FakeResultSet> resultSets, int recordsAffected = 0)
     {
@@ -42,13 +48,16 @@ internal sealed class FakeDmDataReader : DbDataReader
 
     private FakeResultSet Current => _resultSets[_resultSet];
 
+    private object[] CurrentRow
+        => _row >= 0 && _row < Current.Rows.Count ? Current.Rows[_row] : null;
+
     public override int RecordsAffected => _recordsAffected;
 
     public override int FieldCount => Current.Columns.Count;
 
     public override int Depth => 0;
 
-    public override bool HasRows => Current.Row is not null;
+    public override bool HasRows => Current.Rows.Count > 0;
 
     public override bool IsClosed => _closed;
 
@@ -58,12 +67,12 @@ internal sealed class FakeDmDataReader : DbDataReader
 
     public override bool Read()
     {
-        if (_read || Current.Row is null)
+        if (_row + 1 >= Current.Rows.Count)
         {
             return false;
         }
 
-        _read = true;
+        _row++;
 
         return true;
     }
@@ -76,14 +85,14 @@ internal sealed class FakeDmDataReader : DbDataReader
         }
 
         _resultSet++;
-        _read = false;
+        _row = -1;
 
         return true;
     }
 
     public override void Close() => _closed = true;
 
-    public override IEnumerator GetEnumerator() => (Current.Row ?? []).GetEnumerator();
+    public override IEnumerator GetEnumerator() => (CurrentRow ?? Array.Empty<object>()).GetEnumerator();
 
     public override string GetName(int ordinal) => Current.Columns[ordinal];
 
@@ -101,11 +110,11 @@ internal sealed class FakeDmDataReader : DbDataReader
     }
 
     public override Type GetFieldType(int ordinal)
-        => Current.Row?[ordinal]?.GetType() ?? typeof(object);
+        => CurrentRow?[ordinal]?.GetType() ?? typeof(object);
 
     public override string GetDataTypeName(int ordinal) => GetFieldType(ordinal).Name;
 
-    public override object GetValue(int ordinal) => Current.Row![ordinal];
+    public override object GetValue(int ordinal) => CurrentRow![ordinal];
 
     public override int GetInt32(int ordinal) => (int)GetValue(ordinal);
 
@@ -135,13 +144,13 @@ internal sealed class FakeDmDataReader : DbDataReader
 
     public override int GetValues(object[] values)
     {
-        if (Current.Row is null)
+        if (CurrentRow is null)
         {
             return 0;
         }
 
-        var count = Math.Min(values.Length, Current.Row.Length);
-        Array.Copy(Current.Row, values, count);
+        var count = Math.Min(values.Length, CurrentRow.Length);
+        Array.Copy(CurrentRow, values, count);
 
         return count;
     }

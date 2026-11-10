@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Design.Internal;
+using DM.EntityFrameworkCore.Storage.Internal;
 using Microsoft.EntityFrameworkCore.Scaffolding;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,7 +20,8 @@ namespace DM.EntityFrameworkCore.Design.Internal;
 /// The annotation code generator is the relational one as well: every provider annotation this
 /// provider writes is recognized by name, so the snapshot carries it without a special case.
 /// The provider configuration code generator is this provider's own, because it is the one place the
-/// <c>UseDm</c> call in generated code comes from.
+/// <c>UseDm</c> call in generated code comes from, and so is the database model factory, which reads a
+/// schema into the model scaffolding builds from.
 /// </para>
 /// </remarks>
 public class DmDesignTimeServices : IDesignTimeServices
@@ -34,6 +36,7 @@ public class DmDesignTimeServices : IDesignTimeServices
 #pragma warning disable EF1001 // The design services builder is an internal API, as it is for every provider.
         new EntityFrameworkRelationalDesignServicesBuilder(serviceCollection)
             .TryAdd<IAnnotationCodeGenerator, AnnotationCodeGenerator>()
+            .TryAdd<IDatabaseModelFactory, DmDatabaseModelFactory>()
             .TryAdd<IProviderConfigurationCodeGenerator, DmProviderConfigurationCodeGenerator>()
             .TryAddCoreServices();
 #pragma warning restore EF1001

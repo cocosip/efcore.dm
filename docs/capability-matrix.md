@@ -163,8 +163,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Database model factory (reverse engineering) | `Not started` | — | P4 | Yes | Catalog queries come from `Dialect/` |
-| Code generator | `Partial` | `DmProviderConfigurationCodeGeneratorTests` | P4 | Yes | The provider configuration code is generated: `UseDm` with the connection string and no provider options, since the provider declares none. The model it is generated from comes from the database model factory, which is not implemented |
+| Database model factory (reverse engineering) | `Partial` | `DmDatabaseModelFactoryTests` | P4 | Yes | Reads tables, columns, the primary key, unique constraints, indexes, foreign keys and sequences through the Oracle compatible views in `Dialect/`. A constraint whose columns were not read is skipped rather than half built. The queries themselves are unverified against a server, and views are not read because the relational model of EF Core 10 carries tables and sequences only |
+| Code generator | `Partial` | `DmProviderConfigurationCodeGeneratorTests` `DmDatabaseModelFactoryTests` | P4 | Yes | The provider configuration code is generated: `UseDm` with the connection string and no provider options, since the provider declares none. The model it is generated from now comes from the database model factory, so what remains unverified is the catalog queries that factory reads |
 | Annotation code generator | `Implemented` | `DmSnapshotTests` | P4 | Yes | The relational generator is enough: an annotation the generator does not name is written to the snapshot as `HasAnnotation`, which is how the value generation strategy, the identity seed and the hi-lo sequence reach the next migration |
 | Design-time services | `Implemented` | `DmSnapshotTests` | P4 | Yes | Declared through `DesignTimeProviderServices`, with the runtime services and the relational design services. A generated snapshot file was produced through it, so the tooling can build one and it compiles |
 | Provider model validator | `Implemented` | `DmModelValidatorTests` | P1 | Yes | Rejects an identity column that is not an integer, one that also has a default expression, and a table with two of them, all while the model is built |
@@ -223,10 +223,10 @@ Rows by status, updated when the matrix changes:
 |---|---|
 | `Implemented` | 75 |
 | `In progress` | 0 |
-| `Partial` | 5 |
+| `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 13 |
+| `Not started` | 12 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
