@@ -30,6 +30,12 @@ internal sealed class FakeDmConnection : DbConnection
     internal int LastCommandTimeout { get; set; }
 
     /// <summary>
+    /// The parameters each executed statement was given, in the order the statements ran, so a test can
+    /// see the type and the value the provider bound for a column.
+    /// </summary>
+    public List<IReadOnlyList<(string Name, object Value, DbType DbType)>> ExecutionParameters { get; } = [];
+
+    /// <summary>
     /// The value every scalar statement returns.
     /// </summary>
     public object ScalarResult { get; set; }
@@ -164,16 +170,14 @@ internal sealed class FakeDmCommand : DbCommand
 
     public override int ExecuteNonQuery()
     {
-        _connection.Commands.Add(CommandText);
-        _connection.LastCommandTimeout = CommandTimeout;
+        Record();
 
         return _connection.RowsAffected;
     }
 
     public override object ExecuteScalar()
     {
-        _connection.Commands.Add(CommandText);
-        _connection.LastCommandTimeout = CommandTimeout;
+        Record();
 
         return _connection.ScalarSource is null ? _connection.ScalarResult : _connection.ScalarSource();
     }
@@ -184,10 +188,20 @@ internal sealed class FakeDmCommand : DbCommand
 
     protected override DbParameter CreateDbParameter() => new FakeDmParameter();
 
-    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+    private void Record()
     {
         _connection.Commands.Add(CommandText);
         _connection.LastCommandTimeout = CommandTimeout;
+        _connection.ExecutionParameters.Add(
+            DbParameterCollection
+                .Cast<DbParameter>()
+                .Select(parameter => (parameter.ParameterName, parameter.Value, parameter.DbType))
+                .ToList());
+    }
+
+    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+    {
+        Record();
 
         // A statement that reads a generated value back produces the row it read. Anything else
         // produces the affected row count the concurrency check reads.

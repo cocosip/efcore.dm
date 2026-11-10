@@ -96,11 +96,11 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `string` with size, unicode and fixed length | `Implemented` | `DmTypeMappingTests` | P1 | Yes | `VARCHAR`, `NVARCHAR`, `CHAR` and `NCHAR`, sized when configured |
 | `byte[]` with size | `Implemented` | `DmTypeMappingTests` | P1 | Yes | `BLOB` without a size, `VARBINARY(n)` with one |
 | `DateTime` with fractional seconds | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Precision suffix only when configured |
-| `DateTimeOffset` | `Partial` | — | P1 | Yes | Mapping exists; not covered by a test |
-| `TimeSpan` | `Partial` | — | P1 | Yes | Mapping exists; not covered by a test |
+| `DateTimeOffset` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | Stored as `DATETIME WITH TIME ZONE`, bound as `DbType.DateTimeOffset` with the offset intact |
+| `TimeSpan` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | Stored as `INTERVAL DAY TO SECOND`, bound as `DbType.Time` |
 | `DateOnly`, `TimeOnly` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | |
 | `Guid` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Stored as `VARCHAR(36)` provisionally |
-| `char`, `enum` | `Not started` | — | P1 | Yes | |
+| `char`, `enum` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | A character is stored as `VARCHAR(1)` and bound as a one character string; an enum is stored as `INT` and bound as its underlying integer, including the nullable form |
 | JSON column type | `Not started` | — | P1 | Yes | |
 | Spatial types (NetTopologySuite) | `Deferred` | — | After P6 | No | Not required by the specification suite core cases; revisit after the first release |
 | Store type to CLR reverse lookup | `Implemented` | `DmReverseTypeMappingTests` | P1 | Yes | Recovers the CLR type and the size, precision and scale written in the name. `DATE` maps to `DateTime` because Dameng keeps a time part in it, while the forward direction maps `DateOnly` to `DATE`; a GUID column reads back as a string because the database has no GUID type |
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 68 |
+| `Implemented` | 71 |
 | `In progress` | 0 |
-| `Partial` | 7 |
+| `Partial` | 5 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 19 |
+| `Not started` | 18 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
