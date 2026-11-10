@@ -1,12 +1,14 @@
 using DM.EntityFrameworkCore.Diagnostics.Internal;
 using DM.EntityFrameworkCore.Infrastructure;
 using DM.EntityFrameworkCore.Metadata.Conventions;
+using DM.EntityFrameworkCore.Migrations.Internal;
 using DM.EntityFrameworkCore.Query.Internal;
 using DM.EntityFrameworkCore.Storage.Internal;
 using DM.EntityFrameworkCore.Update.Internal;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
@@ -33,6 +35,7 @@ public static class DmServiceCollectionExtensions
             .TryAdd<IUpdateSqlGenerator, DmUpdateSqlGenerator>()
             .TryAdd<IModificationCommandBatchFactory, DmModificationCommandBatchFactory>()
             .TryAdd<IRelationalDatabaseCreator, DmDatabaseCreator>()
+            .TryAdd<IMigrationsSqlGenerator, DmMigrationsSqlGenerator>()
             .TryAdd<IQuerySqlGeneratorFactory, DmQuerySqlGeneratorFactory>()
             .TryAdd<IQueryableMethodTranslatingExpressionVisitorFactory, DmQueryableMethodTranslatingExpressionVisitorFactory>()
             .TryAdd<IRelationalSqlTranslatingExpressionVisitorFactory, DmSqlTranslatingExpressionVisitorFactory>()

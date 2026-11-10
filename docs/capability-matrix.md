@@ -136,7 +136,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | `INSERT`, `UPDATE`, `DELETE` | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | Generated without a `RETURNING` clause, which Dameng only accepts as `RETURNING ... INTO` |
 | Multiple statements per batch | `Deferred` | `DmUpdateSqlTests` | P3 | Yes | One statement per round trip; the affected row count comes from the driver return value and could not be attributed to individual commands in a shared batch |
-| Store-generated value readback | `Blocked` | `DmUpdateSqlTests` | P3 | Yes | Needs `RETURNING ... INTO` with output parameters; such an operation is rejected instead of leaving the property stale |
+| Store-generated value readback | `Not started` | `DmUpdateSqlTests` | P3 | Yes | Needs `RETURNING ... INTO` with output parameters; such an operation is rejected instead of leaving the property stale |
 | Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException` |
 | Modification command factory | `Not started` | — | P3 | No | EF Core 9+ contract |
 | `SaveChanges` transaction wrapping | `In progress` | `DmUpdateSqlTests` | P3 | Yes | The transaction is opened by the relational layer; not covered by a test |
@@ -145,10 +145,10 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Migrations SQL generator (DDL) | `Not started` | — | P4 | Yes | |
+| Migrations SQL generator (DDL) | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Table, index, constraint, sequence and data shapes; alter and rename operations are provider-specific and implemented here |
 | History repository | `Not started` | — | P4 | Yes | |
 | Migration lock | `Not started` | — | P4 | Yes | Lock table, per D7 |
-| Schema operations | `Not started` | — | P4 | Yes | |
+| Schema operations | `Partial` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` is rejected: Dameng has no schema DDL separate from users |
 | User operations | `Not started` | — | P4 | Yes | |
 | Migrations annotation provider | `Not started` | — | P4 | Yes | |
 | `MigrationBuilder` extensions | `Not started` | — | P4 | Yes | |
@@ -217,12 +217,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 24 |
+| `Implemented` | 25 |
 | `In progress` | 2 |
-| `Partial` | 6 |
-| `Blocked` | 3 |
+| `Partial` | 7 |
+| `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 58 |
+| `Not started` | 57 |
 | `Not applicable` | 1 |
 | **Total rows** | **97** |
 
