@@ -43,6 +43,24 @@ The previous provider also put its internals under `Microsoft.EntityFrameworkCor
 
 The assembly is `DM.EntityFrameworkCore`, the same identity the EF Core providers use, and the package id is `Cocosip.DM.EntityFrameworkCore`: the publisher prefix plus that identity. The package is not binary compatible with the previous provider, so consumers recompile, which a package change requires anyway. Consumers using a compiled model (`dotnet ef dbcontext optimize`) regenerate it.
 
+## Building and verifying
+
+Four commands, each proving something the previous one cannot:
+
+```pwsh
+dotnet build DM.EntityFrameworkCore.slnx                 # zero warnings, zero errors
+dotnet test DM.EntityFrameworkCore.slnx                  # the unit and SQL shape suite, no server needed
+dotnet run --project samples/DmProviderValidation -- --dry-run   # the acceptance model, its migration and its idempotent script
+pwsh -File scripts/package-smoke.ps1                     # packs, restores in an isolated cache and runs a consumer
+```
+
+Nothing above needs a Dameng instance. The live acceptance run does, and it takes the connection string as its argument or from `ConnectionStrings__Dm`:
+
+```pwsh
+dotnet run --project samples/DmProviderValidation -- "Server=localhost;Port=5236;User Id=SYSDBA;Password=SYSDBA"
+```
+
+It exits non-zero when any step fails and never prints the connection string. [Testing](docs/testing.md) records what a run covers, what it does not, and what stays marked as awaiting verification until an instance is reachable.
 ## Design principles
 
 - **Dialect separated from version.** Dameng dialect knowledge lives in an EF Core-free `Dialect/` layer that is shared across branches. Pipeline classes that inherit EF Core base types are implemented per version, with no cross-version abstraction.

@@ -71,8 +71,8 @@ Contains plain data and string logic with no EF Core type references:
 
 | Content | Examples |
 |---|---|
-| Store type names | `VARCHAR`, `NVARCHAR2`, `TIMESTAMP`, `INTERVAL DAY TO SECOND`, `BLOB`, `ROWID` |
-| Size and precision rules | maximum string length, default `DECIMAL(29,4)`, `TIMESTAMP(6)` precision |
+| Store type names | `NVARCHAR2`, `VARCHAR2`, `TIMESTAMP`, `INTERVAL DAY TO SECOND`, `BLOB`, `ROWID` |
+| Size and precision rules | the length a bounded string may name, the length a key takes when none is named, default `DECIMAL(29,4)`, the precision a `TIME` column names |
 | Identifier rules | double-quote delimiting, `"` escaped as `""` |
 | Parameter rules | `:` prefix, parameter name generation |
 | Batch terminator | `/` |
