@@ -161,6 +161,73 @@ public class DmMigrationsSqlTests
             """);
     }
     /// <summary>
+    /// A schema belongs to a user, so creating the user creates both. The privileges the account
+    /// needs are granted by the application, not by the migration.
+    /// </summary>
+    [Fact]
+    public void CreateUser_CreatesTheAccountAndTheSchemaItOwns()
+    {
+        AssertSql(
+            new DmCreateUserOperation { UserName = "APP", Password = "secret", Schema = "APP" },
+            """
+            CREATE USER "APP" IDENTIFIED BY 'secret';
+            CREATE SCHEMA "APP" AUTHORIZATION "APP";
+            """);
+    }
+
+    [Fact]
+    public void CreateUser_WithoutASchema_CreatesTheAccountOnly()
+    {
+        AssertSql(
+            new DmCreateUserOperation { UserName = "APP", Password = "secret" },
+            """CREATE USER "APP" IDENTIFIED BY 'secret';""");
+    }
+
+    /// <summary>
+    /// A password is a string literal, so a quote in it has to be doubled rather than ending the
+    /// literal early.
+    /// </summary>
+    [Fact]
+    public void CreateUser_EscapesAQuoteInThePassword()
+    {
+        AssertSql(
+            new DmCreateUserOperation { UserName = "APP", Password = "se'cret" },
+            """CREATE USER "APP" IDENTIFIED BY 'se''cret';""");
+    }
+
+    [Fact]
+    public void DropUser_Cascades()
+    {
+        AssertSql(
+            new DmDropUserOperation { UserName = "APP" },
+            """DROP USER "APP" CASCADE;""");
+    }
+
+    [Fact]
+    public void CreateSchema_NamesTheOwner()
+    {
+        AssertSql(
+            new DmCreateSchemaOperation { Name = "REPORTING", UserName = "APP" },
+            """CREATE SCHEMA "REPORTING" AUTHORIZATION "APP";""");
+    }
+
+    [Fact]
+    public void DropSchema_Cascades()
+    {
+        AssertSql(
+            new DmDropSchemaOperation { Name = "REPORTING" },
+            """DROP SCHEMA "REPORTING" CASCADE;""");
+    }
+
+    [Fact]
+    public void IsDm_ComparesAgainstTheProviderAssembly()
+    {
+        var providerName = typeof(DmMigrationBuilderExtensions).Assembly.GetName().Name;
+
+        Assert.True(new MigrationBuilder(providerName).IsDm());
+        Assert.False(new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer").IsDm());
+    }
+    /// <summary>
     /// Drops the blank line the command list emits before each batch separator, so that the
     /// assertion covers the statements and the separator rather than EF Core's spacing.
     /// </summary>

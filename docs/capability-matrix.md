@@ -153,10 +153,10 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | History repository | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Catalog existence check against `SYS.SYSOBJECTS`, unverified against a server |
 | Migration lock | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Exclusive table lock released by the transaction; no lock row, so a failed run cannot strand one |
 | Schema operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` runs inside a block that asks `SYS.SYSOBJECTS` first, so a schema the database administrator created does not fail the migration. The catalog query is not yet confirmed against a server |
-| User operations | `Not started` | — | P4 | Yes | |
+| User operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Creating a user creates the schema it owns in a second statement. Privileges are not granted: the reference grants DBA as part of the operation, which a migration should not decide |
 | Migrations annotation provider | `Not started` | — | P4 | Yes | |
-| `MigrationBuilder` extensions | `Not started` | — | P4 | Yes | |
-| Idempotent script generation | `Not started` | — | P4 | Yes | |
+| `MigrationBuilder` extensions | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `IsDm()` lets one migration assembly guard its provider specific operations |
+| Idempotent script generation | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | The history repository wraps each migration in a block that reads the history table first and runs the create through `EXECUTE IMMEDIATE`. Whether DDL inside the block is accepted is not yet confirmed against a server |
 | Model differ integration | `Not started` | — | P4 | Yes | |
 
 ### F. Scaffolding and design time
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 58 |
+| `Implemented` | 61 |
 | `In progress` | 0 |
 | `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 30 |
+| `Not started` | 27 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

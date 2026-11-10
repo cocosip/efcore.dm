@@ -289,6 +289,96 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         builder.EndCommand();
     }
 
+    /// <summary>
+    /// The base class refuses an operation it does not know, and every operation below is this
+    /// provider's own, so they are dispatched here before it can.
+    /// </summary>
+    protected override void Generate(
+        MigrationOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        switch (operation)
+        {
+            case DmCreateUserOperation createUser:
+                Generate(createUser, builder);
+                break;
+            case DmDropUserOperation dropUser:
+                Generate(dropUser, builder);
+                break;
+            case DmCreateSchemaOperation createSchema:
+                Generate(createSchema, builder);
+                break;
+            case DmDropSchemaOperation dropSchema:
+                Generate(dropSchema, builder);
+                break;
+            default:
+                base.Generate(operation, model, builder);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A schema belongs to a user, so the schema is created in a statement of its own once the user
+    /// exists. Each statement is its own command, because the driver runs one statement per round
+    /// trip.
+    /// </summary>
+    private void Generate(DmCreateUserOperation operation, MigrationCommandListBuilder builder)
+    {
+        builder
+            .Append("CREATE USER ")
+            .Append(Helper.DelimitIdentifier(operation.UserName))
+            .Append(" IDENTIFIED BY ")
+            .Append(Quote(operation.Password));
+
+        EndStatement(builder);
+
+        if (!string.IsNullOrEmpty(operation.Schema))
+        {
+            builder
+                .Append("CREATE SCHEMA ")
+                .Append(Helper.DelimitIdentifier(operation.Schema))
+                .Append(" AUTHORIZATION ")
+                .Append(Helper.DelimitIdentifier(operation.UserName));
+
+            EndStatement(builder);
+        }
+    }
+
+    private void Generate(DmDropUserOperation operation, MigrationCommandListBuilder builder)
+    {
+        builder
+            .Append("DROP USER ")
+            .Append(Helper.DelimitIdentifier(operation.UserName))
+            .Append(" CASCADE");
+
+        EndStatement(builder);
+    }
+
+    private void Generate(DmCreateSchemaOperation operation, MigrationCommandListBuilder builder)
+    {
+        builder
+            .Append("CREATE SCHEMA ")
+            .Append(Helper.DelimitIdentifier(operation.Name))
+            .Append(" AUTHORIZATION ")
+            .Append(Helper.DelimitIdentifier(operation.UserName));
+
+        EndStatement(builder);
+    }
+
+    private void Generate(DmDropSchemaOperation operation, MigrationCommandListBuilder builder)
+    {
+        builder
+            .Append("DROP SCHEMA ")
+            .Append(Helper.DelimitIdentifier(operation.Name))
+            .Append(" CASCADE");
+
+        EndStatement(builder);
+    }
+
     private static string Number(long value) => value.ToString(CultureInfo.InvariantCulture);
 
     /// <summary>Quotes a string literal for a statement body.</summary>
