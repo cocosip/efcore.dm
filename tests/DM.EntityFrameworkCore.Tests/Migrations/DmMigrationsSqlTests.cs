@@ -478,6 +478,86 @@ public class DmMigrationsSqlTests
             ALTER TABLE "History" MODIFY ("Id" INT NOT NULL);
             """);
     }
+    /// <summary>
+    /// The end to end shape, through the differ rather than a hand written operation: a model that
+    /// stops generating its key produces the drop, which proves the annotation the differ puts on the
+    /// old column is the one the generator reads.
+    /// </summary>
+    [Fact]
+    public void MigrationsDiff_WhenAColumnStopsGenerating_DropsTheIdentityAttribute()
+    {
+        using var before = new IdentityContext();
+        using var after = new PlainContext();
+
+        var operations = before.GetService<IMigrationsModelDiffer>().GetDifferences(
+            before.GetService<IDesignTimeModel>().Model.GetRelationalModel(),
+            after.GetService<IDesignTimeModel>().Model.GetRelationalModel());
+
+        Assert.Equal(
+            """
+            ALTER TABLE "Items" DROP IDENTITY;
+            ALTER TABLE "Items" MODIFY ("Id" INT NOT NULL);
+            """,
+            string.Join(
+                "\n",
+                before.GetService<IMigrationsSqlGenerator>()
+                    .Generate(operations, after.GetService<IDesignTimeModel>().Model)
+                    .Select(command => command.CommandText.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n'))));
+    }
+
+    /// <summary>
+    /// The same reverse direction, reached through the differ instead of a hand written operation.
+    /// </summary>
+    [Fact]
+    public void MigrationsDiff_WhenAColumnStartsGenerating_IsRejected()
+    {
+        using var before = new PlainContext();
+        using var after = new IdentityContext();
+
+        var operations = before.GetService<IMigrationsModelDiffer>().GetDifferences(
+            before.GetService<IDesignTimeModel>().Model.GetRelationalModel(),
+            after.GetService<IDesignTimeModel>().Model.GetRelationalModel());
+
+        Assert.Throws<NotSupportedException>(
+            () => before.GetService<IMigrationsSqlGenerator>().Generate(operations, after.GetService<IDesignTimeModel>().Model));
+    }
+
+    private abstract class DiffContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+    }
+
+    private sealed class IdentityContext : DiffContext
+    {
+        public DbSet<Item> Items => Set<Item>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Item>(entity =>
+            {
+                entity.ToTable("Items");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Id).ValueGeneratedOnAdd();
+            });
+    }
+
+    private sealed class PlainContext : DiffContext
+    {
+        public DbSet<Item> Items => Set<Item>();
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Item>(entity =>
+            {
+                entity.ToTable("Items");
+                entity.HasKey(item => item.Id);
+                entity.Property(item => item.Id).ValueGeneratedNever();
+            });
+    }
+
+    private sealed class Item
+    {
+        public int Id { get; set; }
+    }
     private static AddColumnOperation IdentityColumn()
     {
         var column = new AddColumnOperation

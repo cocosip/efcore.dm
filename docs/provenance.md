@@ -34,6 +34,20 @@ A file is a copy when it is substantively isomorphic to its counterpart in the r
 
 The reason is engineering as much as licensing. The reference code carries known quality problems: `//IL_xxxx: Unknown result type` residue, `((Expression)(object)x)` casts, and wholesale copies of EF Core internal implementations. These are also defect sources, and rewriting costs less than cleaning.
 
+### What was not carried over
+
+The reference was inventoried type by type against this repository. Three groups of its files are deliberately absent, and a fourth is waiting on a server. Recording them here keeps a later reader from porting one of them under the impression that it is a Dameng feature.
+
+| Group | Reference types | Why it is absent |
+|---|---|---|
+| SQL Server leftovers | `WrappedDmDataReader` and `DmDataReaderExtension`, `SearchConditionConvertingExpressionVisitor`, `StartsEndsWithContains`, `IOBehavior`, `EnumerableExtensions`, `MemberInfoExtensions`, `PropertyInfoExtensions`, `SharedTypeExtensions`, `StringBuilderExtensions` | Decompiled from the SQL Server provider along with the rest and never made dialect specific. Nothing calls them, and they are not Dameng behaviour to preserve |
+| SQL Server full-text shape | `DmFullTextSearchFunctionsTranslator` with `FreeText` and `Contains` over an `int languageTerm` | The overloads take a Windows language identifier and translate to `CONTAINS` and `FREETEXT`, which is the SQL Server shape of both. Dameng has no counterpart verified for either, so the surface would be an API that cannot work |
+| Message and guard plumbing | `DmStrings`, `DmSqlStrings`, `DmResources`, `Check` | This repository throws with the message at the call site and uses `ArgumentNullException.ThrowIfNull`, so there is no resource lookup to port |
+| Store type subclasses | `DmBoolTypeMapping`, `DmByteTypeMapping`, `DmByteArrayTypeMapping`, `DmSByteTypeMapping`, `DmStringTypeMapping`, `DmDecimalTypeMapping`, `DmFloatTypeMapping`, `DmDoubleTypeMapping`, `DmDateOnlyTypeMapping`, `DmTimeOnlyTypeMapping`, `DmDateTimeTypeMapping`, `DmDateTimeOffsetTypeMapping`, `DmJsonTypeMapping` | The base mappings cover every case except the store type name and its facets, which this repository builds into the name instead of subclassing for. The row for clone semantics in the [capability matrix](capability-matrix.md) records the consequence |
+
+Two further files are absent because their behaviour is already reached another way. The reference's `DmMigrationsAnnotationProvider` is an empty pass-through, and the differ was measured to put the value generation strategy on the old column by itself, which is what the drop of a lost identity attribute reads. The reference's `DmAnnotationCodeGenerator` and `DmCodeGenerator` are not needed, because the relational code generator leaves an annotation it does not know in the snapshot, which the row for the annotation code generator records.
+
+What remains unported is server dependent rather than dialect trivia: the retrying execution strategy and its transient detector, `rowversion`, the JSON column type, temporal tables, and full-text search. Each is a row of the [capability matrix](capability-matrix.md) with the reason it waits.
 ## 3. EF Core
 
 EF Core is MIT licensed and may be reused.
