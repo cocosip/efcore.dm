@@ -187,6 +187,30 @@ public class DmDatabaseModelFactoryTests
     }
 
     [Fact]
+    public void Create_ReadsTheTableAndColumnComments()
+    {
+        var model = Create(
+        [
+            Rows(["OWNER", "TABLE_NAME", "COMMENTS"], ["APP", "ORDERS", "the orders"]),
+            Rows(
+                [.. ColumnColumns, "COLUMN_ID", "COMMENTS"],
+                ["APP", "ORDERS", "ID", "INT", 4, null, null, "N", null, "YES", 1, null],
+                ["APP", "ORDERS", "STATUS", "VARCHAR", 20, null, null, "N", null, "NO", 2, "the order status"]),
+            Rows(ConstraintColumns),
+            Rows(ConstraintColumnColumns),
+            Rows(IndexColumns),
+            Rows(ForeignKeyColumns),
+            Rows(SequenceColumns)
+        ]);
+
+        var table = Assert.Single(model.Tables);
+
+        Assert.Equal("the orders", table.Comment);
+        Assert.Null(table.Columns[0].Comment);
+        Assert.Equal("the order status", table.Columns[1].Comment);
+    }
+
+    [Fact]
     public void DesignTimeServices_RegisterThisProvidersFactory()
     {
         using var services = ProviderDesignTimeServices.Build();

@@ -56,7 +56,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         using var reader = command.ExecuteReader();
         var tables = new List<DatabaseTable>();
 
-        foreach (var values in ReadRows(reader, 2))
+        foreach (var values in ReadRows(reader, 3))
         {
             var name = Text(values[1]);
             var schema = Text(values[0]);
@@ -66,7 +66,13 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                 continue;
             }
 
-            var table = new DatabaseTable { Name = name, Schema = schema, Database = model };
+            var table = new DatabaseTable
+            {
+                Name = name,
+                Schema = schema,
+                Comment = Text(values[2]),
+                Database = model
+            };
             model.Tables.Add(table);
             tables.Add(table);
         }
@@ -79,7 +85,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         using var command = Command(connection, DmCatalog.Columns);
         using var reader = command.ExecuteReader();
 
-        foreach (var values in ReadRows(reader, 10))
+        foreach (var values in ReadRows(reader, 12))
         {
             var owner = Text(values[0]);
             var objectName = Text(values[1]);
@@ -105,6 +111,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                     Table = table,
                     IsNullable = Text(values[7]) is not "N",
                     DefaultValueSql = Text(values[8]),
+                    Comment = Text(values[11]),
                     ValueGenerated = Text(values[9]) is "YES" or "Y" ? ValueGenerated.OnAdd : ValueGenerated.Never
                 });
         }

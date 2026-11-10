@@ -158,6 +158,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Migrations SQL generator (DDL) | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Table, index, constraint, sequence and data shapes. A sequence takes no type clause and spells its options as one word, an alteration repeats every option, and an alter, rename or schema operation is implemented here rather than by the base class |
+| Table and column comments (`HasComment`) | `Implemented` | `DmMigrationsSqlTests`, `DmDatabaseModelFactoryTests` | P4 | No | A comment is its own statement in Dameng: `COMMENT ON TABLE ... IS` and `COMMENT ON COLUMN ... IS`, written after the statement that creates or alters the object, and an empty string removes one. Reverse engineering reads both back through `ALL_TAB_COMMENTS` and `ALL_COL_COMMENTS`. The syntax comes from a published article on DM comments rather than the SQL manual, and the catalog views are unverified |
 | History repository | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Catalog existence check against `SYS.SYSOBJECTS`, unverified against a server |
 | Migration lock | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Exclusive table lock released by the transaction; no lock row, so a failed run cannot strand one |
 | Schema operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` runs inside a block that asks `SYS.SYSOBJECTS` first, so a schema the database administrator created does not fail the migration. The catalog query is not yet confirmed against a server |
@@ -171,7 +172,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Database model factory (reverse engineering) | `Partial` | `DmDatabaseModelFactoryTests` | P4 | Yes | Reads tables, columns, the primary key, unique constraints, indexes, foreign keys and sequences through the Oracle compatible views in `Dialect/`. A constraint whose columns were not read is skipped rather than half built. The queries themselves are unverified against a server, and views are not read because the relational model of EF Core 10 carries tables and sequences only |
+| Database model factory (reverse engineering) | `Partial` | `DmDatabaseModelFactoryTests` | P4 | Yes | Reads tables, columns, table and column comments, the primary key, unique constraints, indexes, foreign keys and sequences through the Oracle compatible views in `Dialect/`. A constraint whose columns were not read is skipped rather than half built. The queries themselves are unverified against a server, and views are not read because the relational model of EF Core 10 carries tables and sequences only |
 | Code generator | `Partial` | `DmProviderConfigurationCodeGeneratorTests` `DmDatabaseModelFactoryTests` | P4 | Yes | The provider configuration code is generated: `UseDm` with the connection string and no provider options, since the provider declares none. The model it is generated from now comes from the database model factory, so what remains unverified is the catalog queries that factory reads |
 | Annotation code generator | `Implemented` | `DmSnapshotTests` | P4 | Yes | The relational generator is enough: an annotation the generator does not name is written to the snapshot as `HasAnnotation`, which is how the value generation strategy, the identity seed and the hi-lo sequence reach the next migration |
 | Design-time services | `Implemented` | `DmSnapshotTests` | P4 | Yes | Declared through `DesignTimeProviderServices`, with the runtime services and the relational design services. A generated snapshot file was produced through it, so the tooling can build one and it compiles |
@@ -229,14 +230,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 79 |
+| `Implemented` | 80 |
 | `In progress` | 0 |
 | `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
 | `Not started` | 13 |
 | `Not applicable` | 3 |
-| **Total rows** | **109** |
+| **Total rows** | **110** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

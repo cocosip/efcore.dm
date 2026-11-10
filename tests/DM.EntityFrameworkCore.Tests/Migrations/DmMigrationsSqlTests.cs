@@ -227,6 +227,75 @@ public class DmMigrationsSqlTests
         Assert.True(new MigrationBuilder(providerName).IsDm());
         Assert.False(new MigrationBuilder("Microsoft.EntityFrameworkCore.SqlServer").IsDm());
     }
+    [Fact]
+    public void CreateTable_WithComments_WritesACommentStatementForEach()
+    {
+        AssertSql(
+            new CreateTableOperation
+            {
+                Name = "Probes",
+                Comment = "the probes",
+                Columns =
+                {
+                    new AddColumnOperation { Name = "Id", ClrType = typeof(int), ColumnType = "INT", IsNullable = false },
+                    new AddColumnOperation
+                    {
+                        Name = "Name",
+                        ClrType = typeof(string),
+                        ColumnType = "VARCHAR(50)",
+                        Comment = "the owner's name",
+                        IsNullable = false
+                    }
+                }
+            },
+            """
+            CREATE TABLE "Probes" (
+                "Id" INT NOT NULL,
+                "Name" VARCHAR(50) NOT NULL
+            );
+            COMMENT ON TABLE "Probes" IS 'the probes';
+            COMMENT ON COLUMN "Probes"."Name" IS 'the owner''s name';
+            """);
+    }
+
+    [Fact]
+    public void AddColumn_WithComment_WritesTheCommentAfterTheColumn()
+    {
+        AssertSql(
+            new AddColumnOperation
+            {
+                Table = "Probes",
+                Name = "Note",
+                ClrType = typeof(string),
+                ColumnType = "VARCHAR(50)",
+                Comment = "a note",
+                IsNullable = true
+            },
+            """
+            ALTER TABLE "Probes" ADD "Note" VARCHAR(50) NULL;
+            COMMENT ON COLUMN "Probes"."Note" IS 'a note';
+            """);
+    }
+
+    [Fact]
+    public void AlterColumn_WithTheCommentRemoved_WritesAnEmptyComment()
+    {
+        AssertSql(
+            new AlterColumnOperation
+            {
+                Table = "Probes",
+                Name = "Note",
+                ClrType = typeof(string),
+                ColumnType = "VARCHAR(50)",
+                IsNullable = true,
+                OldColumn = new AddColumnOperation { Comment = "a note" }
+            },
+            """
+            ALTER TABLE "Probes" MODIFY ("Note" VARCHAR(50));
+            COMMENT ON COLUMN "Probes"."Note" IS '';
+            """);
+    }
+
     /// <summary>
     /// Drops the blank line the command list emits before each batch separator, so that the
     /// assertion covers the statements and the separator rather than EF Core's spacing.

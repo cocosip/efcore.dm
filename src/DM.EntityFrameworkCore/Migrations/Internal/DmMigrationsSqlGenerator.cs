@@ -560,9 +560,66 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
                 break;
             default:
                 base.Generate(operation, model, builder);
+                GenerateComment(operation, builder);
                 break;
         }
     }
+
+    /// <summary>
+    /// Dameng keeps a table or column comment in a statement of its own, so a migration that carries no
+    /// comment statement loses it. A comment is written next to the object it describes, after the
+    /// statement that creates or alters it.
+    /// </summary>
+    private void GenerateComment(MigrationOperation operation, MigrationCommandListBuilder builder)
+    {
+        switch (operation)
+        {
+            case CreateTableOperation table:
+                var owner = Helper.DelimitIdentifier(table.Name, table.Schema);
+
+                Comment("TABLE", owner, table.Comment, builder);
+
+                foreach (var column in table.Columns)
+                {
+                    Comment("COLUMN", ColumnOf(owner, column.Name), column.Comment, builder);
+                }
+
+                break;
+
+            case AddColumnOperation column:
+                Comment("COLUMN", ColumnOf(column.Table, column.Schema, column.Name), column.Comment, builder);
+                break;
+
+            case AlterColumnOperation column when column.Comment != column.OldColumn.Comment:
+                // An empty string is how Dameng removes a comment.
+                Comment("COLUMN", ColumnOf(column.Table, column.Schema, column.Name), column.Comment ?? string.Empty, builder);
+                break;
+        }
+    }
+
+    private void Comment(string target, string name, string? text, MigrationCommandListBuilder builder)
+    {
+        if (text is null)
+        {
+            return;
+        }
+
+        builder
+            .Append("COMMENT ON ")
+            .Append(target)
+            .Append(" ")
+            .Append(name)
+            .Append(" IS ")
+            .Append(Quote(text));
+
+        EndStatement(builder);
+    }
+
+    private string ColumnOf(string table, string? schema, string column)
+        => ColumnOf(Helper.DelimitIdentifier(table, schema), column);
+
+    private string ColumnOf(string owner, string column)
+        => owner + "." + Helper.DelimitIdentifier(column);
 
     /// <summary>
     /// A schema belongs to a user, so the schema is created in a statement of its own once the user

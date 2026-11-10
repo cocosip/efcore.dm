@@ -16,13 +16,15 @@ namespace DM.EntityFrameworkCore.Dialect;
 internal static class DmCatalog
 {
     /// <summary>
-    /// User tables, excluding the schemas Dameng itself owns.
+    /// User tables, excluding the schemas Dameng itself owns, with the comment a table carries.
     /// </summary>
     public const string Tables = """
-        SELECT OWNER, TABLE_NAME
-        FROM ALL_TABLES
-        WHERE OWNER NOT IN ('SYS', 'SYSAUDITOR', 'SYSDBA', 'SYSSSO', 'CTISYS')
-        ORDER BY OWNER, TABLE_NAME
+        SELECT t.OWNER, t.TABLE_NAME, c.COMMENTS
+        FROM ALL_TABLES t
+        LEFT JOIN ALL_TAB_COMMENTS c
+            ON c.OWNER = t.OWNER AND c.TABLE_NAME = t.TABLE_NAME
+        WHERE t.OWNER NOT IN ('SYS', 'SYSAUDITOR', 'SYSDBA', 'SYSSSO', 'CTISYS')
+        ORDER BY t.OWNER, t.TABLE_NAME
         """;
 
     /// <summary>
@@ -37,13 +39,15 @@ internal static class DmCatalog
 
     /// <summary>
     /// Columns with the attributes the model needs: the store type, the length or the precision, the
-    /// identity flag and the default.
+    /// identity flag, the default and the comment.
     /// </summary>
     public const string Columns = """
-        SELECT OWNER, TABLE_NAME, COLUMN_NAME, DATA_TYPE, DATA_LENGTH, DATA_PRECISION, DATA_SCALE,
-               NULLABLE, DATA_DEFAULT, IDENTITY_COLUMN, COLUMN_ID
-        FROM ALL_TAB_COLUMNS
-        ORDER BY OWNER, TABLE_NAME, COLUMN_ID
+        SELECT c.OWNER, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, c.DATA_LENGTH, c.DATA_PRECISION,
+               c.DATA_SCALE, c.NULLABLE, c.DATA_DEFAULT, c.IDENTITY_COLUMN, c.COLUMN_ID, m.COMMENTS
+        FROM ALL_TAB_COLUMNS c
+        LEFT JOIN ALL_COL_COMMENTS m
+            ON m.OWNER = c.OWNER AND m.TABLE_NAME = c.TABLE_NAME AND m.COLUMN_NAME = c.COLUMN_NAME
+        ORDER BY c.OWNER, c.TABLE_NAME, c.COLUMN_ID
         """;
 
     /// <summary>
