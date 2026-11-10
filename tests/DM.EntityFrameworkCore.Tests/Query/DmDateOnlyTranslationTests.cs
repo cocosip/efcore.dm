@@ -42,6 +42,33 @@ public class DmDateOnlyTranslationTests
                     .ToQueryString()));
     }
 
+    /// <summary>
+    /// A date reads its parts like a timestamp does, with the same <c>EXTRACT</c> shape.
+    /// </summary>
+    [Theory]
+    [InlineData("Year", "EXTRACT(YEAR FROM \"p\".\"Day\") > 2000")]
+    [InlineData("Month", "EXTRACT(MONTH FROM \"p\".\"Day\") > 6")]
+    [InlineData("Day", "EXTRACT(DAY FROM \"p\".\"Day\") > 15")]
+    public void Member_ReadsThePart(string member, string predicate)
+    {
+        using var context = new ProbeContext();
+
+        var query = member switch
+        {
+            "Year" => context.Probes.Where(p => p.Day.Year > 2000),
+            "Month" => context.Probes.Where(p => p.Day.Month > 6),
+            _ => context.Probes.Where(p => p.Day.Day > 15)
+        };
+
+        Assert.Equal(
+            $"""
+             SELECT "p"."Id", "p"."CreatedAt", "p"."Day"
+             FROM "Probes" AS "p"
+             WHERE {predicate}
+             """,
+            Statement(query.ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

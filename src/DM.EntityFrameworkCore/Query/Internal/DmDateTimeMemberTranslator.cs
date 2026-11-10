@@ -74,9 +74,18 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
             return Total(instance, member.Name);
         }
 
-        if (member.DeclaringType != typeof(DateTime) && member.DeclaringType != typeof(DateTimeOffset))
+        if (member.DeclaringType != typeof(DateTime)
+            && member.DeclaringType != typeof(DateTimeOffset)
+            && member.DeclaringType != typeof(DateOnly)
+            && member.DeclaringType != typeof(TimeOnly))
         {
             return null;
+        }
+
+        // A date or a time of day reads its parts the same way a timestamp does.
+        if (member.DeclaringType == typeof(DateOnly) || member.DeclaringType == typeof(TimeOnly))
+        {
+            return instance is null ? null : Instance(instance, member.Name, returnType);
         }
 
         return instance is null

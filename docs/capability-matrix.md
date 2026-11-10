@@ -128,8 +128,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `byte[].Length` | `Not started` | — | P2 | No | Measured: fails to translate. A byte array is stored as `BLOB` by default, and whether `LENGTH` accepts a `BLOB` rather than only a character or binary string is unverified |
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
 | `TimeOnly` conversions (`FromDateTime`, `FromTimeSpan`) | `Implemented` | `DmTimeOnlyTranslationTests` | P2 | Yes | A time of day built from a timestamp is a cast to `TIME`; one built from an elapsed time is that `INTERVAL DAY TO SECOND` added to the epoch and cast. The generated SQL is unverified against a server |
-| `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
-| `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date. `DayNumber` is not provided: `TO_DAYS` counts from year zero, and the offset to .NET's day number is unverified. The other members do not translate |
+| `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Partial` | `DmTimeOnlyTranslationTests` | P2 | Yes | `Hour`, `Minute` and `Second` read the part with `EXTRACT`. `Millisecond` is not provided, because the part is not in the `EXTRACT` form this dialect uses, and the `Add...` methods are not translated, which the reference provider does not translate either: a time of day that wraps past midnight needs arithmetic on the `TIME` type that neither implementation has established. Unverified against a server |
+| `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date; `Year`, `Month` and `Day` read the part with `EXTRACT`. `DayNumber` is not provided: `TO_DAYS` counts from year zero in a way that disagrees with the difference to that year, and the offset to .NET's day number is unverified. The other members do not translate |
 | `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Partial` | `DmTimeSpanTranslationTests` | P2 | No | The parts `Days`, `Hours`, `Minutes` and `Seconds` read the interval part with `EXTRACT`, and a part that is not a total truncates the seconds because `EXTRACT(SECOND ...)` keeps the fraction that the member drops. Each of the five totals sums the parts in seconds and scales the result. `Add` and `Subtract` are the interval operators. `Duration`, `Negate`, `Ticks` and `Milliseconds` are not translated. Whether Dameng signs each part of a negative interval the way a negative `TimeSpan` does is unverified |
 | `DateTime.Subtract` returning a `TimeSpan` | `Partial` | `DmDateTimeMethodTranslationTests` | P2 | No | A date minus an interval is a date. The difference of two dates is not translated: the SQL development guide states that subtracting two dates answers a number of days rather than an interval, and the conversion to an interval is behind, or fails under, Oracle compatible mode, which a dialect that must work in every mode cannot rely on. The shape stays untranslated instead of declaring a `TimeSpan` the server would not send back, and a test records the measurement. See `version-matrix.md` §9 for the sources |
 | Null semantics processor | `Not applicable` | `DmStringTranslationTests` | P2 | Yes | The difference between an empty string and NULL is a server parameter, not a shape: under `COMPATIBLE_MODE=2` the empty string is NULL, and under the default mode it is a value of its own, so the same statement means both things depending on the instance. A translator cannot see the mode, which is why the dialect never branches on it. `IsNullOrEmpty` and `IsNullOrWhiteSpace` test both conditions, so they hold either way; nothing else is normalised |
@@ -232,10 +232,10 @@ Rows by status, updated when the matrix changes:
 |---|---|
 | `Implemented` | 82 |
 | `In progress` | 0 |
-| `Partial` | 9 |
+| `Partial` | 10 |
 | `Blocked` | 2 |
 | `Deferred` | 5 |
-| `Not started` | 8 |
+| `Not started` | 7 |
 | `Not applicable` | 4 |
 | **Total rows** | **110** |
 

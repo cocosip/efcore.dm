@@ -42,6 +42,35 @@ public class DmTimeOnlyTranslationTests
                     .ToQueryString()));
     }
 
+    /// <summary>
+    /// A time of day reads its parts like a timestamp does. The reference provider reads them with
+    /// <c>DATEPART</c>; this dialect uses <c>EXTRACT</c> throughout, which is the shape the live matrix
+    /// has to confirm against a server.
+    /// </summary>
+    [Theory]
+    [InlineData("Hour", "EXTRACT(HOUR FROM \"p\".\"At\") > 12")]
+    [InlineData("Minute", "EXTRACT(MINUTE FROM \"p\".\"At\") > 12")]
+    [InlineData("Second", "EXTRACT(SECOND FROM \"p\".\"At\") > 12")]
+    public void Member_ReadsThePart(string member, string predicate)
+    {
+        using var context = new ProbeContext();
+
+        var query = member switch
+        {
+            "Hour" => context.Probes.Where(p => p.At.Hour > 12),
+            "Minute" => context.Probes.Where(p => p.At.Minute > 12),
+            _ => context.Probes.Where(p => p.At.Second > 12)
+        };
+
+        Assert.Equal(
+            $"""
+             SELECT "p"."Id", "p"."At", "p"."CreatedAt", "p"."Span"
+             FROM "Probes" AS "p"
+             WHERE {predicate}
+             """,
+            Statement(query.ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",
