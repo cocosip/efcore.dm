@@ -1,0 +1,143 @@
+# Testing
+
+Status: **decided**. Changes to this document require review.
+
+## 1. Acceptance model
+
+Provider correctness is defined by the EF Core specification test suite, not by self-authored SQL assertions.
+
+| Layer | Content | Nature | Cost |
+|---|---|---|---|
+| T1 | Unit tests for `Dialect/` pure functions, error classification, identifier escaping | No database | milliseconds |
+| T2 | SQL shape assertions via `ToQueryString()` plus parameter inspection | No database; **never sufficient on its own** | milliseconds |
+| T3 | **EF Core specification test suite**, executed against a live database | **Primary gate** | minutes |
+| T4 | Differential comparison against the official provider for the same query | Diagnostic aid, not a gate | minutes |
+
+### Constraint on T2
+
+When a method is called only in the final projection, EF Core may read the column and evaluate in the client. `ToQueryString()` not throwing does **not** prove server-side translation.
+
+Every translation test places the expression in a position that requires server execution: `WHERE`, `ORDER BY`, a JOIN key, or a table-valued function call. It then asserts the complete generated SQL.
+
+## 2. Specification test suite
+
+### Packages
+
+```xml
+<PackageReference Include="Microsoft.EntityFrameworkCore.Relational.Specification.Tests" />
+```
+
+| Branch | Package version | Test framework |
+|---|---|---|
+| `dev` (EF Core 10) | `10.0.14` | xUnit v2 (`xunit.core` 2.9.3) |
+| `efcore9` | `9.0.22` | xUnit v2 |
+| `efcore8` | `8.0.33` | xUnit v2 |
+| EF Core 11 | `11.0.0-rc` | **xUnit v3** (`xunit.v3.assert` 4.x) |
+
+### Dependency pinning
+
+The specification test package pins its own dependency versions, which must be honoured:
+
+- `xunit.core` and `xunit.assert` 2.9.3, `xunit.runner.visualstudio` 3.1.3 on the EF Core 8/9/10 branches
+- `NetTopologySuite` 2.6.0, `Newtonsoft.Json` 13.0.4
+- `Microsoft.CodeAnalysis.*` 5.0.0, `Mono.TextTemplating` 3.0.0
+
+Rule: the **specification test project** is exempt from central package management, because the EF Core test package pins `xunit.core` and `xunit.assert` at 2.9.3 and its own analysis and templating versions. The unit test project follows the central versions, since it inherits nothing from EF Core. Do not raise the specification test project's xunit versions independently of the EF Core version: they move together.
+
+### Test framework follows the EF Core version
+
+The test framework version is bound to the EF Core version and is not unified across the repository. EF Core 11 moved its specification assemblies from xUnit v2 to xUnit v3. The EF Core 11 branch migrates its specification test project to `xunit.v3` packages, the `Microsoft.Testing.Platform` runner, and the v3 assertion API, and converts `[ConditionalFact]` to `[Fact]` and `[ConditionalTheory]` to `[Theory]`.
+
+### Project structure
+
+```
+tests/
+  DM.EntityFrameworkCore.Tests/                      T1, T2, branch-specific regressions
+  DM.EntityFrameworkCore.SpecificationTests/         T3: inherits EF Core specification base classes
+    Fixtures/                           one fixture per test store
+    Skipped.md                          skip ledger
+samples/
+  DmProviderValidation/                 live end-to-end acceptance
+```
+
+## 3. Skip ledger
+
+Tests that do not pass are recorded, never deleted. The ledger is the roadmap.
+
+Each entry contains the test class or case, the reason, a category, and a tracking issue.
+
+| Test class or case | Reason | Category | Issue |
+|---|---|---|---|
+| `BuiltInDataTypesTestBase...` | Dameng has no `INTERVAL YEAR TO MONTH` equivalent | Server limitation | #12 |
+
+The category is exactly one of:
+
+| Category | Meaning | Policy |
+|---|---|---|
+| `Not implemented` | Provider work outstanding | Must reference an issue and a roadmap phase |
+| `Server limitation` | Dameng has no equivalent capability | Must cite Dameng documentation or a recorded experiment |
+| `EF Core limitation` | Behaviour of EF Core itself | Must cite the EF Core version and a reference |
+| `Known defect` | Provider is wrong | Must mention the blocking issue. Cleared before a release. |
+
+Rules:
+
+1. The count of `Not implemented` entries is the only progress metric.
+2. `Known defect` entries do not cross a release boundary. A release either clears them or lists them as known issues in its notes.
+3. The ledger is per branch and is never synchronized between branches, because baselines differ.
+4. A new ledger entry is committed together with the code it describes, so it appears in review.
+
+## 4. Differential comparison
+
+When the correct Dameng translation is unclear, the official provider is used as a black-box reference.
+
+1. Same entity model, same LINQ query.
+2. Generate SQL with this provider and with the official `DM.Microsoft.EntityFrameworkCore`, via `ToQueryString()`.
+3. Normalize parameter names and whitespace, then compare. Any remaining difference must be intentional.
+
+Boundaries, from [Provenance](provenance.md): black-box comparison only. The official provider's decompiled source is never read or copied. Differences that are intentional are documented in [Version Matrix](version-matrix.md) or in the dialect notes.
+
+A match is not proof of correctness: both implementations can be wrong in the same way. Execution against a live database remains the final standard.
+
+## 5. Live database matrix
+
+| Dimension | Values |
+|---|---|
+| Dameng server | Versions in production use |
+| Compatibility mode | Default (Oracle-compatible); PostgreSQL-compatible mode is verified but does not change the implementation (D4) |
+| Operating system | Windows x64, Linux x64 |
+| Target framework | `net8.0` on the EF Core 8/9 branches, `net10.0` on EF Core 10, `net11.0` from EF Core 11 |
+| Driver | The verified `DM.DmProvider` version; EF Core 10 consumes its `net9.0` asset |
+
+### When no live environment is available
+
+Work is not reclassified as complete. Rules:
+
+- The phase remains open and is marked as awaiting live verification.
+- The release decision is made by a human, and the release notes state what was not covered.
+- Live CI jobs are never marked optional or allowed to fail silently.
+
+`samples/DmProviderValidation` is the end-to-end acceptance program. It covers connection open and close, synchronous and asynchronous commands, cancellation, CRUD, transaction commit and rollback, optimistic concurrency, identity and sequence readback, `ExecuteUpdate` and `ExecuteDelete`, type round trips, left and right joins, migrations up and down, custom history tables, and concurrent migration locking.
+
+It reads `ConnectionStrings:Dm` from .NET user secrets, creates the target schema and tables, isolates each run by an identifier, and cleans up only the data it created. It never prints the connection string, and it returns a non-zero exit code when any step fails.
+
+## 6. Definition of done
+
+A dialect capability or pipeline feature is complete only when all five hold:
+
+1. A test failed before the implementation and passes after.
+2. The test places the expression where server execution is required.
+3. The specification test suite passes for that area, or the entry is in the ledger with an allowed category.
+4. Live database execution passed, or the work is explicitly recorded as awaiting live verification with a reason.
+5. Any API difference is recorded in [Version Matrix](version-matrix.md).
+
+## 7. What is not measured
+
+Test count is not a progress metric. The specification suite has a fixed set of cases defined upstream; the metric is the shrinking skip ledger.
+
+New T2 tests are written only when:
+
+- the translation is Dameng-specific and not covered by the specification suite,
+- a specification test failure requires a minimal regression case, or
+- the code under test is a pure function in `Dialect/`.
+
+There is no coverage threshold and no test is written to raise coverage.
