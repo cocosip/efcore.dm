@@ -221,7 +221,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | T2 SQL shape tests | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Complete statement asserted, expression placed where server execution is required |
 | T3 specification suite | `Not started` | — | P0b | **No** | The reference never had one |
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
-| Live validation console | `Not started` | — | P6 | Yes | |
+| Live validation console | `Blocked` | — | P6 | Yes | The program is written and builds, and every step awaits a live instance: it creates its own prefixed tables, marks its rows with a run identifier, drops only what it created, and returns a non-zero exit code when a step fails. Running it against an unreachable server reports the driver's refusal and exits non-zero, which is the extent of what can be observed here |
 | Package consumer smoke test | `Implemented` | `scripts/package-smoke.ps1` | P6 | Yes | Packs the provider, restores a project that references it as a package into its own NuGet cache, compares the SHA-256 of the resolved package with the packed one, and runs the consumer, which builds a model and a create script without connecting to a server |
 
 ## 6. Current position
@@ -233,9 +233,9 @@ Rows by status, updated when the matrix changes:
 | `Implemented` | 83 |
 | `In progress` | 0 |
 | `Partial` | 10 |
-| `Blocked` | 2 |
+| `Blocked` | 3 |
 | `Deferred` | 4 |
-| `Not started` | 7 |
+| `Not started` | 6 |
 | `Not applicable` | 4 |
 | **Total rows** | **110** |
 

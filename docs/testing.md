@@ -65,7 +65,7 @@ tests/
 scripts/
   package-smoke.ps1                     T5: packs, restores in an isolated cache, runs the consumer
 samples/
-  DmProviderValidation/                 live end-to-end acceptance (planned)
+  DmProviderValidation/                 live end-to-end acceptance (written, awaiting an instance)
 ```
 
 ## 3. Skip ledger
@@ -126,9 +126,11 @@ Work is not reclassified as complete. Rules:
 - The release decision is made by a human, and the release notes state what was not covered.
 - Live CI jobs are never marked optional or allowed to fail silently.
 
-`samples/DmProviderValidation` is the end-to-end acceptance program. It covers connection open and close, synchronous and asynchronous commands, cancellation, CRUD, transaction commit and rollback, optimistic concurrency, identity and sequence readback, `ExecuteUpdate` and `ExecuteDelete`, type round trips, left and right joins, migrations up and down, custom history tables, and concurrent migration locking.
+`samples/DmProviderValidation` is the end-to-end acceptance program. It covers connection open and close, synchronous and asynchronous commands, cancellation, CRUD, transaction commit and rollback, savepoints, optimistic concurrency, identity and sequence readback, `ExecuteUpdate` and `ExecuteDelete`, type round trips, and left and right joins. Each step reports on its own, so one failure does not hide the rest.
 
-It reads `ConnectionStrings:Dm` from .NET user secrets, creates the target schema and tables, isolates each run by an identifier, and cleans up only the data it created. It never prints the connection string, and it returns a non-zero exit code when any step fails.
+Migrations up and down, custom history tables and concurrent migration locking are not part of this program: they are exercised through the `dotnet ef` commands that roadmap phase P2 names as its exit criteria, which drive the same pipeline against a real database without duplicating a migrations assembly in a sample.
+
+It reads the connection string from its first argument, or from `ConnectionStrings__Dm`, and never prints it. It creates its own prefixed tables through the relational database creator rather than through `EnsureCreated`, because a Dameng database is made with the `dminit` tool before a connection can reach it and the catalog may already hold tables the run does not own. Each run marks its rows with an identifier, isolates them from another run, drops only the tables it created, and returns a non-zero exit code when any step fails. `--keep` leaves the tables behind for inspection.
 
 ## 6. Definition of done
 

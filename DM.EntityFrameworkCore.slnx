@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="src/DM.EntityFrameworkCore/DM.EntityFrameworkCore.csproj" />
   <Project Path="tests/DM.EntityFrameworkCore.Tests/DM.EntityFrameworkCore.Tests.csproj" />
+  <Project Path="samples/DmProviderValidation/DmProviderValidation.csproj" />
 </Solution>

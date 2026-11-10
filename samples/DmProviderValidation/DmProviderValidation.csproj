@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>DmProviderValidation</AssemblyName>
+    <RootNamespace>DmProviderValidation</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\DM.EntityFrameworkCore\DM.EntityFrameworkCore.csproj" />
+  </ItemGroup>
+
+</Project>
