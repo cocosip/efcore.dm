@@ -34,7 +34,6 @@ public class DmParameterBindingTests
                     "Span" INTERVAL DAY TO SECOND NOT NULL,
                     CONSTRAINT "PK_Samples" PRIMARY KEY ("Id")
                 );
-
                 /
                 """),
             Normalize(context.Database.GenerateCreateScript()));

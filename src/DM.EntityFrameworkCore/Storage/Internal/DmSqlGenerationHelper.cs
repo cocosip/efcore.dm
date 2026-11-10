@@ -16,6 +16,17 @@ internal sealed class DmSqlGenerationHelper : RelationalSqlGenerationHelper
 
     public override string BatchTerminator => DmBatch.Terminator;
 
+    /// <summary>
+    /// Dameng starts a transaction with the first statement it runs, and its manual defines no
+    /// <c>START TRANSACTION</c> statement, so a generated script opens one with nothing and relies on
+    /// that. The commit is defined, so it stays.
+    /// </summary>
+    /// <remarks>
+    /// See the transaction chapter of the Dameng manual, which describes the implicit start in the
+    /// section on transaction modes.
+    /// </remarks>
+    public override string StartTransactionStatement => string.Empty;
+
     public override string GenerateParameterName(string name) => DmParameters.ToName(name);
 
     public override void GenerateParameterName(System.Text.StringBuilder builder, string name)

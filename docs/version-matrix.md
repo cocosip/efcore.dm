@@ -158,7 +158,7 @@ The following are properties of Dameng, identical across EF Core versions. Their
 
 - Store type names, sizes, precision, and CLR type correspondence
 - Identifier delimiting and escaping
-- Parameter prefix `:` and batch terminator `/`
+- Parameter prefix `:` and batch terminator `/` followed by a line feed, which belongs to the terminator because a script writer appends the next statement directly after it. A generated script opens no transaction, because Dameng starts one with the first statement it runs and defines no `START TRANSACTION`
 - DDL syntax: identity columns, sequences, tables, indexes, and `COMMENT ON TABLE` and `COMMENT ON COLUMN` for a comment an object carries
 - Catalog queries against `SYSOBJECTS` and related system tables
 - Dameng error classification

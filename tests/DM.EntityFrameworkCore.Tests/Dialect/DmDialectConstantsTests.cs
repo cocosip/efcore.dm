@@ -8,7 +8,9 @@ public class DmDialectConstantsTests
     [Fact]
     public void BatchTerminator_IsSlashOnItsOwnLine()
     {
-        Assert.Equal("\n/", DmBatch.Terminator);
+        // The line feed after the slash is part of the terminator, because the script writer appends
+        // the next statement directly after it.
+        Assert.Equal("/\n", DmBatch.Terminator);
     }
 
     [Fact]

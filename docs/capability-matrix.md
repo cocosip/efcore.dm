@@ -165,7 +165,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | User operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Creating a user creates the schema it owns in a second statement. Privileges are not granted: the reference grants DBA as part of the operation, which a migration should not decide |
 | Migrations annotation provider | `Implemented` | `DmAnnotationProviderTests` | P4 | Yes | The identity attribute and a non default seed and increment reach the column operation the differ produces, so the generated migration shows them and a replay reads them; the mirrored key of a table per type hierarchy carries none |
 | `MigrationBuilder` extensions | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `IsDm()` lets one migration assembly guard its provider specific operations |
-| Idempotent script generation | `Implemented` | `DmHistoryRepositoryTests` `DmIdempotentScriptTests` | P4 | Yes | Every guarded statement reads the catalog in a PL/SQL block and runs through `EXECUTE IMMEDIATE`, because Dameng has no `IF NOT EXISTS` for DDL: the history table and each migration row through `SYS.SYSOBJECTS` and the history table, and a create of a table, sequence, index or constraint through the Oracle compatible views, with the owner compared against `USER` when the migration names no schema. Whether DDL inside such a block is accepted, and whether the catalog views report the objects under those names, is not yet confirmed against a server |
+| Idempotent script generation | `Implemented` | `DmHistoryRepositoryTests` `DmIdempotentScriptTests` | P4 | Yes | Every guarded statement reads the catalog in a PL/SQL block and runs through `EXECUTE IMMEDIATE`, because Dameng has no `IF NOT EXISTS` for DDL: the history table and each migration row through `SYS.SYSOBJECTS` and the history table, and a create of a table, sequence, index, constraint or added column through the Oracle compatible views, with the owner compared against `USER` when the migration names no schema and the table named as well for a column, whose name is unique within a table rather than within a schema. Whether DDL inside such a block is accepted, and whether the catalog views report the objects under those names, is not yet confirmed against a server |
+| Migration script composition | `Implemented` | `DmMigrationScriptTests` | P4 | Yes | A whole script is composed through the migrator rather than operation by operation, which is what a deployment runs: every batch separator is a slash on a line of its own, because the writer appends the next statement directly after it, and a script opens no transaction, because Dameng starts one with the first statement it runs and its manual defines no `START TRANSACTION`; `COMMIT` stays. The guards of an idempotent script nest as blocks and close in the order they opened. The shape was wrong in both places before the test existed, and no server was needed to see it |
 | Model differ integration | `Implemented` | `DmModelDifferTests` | P4 | Yes | The EF Core differ compares the two relational models and keeps the provider metadata: a new hi-lo property produces the schema and the sequence, a column that appears produces an added column rather than a modified one, and a widened column produces the matching `MODIFY`. Changing the value generation strategy between identity and hi-lo yields an `ALTER` that only repeats the type, because Dameng defines identity at column creation; a migration that switches strategy needs a hand-written operation |
 
 ### F. Scaffolding and design time
@@ -233,14 +234,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 86 |
+| `Implemented` | 87 |
 | `In progress` | 0 |
 | `Partial` | 10 |
 | `Blocked` | 3 |
 | `Deferred` | 4 |
 | `Not started` | 6 |
 | `Not applicable` | 4 |
-| **Total rows** | **113** |
+| **Total rows** | **114** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

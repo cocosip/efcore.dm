@@ -333,10 +333,6 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     /// Records the requested script flavour, so that an operation can wrap itself when the script has
     /// to be safe to run against a database that already holds part of it.
     /// </summary>
-    /// <summary>
-    /// Records the requested script flavour, so that an operation can wrap itself when the script has
-    /// to be safe to run against a database that already holds part of it.
-    /// </summary>
     public override IReadOnlyList<MigrationCommand> Generate(
         IReadOnlyList<MigrationOperation> operations,
         IModel? model = null,
@@ -399,6 +395,35 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         GenerateIfMissing(
             builder,
             Exists("ALL_INDEXES", "OWNER", "INDEX_NAME", operation.Schema, operation.Name),
+            inner => base.Generate(operation, model, inner, terminate));
+    }
+
+    /// <summary>
+    /// A column a later migration adds needs its own guard: the table is there, so a table check says
+    /// nothing about the column. The predicate names the table as well as the column, because a column
+    /// name is unique within a table rather than within a schema.
+    /// </summary>
+    protected override void Generate(
+        AddColumnOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder,
+        bool terminate)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent)
+        {
+            base.Generate(operation, model, builder, terminate);
+
+            return;
+        }
+
+        GenerateIfMissing(
+            builder,
+            Exists("ALL_TAB_COLUMNS", "OWNER", "COLUMN_NAME", operation.Schema, operation.Name)
+                + " AND TABLE_NAME = "
+                + Quote(operation.Table),
             inner => base.Generate(operation, model, inner, terminate));
     }
 

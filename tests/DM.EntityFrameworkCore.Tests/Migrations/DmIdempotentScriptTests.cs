@@ -47,6 +47,34 @@ public class DmIdempotentScriptTests
         Assert.Contains("IF declared = 0 THEN", sql, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A column a later migration adds is guarded against the column catalog, not the table one: the
+    /// table is already there, so only the column name tells a re-run whether the statement ran.
+    /// </summary>
+    [Fact]
+    public void AddedColumn_IsGuardedByTheColumnCatalog()
+    {
+        var sql = Generate(
+            MigrationsSqlGenerationOptions.Idempotent,
+            new AddColumnOperation
+            {
+                Table = "Probes",
+                Name = "Note",
+                ClrType = typeof(string),
+                ColumnType = "VARCHAR(50)",
+                IsNullable = true
+            });
+
+        Assert.Contains(
+            "SELECT COUNT(*) INTO declared FROM ALL_TAB_COLUMNS WHERE OWNER = USER AND COLUMN_NAME = 'Note' AND TABLE_NAME = 'Probes';",
+            sql,
+            StringComparison.Ordinal);
+
+        Assert.Contains(
+            """EXECUTE IMMEDIATE 'ALTER TABLE "Probes" ADD "Note" VARCHAR(50) NULL'""",
+            sql,
+            StringComparison.Ordinal);
+    }
     [Fact]
     public void SequenceAndIndex_AreGuardedByTheirOwnViewAndSchema()
     {

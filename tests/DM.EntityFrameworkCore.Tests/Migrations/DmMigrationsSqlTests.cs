@@ -27,6 +27,7 @@ public class DmMigrationsSqlTests
                 CONSTRAINT "PK_Probes" PRIMARY KEY ("Id")
             );
             /
+
             CREATE TABLE "Lines" (
                 "Id" INT IDENTITY(1,1) NOT NULL,
                 "ProbeId" INT NOT NULL,
@@ -34,8 +35,10 @@ public class DmMigrationsSqlTests
                 CONSTRAINT "FK_Lines_Probes_ProbeId" FOREIGN KEY ("ProbeId") REFERENCES "Probes" ("Id") ON DELETE CASCADE
             );
             /
+
             CREATE INDEX "IX_Lines_ProbeId" ON "Lines" ("ProbeId");
             /
+
             CREATE UNIQUE INDEX "IX_Probes_Name" ON "Probes" ("Name");
             /
             """.Replace("\r\n", "\n", StringComparison.Ordinal),
@@ -299,14 +302,11 @@ public class DmMigrationsSqlTests
     }
 
     /// <summary>
-    /// Drops the blank line the command list emits before each batch separator, so that the
-    /// assertion covers the statements and the separator rather than EF Core's spacing.
+    /// Normalises the line endings, so the assertion covers the statements and the separator rather
+    /// than the platform.
     /// </summary>
     private static string Separators(string script)
-        => script
-            .Replace("\r\n", "\n", StringComparison.Ordinal)
-            .Replace("\n\n/", "\n/", StringComparison.Ordinal)
-            .TrimEnd('\n');
+        => script.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
 
     /// <summary>
     /// The operations the generated migrations use, by name. Each shape is what Dameng spells, read
