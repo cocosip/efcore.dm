@@ -37,7 +37,6 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         DbType.Guid);
 
     private static readonly RelationalTypeMapping DateOnlyMapping = new DateOnlyTypeMapping(DmStoreTypes.Date, DbType.Date);
-    private static readonly RelationalTypeMapping TimeOnlyMapping = new TimeOnlyTypeMapping(DmStoreTypes.Time, DbType.Time);
     private static readonly RelationalTypeMapping TimeSpanMapping = new DmTimeSpanTypeMapping(
         DmStoreTypes.IntervalDayToSecond);
     private static readonly RelationalTypeMapping DateTimeOffsetMapping = new DateTimeOffsetTypeMapping(
@@ -187,7 +186,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             var t when t == typeof(double) => Retype(storeType, () => DoubleMapping, s => new DoubleTypeMapping(s, DbType.Double)),
             var t when t == typeof(Guid) => Retype(storeType, () => GuidMapping, s => new GuidTypeMapping(s, DbType.Guid)),
             var t when t == typeof(DateOnly) => Retype(storeType, () => DateOnlyMapping, s => new DateOnlyTypeMapping(s, DbType.Date)),
-            var t when t == typeof(TimeOnly) => Retype(storeType, () => TimeOnlyMapping, s => new TimeOnlyTypeMapping(s, DbType.Time)),
+            var t when t == typeof(TimeOnly) => TimeOnly(storeType, precision),
             var t when t == typeof(TimeSpan) => Retype(storeType, () => TimeSpanMapping, s => new DmTimeSpanTypeMapping(s)),
             var t when t == typeof(DateTimeOffset) => Retype(storeType, () => DateTimeOffsetMapping, s => new DateTimeOffsetTypeMapping(s, DbType.DateTimeOffset)),
             _ => null
@@ -256,6 +255,13 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
                     DbType.Binary,
                     size)
             : new ByteArrayTypeMapping(storeType, DbType.Binary, size);
+
+    private static RelationalTypeMapping TimeOnly(string? storeType, int? precision)
+        => storeType is not null
+            ? new TimeOnlyTypeMapping(storeType)
+            : new TimeOnlyTypeMapping(
+                DmStoreTypes.Time
+                    + DmTypeSizes.FormatPrecision(precision ?? DmTypeSizes.DefaultTimePrecision));
 
     private static RelationalTypeMapping Temporal(string? storeType, int? precision)
     {

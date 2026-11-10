@@ -19,6 +19,14 @@ internal static class DmTypeSizes
     /// <summary>Scale applied to a decimal property configured without one.</summary>
     public const int DefaultDecimalScale = 4;
 
+    /// <summary>
+    /// Fractional second precision applied to a time of day. Dameng gives a <c>TIME</c> column that names
+    /// no precision a precision of 0, which drops the part a <see cref="TimeOnly" /> carries, so the
+    /// provider always names one: this default, or the precision the model asks for. Six is the largest
+    /// Dameng accepts and what the reference provider writes.
+    /// </summary>
+    public const int DefaultTimePrecision = 6;
+
     /// <summary>Length of the binary type used for concurrency tokens.</summary>
     public const int RowVersionLength = 8;
 

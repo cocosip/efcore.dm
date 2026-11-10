@@ -17,7 +17,7 @@ public class DmTimeOnlyTranslationTests
             """
             SELECT "p"."Id", "p"."At", "p"."CreatedAt", "p"."Span"
             FROM "Probes" AS "p"
-            WHERE CAST("p"."CreatedAt" AS TIME) > "p"."At"
+            WHERE CAST("p"."CreatedAt" AS TIME(6)) > "p"."At"
             """,
             Statement(
                 context.Probes
@@ -34,7 +34,7 @@ public class DmTimeOnlyTranslationTests
             """
             SELECT "p"."Id", "p"."At", "p"."CreatedAt", "p"."Span"
             FROM "Probes" AS "p"
-            WHERE CAST(TIMESTAMP '1970-01-01 00:00:00' + "p"."Span" AS TIME) > "p"."At"
+            WHERE CAST(TIMESTAMP '1970-01-01 00:00:00' + "p"."Span" AS TIME(6)) > "p"."At"
             """,
             Statement(
                 context.Probes

@@ -156,7 +156,7 @@ Applied when creating a maintenance branch, newest to oldest.
 
 The following are properties of Dameng, identical across EF Core versions. Their only version-dependent aspect is how they are registered with EF Core.
 
-- Store type names, sizes, precision, and CLR type correspondence
+- Store type names, sizes, precision, and CLR type correspondence. A `TIME` column names a fractional second precision because Dameng defaults one that names none to 0
 - Identifier delimiting and escaping
 - Parameter prefix `:` and batch terminator `/` followed by a line feed, which belongs to the terminator because a script writer appends the next statement directly after it. A generated script opens no transaction, because Dameng starts one with the first statement it runs and defines no `START TRANSACTION`
 - DDL syntax: identity columns, sequences, tables, indexes, and `COMMENT ON TABLE` and `COMMENT ON COLUMN` for a comment an object carries

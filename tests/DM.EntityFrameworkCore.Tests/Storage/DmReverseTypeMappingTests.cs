@@ -38,6 +38,8 @@ public class DmReverseTypeMappingTests
     [InlineData("TIMESTAMP(3)", typeof(DateTime))]
     [InlineData("DATETIME", typeof(DateTime))]
     [InlineData("TIME", typeof(TimeOnly))]
+    [InlineData("TIME(6)", typeof(TimeOnly))]
+    [InlineData("TIME(3)", typeof(TimeOnly))]
     [InlineData("TIMESTAMP WITH TIME ZONE", typeof(DateTimeOffset))]
     [InlineData("DATETIME WITH TIME ZONE", typeof(DateTimeOffset))]
     [InlineData("CHAR(10)", typeof(string))]

@@ -21,7 +21,8 @@ public class DmTypeMappingTests
     [InlineData(nameof(Facets.DefaultDateTime), "TIMESTAMP")]
     [InlineData(nameof(Facets.PreciseDateTime), "TIMESTAMP(3)")]
     [InlineData(nameof(Facets.DateOnly), "DATE")]
-    [InlineData(nameof(Facets.TimeOnly), "TIME")]
+    [InlineData(nameof(Facets.TimeOnly), "TIME(6)")]
+    [InlineData(nameof(Facets.PreciseTimeOnly), "TIME(3)")]
     [InlineData(nameof(Facets.Guid), "CHAR(36)")]
     [InlineData(nameof(Facets.Flag), "BIT")]
     [InlineData(nameof(Facets.Count), "BIGINT")]
@@ -73,6 +74,7 @@ public class DmTypeMappingTests
                 entity.Property(e => e.SizedBinary).HasMaxLength(64);
                 entity.Property(e => e.ScaledDecimal).HasPrecision(18, 2);
                 entity.Property(e => e.PreciseDateTime).HasPrecision(3);
+                entity.Property(e => e.PreciseTimeOnly).HasPrecision(3);
             });
     }
 
@@ -105,6 +107,8 @@ public class DmTypeMappingTests
         public DateOnly DateOnly { get; set; }
 
         public TimeOnly TimeOnly { get; set; }
+
+        public TimeOnly PreciseTimeOnly { get; set; }
 
         public Guid Guid { get; set; }
 
