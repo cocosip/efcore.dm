@@ -157,7 +157,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Migrations annotation provider | `Implemented` | `DmAnnotationProviderTests` | P4 | Yes | The identity attribute and a non default seed and increment reach the column operation the differ produces, so the generated migration shows them and a replay reads them; the mirrored key of a table per type hierarchy carries none |
 | `MigrationBuilder` extensions | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `IsDm()` lets one migration assembly guard its provider specific operations |
 | Idempotent script generation | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | The history repository wraps each migration in a block that reads the history table first and runs the create through `EXECUTE IMMEDIATE`. Whether DDL inside the block is accepted is not yet confirmed against a server |
-| Model differ integration | `Not started` | — | P4 | Yes | |
+| Model differ integration | `Implemented` | `DmModelDifferTests` | P4 | Yes | The EF Core differ compares the two relational models and keeps the provider metadata: a new hi-lo property produces the schema and the sequence, a column that appears produces an added column rather than a modified one, and a widened column produces the matching `MODIFY`. Changing the value generation strategy between identity and hi-lo yields an `ALTER` that only repeats the type, because Dameng defines identity at column creation; a migration that switches strategy needs a hand-written operation |
 
 ### F. Scaffolding and design time
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 72 |
+| `Implemented` | 75 |
 | `In progress` | 0 |
-| `Partial` | 5 |
+| `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 17 |
+| `Not started` | 13 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
@@ -237,5 +237,5 @@ The count is a rough indicator of distance, not a progress bar. The progress bar
 1. Change a row's status in the same commit that changes the behaviour.
 2. Name the test that proves it. If there is no test, the status is `Partial` or `In progress`, never `Implemented`.
 3. Add rows when a new EF Core contract surface is discovered. Record the discovery in the row's Note.
-4. Recompute the counts in section 6.
+4. Recompute the counts in section 6. `CapabilityMatrixTests` fails when the summary and the rows disagree, when the rows do not add up to the declared total, or when an implemented row names no test, so the step is enforced rather than remembered.
 5. When a capability is judged unnecessary, mark it `Not applicable` and state the reason. Do not delete the row.
