@@ -8,12 +8,15 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 /// Generates SELECT statements.
 /// </summary>
 /// <remarks>
-/// ponytail: the relational base generator is used for everything except string concatenation,
-/// which Dameng spells <c>||</c>. Dameng's paging shapes and its function set are settled
-/// against a live server in roadmap phase P2.
+/// ponytail: the relational base generator is used for everything except two Dameng shapes:
+/// string concatenation, which is <c>||</c> rather than <c>+</c>, and <c>EXTRACT</c>, whose
+/// first argument is a keyword rather than an expression. Dameng's paging shapes and its
+/// function set are settled against a live server in roadmap phase P2.
 /// </remarks>
 internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
 {
+    private const string ExtractFunction = "EXTRACT";
+
     public DmQuerySqlGenerator(QuerySqlGeneratorDependencies dependencies)
         : base(dependencies)
     {
@@ -27,4 +30,25 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         => binaryExpression.OperatorType == ExpressionType.Add && binaryExpression.Type == typeof(string)
             ? " || "
             : base.GetOperator(binaryExpression);
+
+    /// <summary>
+    /// Renders <c>EXTRACT(PART FROM value)</c>. The base generator separates arguments with a
+    /// comma, which is not valid for this function.
+    /// </summary>
+    protected override Expression VisitSqlFunction(SqlFunctionExpression functionExpression)
+    {
+        if (functionExpression.Name == ExtractFunction
+            && functionExpression.Arguments is [SqlFragmentExpression part, SqlExpression value])
+        {
+            Visit(new SqlFragmentExpression("EXTRACT("));
+            Visit(part);
+            Visit(new SqlFragmentExpression(" FROM "));
+            Visit(value);
+            Visit(new SqlFragmentExpression(")"));
+
+            return functionExpression;
+        }
+
+        return base.VisitSqlFunction(functionExpression);
+    }
 }

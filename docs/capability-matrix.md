@@ -115,7 +115,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Paging (`Skip`, `Take`) | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Emits ANSI `OFFSET ... FETCH NEXT`; Dameng support unverified |
 | String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `Replace`, `Substring`, `Length`. Function names follow Oracle-compatible mode and are unverified against a server. |
 | String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
-| Date and time members and methods | `Not started` | — | P2 | Yes | `EXTRACT` needs a custom function shape |
+| Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`; unverified against a server |
+| Date and time methods (`AddDays`, `Now`, `UtcNow`, `Today`, `Date`) | `Not started` | — | P2 | Yes | The reference emitted SQL Server functions (`GETDATE`, `DATEPART`) for these |
 | Math functions | `Not started` | — | P2 | Yes | |
 | `Convert`, `ToString`, `new Guid()` | `Not started` | — | P2 | Yes | |
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
@@ -216,14 +217,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 12 |
+| `Implemented` | 13 |
 | `In progress` | 1 |
 | `Partial` | 14 |
 | `Blocked` | 2 |
 | `Deferred` | 2 |
 | `Not started` | 65 |
 | `Not applicable` | 0 |
-| **Total rows** | **96** |
+| **Total rows** | **97** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

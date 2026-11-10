@@ -13,5 +13,9 @@ internal sealed class DmMemberTranslatorProvider : RelationalMemberTranslatorPro
 {
     public DmMemberTranslatorProvider(RelationalMemberTranslatorProviderDependencies dependencies)
         : base(dependencies)
-        => AddTranslators([new DmStringMemberTranslator(dependencies.SqlExpressionFactory)]);
+        => AddTranslators(
+        [
+            new DmStringMemberTranslator(dependencies.SqlExpressionFactory),
+            new DmDateTimeMemberTranslator(dependencies.SqlExpressionFactory)
+        ]);
 }
