@@ -134,12 +134,12 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| `INSERT`, `UPDATE`, `DELETE` | `Not started` | — | P3 | Yes | |
-| Multiple statements per batch | `Not started` | — | P3 | Yes | |
-| Store-generated value readback | `Not started` | — | P3 | Yes | Identity and sequence |
-| Concurrency conflict detection | `Not started` | — | P3 | Yes | |
+| `INSERT`, `UPDATE`, `DELETE` | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | Generated without a `RETURNING` clause, which Dameng only accepts as `RETURNING ... INTO` |
+| Multiple statements per batch | `Deferred` | `DmUpdateSqlTests` | P3 | Yes | One statement per round trip; the affected row count comes from the driver return value and could not be attributed to individual commands in a shared batch |
+| Store-generated value readback | `Blocked` | `DmUpdateSqlTests` | P3 | Yes | Needs `RETURNING ... INTO` with output parameters; such an operation is rejected instead of leaving the property stale |
+| Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException` |
 | Modification command factory | `Not started` | — | P3 | No | EF Core 9+ contract |
-| `SaveChanges` transaction wrapping | `Not started` | — | P3 | Yes | |
+| `SaveChanges` transaction wrapping | `In progress` | `DmUpdateSqlTests` | P3 | Yes | The transaction is opened by the relational layer; not covered by a test |
 
 ### E. Migrations
 
@@ -217,12 +217,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 22 |
-| `In progress` | 1 |
+| `Implemented` | 24 |
+| `In progress` | 2 |
 | `Partial` | 6 |
-| `Blocked` | 2 |
-| `Deferred` | 2 |
-| `Not started` | 63 |
+| `Blocked` | 3 |
+| `Deferred` | 3 |
+| `Not started` | 58 |
 | `Not applicable` | 1 |
 | **Total rows** | **97** |
 

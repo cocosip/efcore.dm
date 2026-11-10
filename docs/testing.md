@@ -9,13 +9,14 @@ Provider correctness is defined by the EF Core specification test suite, not by 
 | Layer | Content | Nature | Cost |
 |---|---|---|---|
 | T1 | Unit tests for `Dialect/` pure functions, error classification, identifier escaping | No database | milliseconds |
-| T2 | SQL shape assertions via `ToQueryString()` plus parameter inspection | No database; **never sufficient on its own** | milliseconds |
-| T3 | **EF Core specification test suite**, executed against a live database | **Primary gate** | minutes |
+| T2 | SQL shape assertions via `ToQueryString()` plus parameter inspection | No database; **never sufficient on its own** | milliseconds || T3 | **EF Core specification test suite**, executed against a live database | **Primary gate** | minutes |
 | T4 | Differential comparison against the official provider for the same query | Diagnostic aid, not a gate | minutes |
 
 ### Constraint on T2
 
 When a method is called only in the final projection, EF Core may read the column and evaluate in the client. `ToQueryString()` not throwing does **not** prove server-side translation.
+
+Statements the provider executes cannot be observed through `ToQueryString()`. Those are asserted by running `SaveChanges` against a recording connection: a `DbConnection` double that captures command text and reports a configurable affected row count. It is a stub rather than a database, so it proves the SQL and the pipeline, not the server's acceptance of that SQL.
 
 Every translation test places the expression in a position that requires server execution: `WHERE`, `ORDER BY`, a JOIN key, or a table-valued function call. It then asserts the complete generated SQL.
 

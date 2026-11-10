@@ -1,0 +1,222 @@
+using System.Collections;
+using System.Data;
+using System.Data.Common;
+
+// Nullable annotations are disabled for this file: it implements ADO.NET abstractions whose
+// annotations cannot all be satisfied by a test double, and the noise would hide real issues.
+#nullable disable
+
+namespace DM.EntityFrameworkCore.Tests.TestUtilities;
+
+/// <summary>
+/// Records the commands the provider executes, so that DML can be asserted without a server.
+/// It is a stub, not a database: it never parses SQL and never stores rows.
+/// </summary>
+internal sealed class FakeDmConnection : DbConnection
+{
+    private ConnectionState _state = ConnectionState.Closed;
+
+    public List<string> Commands { get; } = [];
+
+    /// <summary>
+    /// The row count every statement reports, so that a concurrency failure can be provoked by
+    /// setting it to zero.
+    /// </summary>
+    public int RowsAffected { get; set; } = 1;
+
+    public override string ConnectionString { get; set; } = "Server=fake";
+
+    public override string Database => "fake";
+
+    public override string DataSource => "fake";
+
+    public override string ServerVersion => "8.0";
+
+    public override ConnectionState State => _state;
+
+    public override void ChangeDatabase(string databaseName)
+    {
+    }
+
+    public override void Close() => _state = ConnectionState.Closed;
+
+    public override void Open() => _state = ConnectionState.Open;
+
+    protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel)
+        => new FakeDmTransaction(this, isolationLevel);
+
+    protected override DbCommand CreateDbCommand() => new FakeDmCommand(this);
+}
+
+internal sealed class FakeDmTransaction : DbTransaction
+{
+    private readonly DbConnection _connection;
+
+    public FakeDmTransaction(DbConnection connection, IsolationLevel isolationLevel)
+    {
+        _connection = connection;
+        IsolationLevel = isolationLevel;
+    }
+
+    public override IsolationLevel IsolationLevel { get; }
+
+    protected override DbConnection DbConnection => _connection;
+
+    public override void Commit()
+    {
+    }
+
+    public override void Rollback()
+    {
+    }
+}
+
+internal sealed class FakeDmCommand : DbCommand
+{
+    private readonly FakeDmConnection _connection;
+
+    public FakeDmCommand(FakeDmConnection connection) => _connection = connection;
+
+    public override string CommandText { get; set; } = string.Empty;
+
+    public override int CommandTimeout { get; set; } = 30;
+
+    public override CommandType CommandType { get; set; } = CommandType.Text;
+
+    public override bool DesignTimeVisible { get; set; }
+
+    public override UpdateRowSource UpdatedRowSource { get; set; } = UpdateRowSource.None;
+
+    protected override DbConnection DbConnection
+    {
+        get => _connection;
+        set { }
+    }
+
+    protected override DbParameterCollection DbParameterCollection { get; } = new FakeDmParameterCollection();
+
+    protected override DbTransaction DbTransaction { get; set; }
+
+    public override void Cancel()
+    {
+    }
+
+    public override int ExecuteNonQuery()
+    {
+        _connection.Commands.Add(CommandText);
+
+        return _connection.RowsAffected;
+    }
+
+    public override object ExecuteScalar()
+    {
+        _connection.Commands.Add(CommandText);
+
+        return null;
+    }
+
+    public override void Prepare()
+    {
+    }
+
+    protected override DbParameter CreateDbParameter() => new FakeDmParameter();
+
+    protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
+    {
+        _connection.Commands.Add(CommandText);
+
+        // One result set per terminated statement, which is the shape EF Core consumes after a
+        // modification batch.
+        return new FakeDmDataReader(_connection.RowsAffected, CommandText.Count(c => c == ';'));
+    }
+}
+
+internal sealed class FakeDmParameter : DbParameter
+{
+    public override DbType DbType { get; set; } = DbType.String;
+
+    public override ParameterDirection Direction { get; set; } = ParameterDirection.Input;
+
+    public override bool IsNullable { get; set; }
+
+    public override string ParameterName { get; set; } = string.Empty;
+
+    public override int Size { get; set; }
+
+    public override string SourceColumn { get; set; } = string.Empty;
+
+    public override bool SourceColumnNullMapping { get; set; }
+
+    public override object Value { get; set; }
+
+    public override void ResetDbType()
+    {
+    }
+}
+
+internal sealed class FakeDmParameterCollection : DbParameterCollection
+{
+    private readonly List<DbParameter> _parameters = [];
+
+    public override int Count => _parameters.Count;
+
+    public override object SyncRoot => _parameters;
+
+    public override int Add(object value)
+    {
+        _parameters.Add((DbParameter)value);
+
+        return _parameters.Count - 1;
+    }
+
+    public override void AddRange(Array values)
+    {
+        foreach (var value in values)
+        {
+            Add(value!);
+        }
+    }
+
+    public override void Clear() => _parameters.Clear();
+
+    public override bool Contains(object value) => _parameters.Contains((DbParameter)value);
+
+    public override bool Contains(string value) => IndexOf(value) >= 0;
+
+    public override void CopyTo(Array array, int index) => ((ICollection)_parameters).CopyTo(array, index);
+
+    public override IEnumerator GetEnumerator() => _parameters.GetEnumerator();
+
+    public override int IndexOf(object value) => _parameters.IndexOf((DbParameter)value);
+
+    public override int IndexOf(string parameterName)
+        => _parameters.FindIndex(p => string.Equals(p.ParameterName, parameterName, StringComparison.OrdinalIgnoreCase));
+
+    public override void Insert(int index, object value) => _parameters.Insert(index, (DbParameter)value);
+
+    public override void Remove(object value) => _parameters.Remove((DbParameter)value);
+
+    public override void RemoveAt(int index) => _parameters.RemoveAt(index);
+
+    public override void RemoveAt(string parameterName) => RemoveAt(IndexOf(parameterName));
+
+    protected override DbParameter GetParameter(int index) => _parameters[index];
+
+    protected override DbParameter GetParameter(string parameterName) => _parameters[IndexOf(parameterName)];
+
+    protected override void SetParameter(int index, DbParameter value) => _parameters[index] = value;
+
+    protected override void SetParameter(string parameterName, DbParameter value)
+    {
+        var index = IndexOf(parameterName);
+
+        if (index >= 0)
+        {
+            _parameters[index] = value;
+        }
+        else
+        {
+            _parameters.Add(value);
+        }
+    }
+}
