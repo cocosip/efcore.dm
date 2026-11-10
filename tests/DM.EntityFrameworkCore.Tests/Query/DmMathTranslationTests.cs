@@ -49,7 +49,7 @@ public class DmMathTranslationTests
     [InlineData("Floor", """FLOOR("p"."Amount") > 1.0""")]
     [InlineData("Round", """ROUND("p"."Amount") > 1.0""")]
     [InlineData("RoundDigits", """ROUND("p"."Amount", 2) > 1.0""")]
-    [InlineData("RoundMidpoint", """ROUND("p"."Amount") > 1.0""")]
+    [InlineData("RoundMidpoint", """ROUND("p"."Amount", 2) > 1.0""")]
     [InlineData("Pow", """POWER("p"."Rate", 2.0) > 1.0""")]
     [InlineData("Sin", """SIN("p"."Rate") > 1.0""")]
     [InlineData("Sqrt", """SQRT("p"."Rate") > 1.0""")]
@@ -74,6 +74,22 @@ public class DmMathTranslationTests
              WHERE {predicate}
              """,
             Statement(Queries[name](context.Probes).ToQueryString()));
+    }
+
+    /// <summary>
+    /// Dameng rounds halves away from zero, which is the strategy of that name. Rounding to even has
+    /// no single function, so the call is left untranslated instead of answered with the other
+    /// strategy and silently differing in the last digit.
+    /// </summary>
+    [Fact]
+    public void RoundToEven_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Probes
+                .Where(p => Math.Round(p.Amount, 2, MidpointRounding.ToEven) > 1)
+                .ToQueryString());
     }
 
     private static string Statement(string sql)

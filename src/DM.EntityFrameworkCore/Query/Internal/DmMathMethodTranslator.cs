@@ -58,14 +58,29 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
     }
 
     /// <summary>
-    /// Dameng rounds with <c>ROUND(value)</c> or <c>ROUND(value, digits)</c>. The midpoint
-    /// strategy overload takes an enum rather than a digit count, so it maps to the one argument
-    /// form.
+    /// Dameng rounds with <c>ROUND(value)</c> or <c>ROUND(value, digits)</c>, and it rounds halves
+    /// away from zero, which is the midpoint strategy of that name. Rounding to even has no single
+    /// function, so it is left untranslated rather than answered with the other strategy.
     /// </summary>
-    private SqlExpression Round(IReadOnlyList<SqlExpression> arguments, MethodInfo method)
-        => arguments is [var value, var digits] && digits.Type == typeof(int)
-            ? Function("ROUND", [value, digits], method)
+    private SqlExpression? Round(IReadOnlyList<SqlExpression> arguments, MethodInfo method)
+    {
+        var rounding = arguments.Count == 1
+            ? null
+            : arguments[1].Type == typeof(MidpointRounding)
+                ? arguments[1]
+                : arguments.Count == 3
+                    ? arguments[2]
+                    : null;
+
+        if (rounding is not null && rounding is not SqlConstantExpression { Value: MidpointRounding.AwayFromZero })
+        {
+            return null;
+        }
+
+        return arguments.Count >= 2 && arguments[1].Type == typeof(int)
+            ? Function("ROUND", [arguments[0], arguments[1]], method)
             : Unary("ROUND", [arguments[0]], method);
+    }
 
     /// <summary>
     /// Dameng's natural logarithm is <c>LN</c>, and a logarithm to a base is
