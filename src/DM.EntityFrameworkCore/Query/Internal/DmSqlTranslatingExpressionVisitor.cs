@@ -17,7 +17,7 @@ internal sealed class DmSqlTranslatingExpressionVisitor : RelationalSqlTranslati
     }
 
     /// <summary>
-    /// <see cref="Math.Max" />, <see cref="Math.Min" /> and the <c>EF.Functions</c> equivalents
+    /// <see cref="Math.Max(int, int)" />, <see cref="Math.Min(int, int)" /> and the <c>EF.Functions</c> equivalents
     /// never reach a method call translator: the relational visitor resolves them through these
     /// two hooks, so a provider that does not override them silently cannot translate them.
     /// </summary>

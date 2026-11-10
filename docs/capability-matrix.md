@@ -225,7 +225,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
 | Live validation console | `Blocked` | — | P6 | Yes | The program is written and builds, and every step awaits a live instance: it creates its own prefixed tables, marks its rows with a run identifier, drops only what it created, and returns a non-zero exit code when a step fails. Running it against an unreachable server reports the driver's refusal and exits non-zero, which is the extent of what can be observed here |
 | Package consumer smoke test | `Implemented` | `scripts/package-smoke.ps1` | P6 | Yes | Packs the provider, restores a project that references it as a package into its own NuGet cache, compares the SHA-256 of the resolved package with the packed one, and runs the consumer, which builds a model and a create script without connecting to a server |
-| Package metadata | `Implemented` | `PackagingTests` | P6 | Yes | The id, version, MIT licence, README, author, project URL, repository URL and tags are in the packed nuspec. A test reads the version the build defines and asserts the assembly reports it, and that the EF Core dependency range stays bounded |
+| Package metadata | `Implemented` | `PackagingTests` | P6 | Yes | The id, version, MIT licence, README, author, project URL, repository URL and tags are in the packed nuspec, and the expanded package carries the documentation file beside the assembly. A test reads the version the build defines and asserts the assembly reports it, that the EF Core dependency range stays bounded, and that the documentation file is beside the assembly |
 
 ## 6. Current position
 

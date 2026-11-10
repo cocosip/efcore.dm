@@ -25,6 +25,12 @@ namespace Microsoft.Extensions.DependencyInjection;
 /// </summary>
 public static class DmServiceCollectionExtensions
 {
+    /// <summary>
+    /// Adds the provider's services. A context that uses the provider does this for itself, so the
+    /// method matters to a host that builds the internal service provider up front.
+    /// </summary>
+    /// <param name="serviceCollection">The collection the services are added to.</param>
+    /// <returns>The same collection, so that calls can be chained.</returns>
     public static IServiceCollection AddEntityFrameworkDm(this IServiceCollection serviceCollection)
     {
         ArgumentNullException.ThrowIfNull(serviceCollection);

@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace DM.EntityFrameworkCore.Infrastructure;
 
 /// <summary>
-/// Provider options carried on the <see cref="DbContextOptionsBuilder" />. Deriving from
+/// Provider options carried on the <see cref="Microsoft.EntityFrameworkCore.DbContextOptionsBuilder" />. Deriving from
 /// <see cref="RelationalOptionsExtension" /> is required: EF Core's relational services look
 /// for that base type and report "no relational database providers are configured" without it.
 /// </summary>
@@ -18,6 +18,10 @@ public sealed class DmOptionsExtension : RelationalOptionsExtension
 {
     private DbContextOptionsExtensionInfo? _info;
 
+    /// <summary>
+    /// Creates the extension with no connection configured, which is what a <c>UseDm</c> call starts
+    /// from before it adds one.
+    /// </summary>
     public DmOptionsExtension()
     {
     }
@@ -27,12 +31,16 @@ public sealed class DmOptionsExtension : RelationalOptionsExtension
     {
     }
 
+    /// <inheritdoc />
     public override DbContextOptionsExtensionInfo Info => _info ??= new ExtensionInfo(this);
 
+    /// <inheritdoc />
     protected override RelationalOptionsExtension Clone() => new DmOptionsExtension(this);
 
+    /// <inheritdoc />
     public override void ApplyServices(IServiceCollection services) => services.AddEntityFrameworkDm();
 
+    /// <inheritdoc />
     public override void Validate(IDbContextOptions options)
     {
         if (ConnectionString is null && Connection is null)

@@ -8,6 +8,8 @@
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- The assembly ships its XML documentation, so a consumer sees the summaries in IntelliSense. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <PackageTags>efcore;entity-framework-core;dameng;dm;database;provider</PackageTags>
     <Description>Entity Framework Core provider for Dameng (DM).</Description>
     <Version>$(DmVersion)</Version>

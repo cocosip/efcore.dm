@@ -15,6 +15,10 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure;
 public class DmDbContextOptionsBuilder
     : RelationalDbContextOptionsBuilder<DmDbContextOptionsBuilder, DmOptionsExtension>
 {
+    /// <summary>
+    /// Creates the builder that a <c>UseDm</c> call hands to its options action.
+    /// </summary>
+    /// <param name="optionsBuilder">The builder the extension is being added to.</param>
     public DmDbContextOptionsBuilder(DbContextOptionsBuilder optionsBuilder)
         : base(optionsBuilder)
     {

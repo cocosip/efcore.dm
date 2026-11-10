@@ -23,6 +23,25 @@ public class PackagingTests
     }
 
     /// <summary>
+    /// The documentation file is what puts a summary in a consumer's IntelliSense. It sits next to the
+    /// assembly, and the pack target copies it into the package beside it, so its absence is a
+    /// consumer-visible loss rather than a build detail.
+    /// </summary>
+    [Fact]
+    public void TheAssemblyShipsItsDocumentation()
+    {
+        var assembly = typeof(DmDbContextOptionsExtensions).Assembly.Location;
+        var documentation = Path.ChangeExtension(assembly, ".xml");
+
+        Assert.True(
+            File.Exists(documentation),
+            $"The assembly at '{assembly}' has no documentation beside it.");
+        Assert.Contains(
+            "DmDbContextOptionsExtensions",
+            File.ReadAllText(documentation),
+            StringComparison.Ordinal);
+    }
+    /// <summary>
     /// An upper bound is what keeps a consumer from loading a provider built against internal API
     /// shapes of a later major version. A range that is open, or that spans more than one major
     /// version, defeats it.

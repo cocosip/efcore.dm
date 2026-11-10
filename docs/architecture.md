@@ -119,6 +119,7 @@ Each EF Core major version implements these layers independently. There is no cr
 | Authors | `$(DmPackagePrefix)`, `Cocosip` by default | The identity that owns the prefix and reserves the package id. It is configured once for the repository, not per project |
 | Repository and project URL | `https://github.com/cocosip/efcore.dm` | Where the source lives, so a consumer reaches it from the package listing. It is a default a satellite package can override, like the author |
 | Tags | `efcore`, `entity-framework-core`, `dameng`, `dm`, `database`, `provider` | The terms a search on the feed matches. They name what the package is for, not what it happens to contain |
+| Documentation file | `lib/net10.0/DM.EntityFrameworkCore.xml`, beside the assembly | A package that ships its summaries is the difference between IntelliSense and none. The project builds with the file on and treats warnings as errors, so an undocumented public member fails the build instead of leaving a blank tooltip |
 | Public plumbing | `DmOptionsExtension`, public under `DM.EntityFrameworkCore.Infrastructure` | It is the type argument of `DmDbContextOptionsBuilder`'s base class, and a public base type cannot be built over an internal one. The EF Core providers declare their own options extensions the same way. Nothing a consumer calls names it |
 
 ### Naming rules

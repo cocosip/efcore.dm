@@ -11,6 +11,13 @@ namespace Microsoft.EntityFrameworkCore;
 /// </summary>
 public static class DmDbContextOptionsExtensions
 {
+    /// <summary>
+    /// Configures the context to connect to a Dameng database with a connection string.
+    /// </summary>
+    /// <param name="optionsBuilder">The builder being configured.</param>
+    /// <param name="connectionString">The connection string, as the driver's connection accepts it.</param>
+    /// <param name="dmOptionsAction">An optional action that configures the provider's own options.</param>
+    /// <returns>The same builder, so that calls can be chained.</returns>
     public static DbContextOptionsBuilder UseDm(
         this DbContextOptionsBuilder optionsBuilder,
         string connectionString,
@@ -28,6 +35,14 @@ public static class DmDbContextOptionsExtensions
         return optionsBuilder;
     }
 
+    /// <summary>
+    /// Configures the context to connect to a Dameng database with the given connection. The caller
+    /// owns the connection and is responsible for disposing it.
+    /// </summary>
+    /// <param name="optionsBuilder">The builder being configured.</param>
+    /// <param name="connection">The connection the context uses.</param>
+    /// <param name="dmOptionsAction">An optional action that configures the provider's own options.</param>
+    /// <returns>The same builder, so that calls can be chained.</returns>
     public static DbContextOptionsBuilder UseDm(
         this DbContextOptionsBuilder optionsBuilder,
         DbConnection connection,
@@ -45,6 +60,14 @@ public static class DmDbContextOptionsExtensions
         return optionsBuilder;
     }
 
+    /// <summary>
+    /// Configures the context to connect to a Dameng database with a connection string.
+    /// </summary>
+    /// <typeparam name="TContext">The context type being configured.</typeparam>
+    /// <param name="optionsBuilder">The builder being configured.</param>
+    /// <param name="connectionString">The connection string, as the driver's connection accepts it.</param>
+    /// <param name="dmOptionsAction">An optional action that configures the provider's own options.</param>
+    /// <returns>The same builder, so that calls can be chained.</returns>
     public static DbContextOptionsBuilder<TContext> UseDm<TContext>(
         this DbContextOptionsBuilder<TContext> optionsBuilder,
         string connectionString,
@@ -52,6 +75,15 @@ public static class DmDbContextOptionsExtensions
         where TContext : DbContext
         => (DbContextOptionsBuilder<TContext>)UseDm((DbContextOptionsBuilder)optionsBuilder, connectionString, dmOptionsAction);
 
+    /// <summary>
+    /// Configures the context to connect to a Dameng database with the given connection. The caller
+    /// owns the connection and is responsible for disposing it.
+    /// </summary>
+    /// <typeparam name="TContext">The context type being configured.</typeparam>
+    /// <param name="optionsBuilder">The builder being configured.</param>
+    /// <param name="connection">The connection the context uses.</param>
+    /// <param name="dmOptionsAction">An optional action that configures the provider's own options.</param>
+    /// <returns>The same builder, so that calls can be chained.</returns>
     public static DbContextOptionsBuilder<TContext> UseDm<TContext>(
         this DbContextOptionsBuilder<TContext> optionsBuilder,
         DbConnection connection,
