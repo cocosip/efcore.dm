@@ -165,8 +165,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | Database model factory (reverse engineering) | `Not started` | — | P4 | Yes | Catalog queries come from `Dialect/` |
 | Code generator | `Not started` | — | P4 | Yes | |
-| Annotation code generator | `Not started` | — | P4 | Yes | |
-| Design-time services | `Not started` | — | P4 | Yes | |
+| Annotation code generator | `Implemented` | `DmSnapshotTests` | P4 | Yes | The relational generator is enough: an annotation the generator does not name is written to the snapshot as `HasAnnotation`, which is how the value generation strategy, the identity seed and the hi-lo sequence reach the next migration |
+| Design-time services | `Implemented` | `DmSnapshotTests` | P4 | Yes | Declared through `DesignTimeProviderServices`, with the runtime services and the relational design services. A generated snapshot file was produced through it, so the tooling can build one and it compiles |
 | Provider model validator | `Implemented` | `DmModelValidatorTests` | P1 | Yes | Rejects an identity column that is not an integer, one that also has a default expression, and a table with two of them, all while the model is built |
 | Compiled model support | `Not started` | — | P6 | Yes | |
 
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 56 |
+| `Implemented` | 58 |
 | `In progress` | 0 |
 | `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 32 |
+| `Not started` | 30 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

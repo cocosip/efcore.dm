@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersionRange)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreVersionRange)" />
     <PackageVersion Include="DM.DmProvider" Version="$(DmProviderVersionRange)" />
   </ItemGroup>
 

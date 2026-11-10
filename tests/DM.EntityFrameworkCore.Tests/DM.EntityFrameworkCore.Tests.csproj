@@ -3,12 +3,15 @@
   <PropertyGroup>
     <RootNamespace>DM.EntityFrameworkCore.Tests</RootNamespace>
     <IsTestProject>true</IsTestProject>
+    <!-- The snapshot test drives the design time generator directly, which is an internal API. -->
+    <NoWarn>$(NoWarn);EF1001</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
   </ItemGroup>
 
   <ItemGroup>
