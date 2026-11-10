@@ -2,7 +2,8 @@
 
   <PropertyGroup>
     <AssemblyName>$(DmProductName)</AssemblyName>
-    <PackageId>$(DmPackageId)</PackageId>
+    <!-- A satellite package appends its own suffix: $(DmPackageIdBase).NetTopologySuite -->
+    <PackageId>$(DmPackageIdBase)</PackageId>
     <RootNamespace>$(DmProductName)</RootNamespace>
     <IsPackable>true</IsPackable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

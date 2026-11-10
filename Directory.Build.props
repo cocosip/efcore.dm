@@ -6,11 +6,13 @@
 
     <!--
       The product name is the assembly name, the root namespace and the project directory.
-      The package id is the publisher prefix plus that name. Only the package id carries the
-      prefix, so changing it is a one-line change here.
+      Only the publisher prefix is configured: every package composes its id from the prefix and
+      its own identity, so a satellite package needs no change here and changing the prefix
+      renames all of them at once.
     -->
-    <DmPackageId Condition="'$(DmPackageId)' == ''">Cocosip.DM.EntityFrameworkCore</DmPackageId>
+    <DmPackagePrefix Condition="'$(DmPackagePrefix)' == ''">Cocosip</DmPackagePrefix>
     <DmProductName Condition="'$(DmProductName)' == ''">DM.EntityFrameworkCore</DmProductName>
+    <DmPackageIdBase Condition="'$(DmPackageIdBase)' == ''">$(DmPackagePrefix).$(DmProductName)</DmPackageIdBase>
 
     <TargetFramework>$(DmTargetFramework)</TargetFramework>
     <LangVersion>latest</LangVersion>
