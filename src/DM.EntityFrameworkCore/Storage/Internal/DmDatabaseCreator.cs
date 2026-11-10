@@ -103,9 +103,14 @@ internal sealed class DmDatabaseCreator : RelationalDatabaseCreator
             .Build(HasTablesSql)
             .ExecuteScalarAsync(CreateParameterObject(connection), cancellationToken);
 
+    /// <summary>
+    /// The parameter object names the connection the execution strategy handed over rather than the one
+    /// the dependency holds: the two are the same while nothing retries, and a strategy that retries
+    /// would hand the retry its own.
+    /// </summary>
     private RelationalCommandParameterObject CreateParameterObject(IRelationalConnection connection)
         => new(
-            Dependencies.Connection,
+            connection,
             parameterValues: null,
             readerColumns: null,
             Dependencies.CurrentContext.Context,
