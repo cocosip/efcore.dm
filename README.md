@@ -2,7 +2,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: design complete, implementation not started. Work proceeds per the [Roadmap](docs/roadmap.md).
+Status: implementation in progress. Work proceeds per the [Roadmap](docs/roadmap.md) and what is implemented is recorded in the [Capability Matrix](docs/capability-matrix.md).
 
 ## Supported versions
 
@@ -23,7 +23,7 @@ services.AddDbContext<MyContext>(options =>
 
 The root namespace `Microsoft.EntityFrameworkCore.Dm` and the `UseDm()` entry point are unchanged from the previous provider, so migrating requires updating one `PackageReference`. No application code changes.
 
-The package id changed to `Cocosip.DM.EntityFrameworkCore` and the assembly is now `DM.EntityFrameworkCore`. The package is not binary compatible with the previous one, so consumers recompile, which a package change requires anyway. Consumers using a compiled model (`dotnet ef dbcontext optimize`) regenerate it.
+The assembly is `DM.EntityFrameworkCore`, the same identity the EF Core providers use, and the package id is `Cocosip.DM.EntityFrameworkCore`: the publisher prefix plus that identity. The package is not binary compatible with the previous provider, so consumers recompile, which a package change requires anyway. Consumers using a compiled model (`dotnet ef dbcontext optimize`) regenerate it.
 
 ## Design principles
 

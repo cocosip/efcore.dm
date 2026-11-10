@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using DM.EntityFrameworkCore.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore;
 
@@ -29,18 +30,24 @@ public class DmDmlQueryTests
     {
         using var context = new ProbeContext(new FakeDmConnection());
 
+        var sql = Sql(context.Blogs
+            .FromSql($"SELECT * FROM \"Blogs\"")
+            .Where(b => b.Name == "x")
+            .ToQueryString());
+
+        // The alias is generated from the context type, not from the query, so the assertion pins
+        // that the same alias is used on every reference rather than a particular letter.
+        var alias = Regex.Match(sql, "AS \"(?<alias>\\w+)\"").Groups["alias"].Value;
+
         Assert.Equal(
-            """
-            SELECT "e"."Id", "e"."Name"
+            $"""
+            SELECT "{alias}"."Id", "{alias}"."Name"
             FROM (
                 SELECT * FROM "Blogs"
-            ) AS "e"
-            WHERE "e"."Name" = 'x'
+            ) AS "{alias}"
+            WHERE "{alias}"."Name" = 'x'
             """,
-            Sql(context.Blogs
-                .FromSql($"SELECT * FROM \"Blogs\"")
-                .Where(b => b.Name == "x")
-                .ToQueryString()));
+            sql);
     }
 
     [Fact]

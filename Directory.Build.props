@@ -5,9 +5,9 @@
     <DmVersion Condition="'$(DmVersion)' == ''">10.0.1</DmVersion>
 
     <!--
-      The publish identity is separate from the source tree identity. Changing the NuGet
-      prefix is a one-line change here: directories, assembly name, root namespace and
-      test project references all stay as they are.
+      The product name is the assembly name, the root namespace and the project directory.
+      The package id is the publisher prefix plus that name. Only the package id carries the
+      prefix, so changing it is a one-line change here.
     -->
     <DmPackageId Condition="'$(DmPackageId)' == ''">Cocosip.DM.EntityFrameworkCore</DmPackageId>
     <DmProductName Condition="'$(DmProductName)' == ''">DM.EntityFrameworkCore</DmProductName>

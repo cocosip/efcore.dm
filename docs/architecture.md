@@ -107,10 +107,10 @@ Each EF Core major version implements these layers independently. There is no cr
 
 | Item | Value | Rationale |
 |---|---|---|
-| Package id | `Cocosip.DM.EntityFrameworkCore` | Follows the EF provider naming convention `<prefix>.EntityFrameworkCore.<database>`. The prefix is the publisher's own GitHub identity, independent of any employer and demonstrably owned. Defined once as `$(DmPackageId)`. |
-| Assembly name | `DM.EntityFrameworkCore` | The product name, deliberately not the publish identity. Naming the assembly after the official provider would ship a Microsoft-prefixed binary under an MIT package, which carries trademark exposure and no functional benefit. |
-| Project directory | `src/DM.EntityFrameworkCore/` | Same as the assembly and the solution. Follows the assembly, not the package id. |
-| Root namespace | The namespaces the Dameng provider declares for the compatibility surface; `DM.EntityFrameworkCore` for internals | Preserves source compatibility with existing consumer code, while keeping provider internals under the product's own namespace. See the namespace rule below. |
+| Package id | `Cocosip.DM.EntityFrameworkCore` | The publisher prefix plus the assembly name, which is the `<prefix>.<database>.EntityFrameworkCore` convention of the EF provider ecosystem. The prefix is the publisher's own GitHub identity, independent of any employer and demonstrably owned. Defined once as `$(DmPackageId)`. |
+| Assembly name | `DM.EntityFrameworkCore` | Equal to the root namespace and the project directory, which is how EF Core providers name their assemblies. Deliberately not named after the official provider: a Microsoft-prefixed binary under an MIT package carries trademark exposure and no functional benefit. |
+| Project directory | `src/DM.EntityFrameworkCore/` | Same as the assembly, the root namespace and the solution. |
+| Root namespace | `DM.EntityFrameworkCore` for internals; the namespaces the Dameng provider declares for the compatibility surface | Preserves source compatibility with existing consumer code, while keeping provider internals under the product's own namespace. See the namespace rule below. |
 | Entry point | `optionsBuilder.UseDm(connectionString)` | Preserves source compatibility with existing consumer code |
 | Target framework | EF Core 8/9 branches: `net8.0`; EF Core 10: `net10.0`; EF Core 11: `net11.0` | Follows EF Core requirements |
 | Version | Aligned to the EF Core major version: `8.0.x`, `9.0.x`, `10.0.x` | See branching and release |
@@ -119,9 +119,10 @@ Each EF Core major version implements these layers independently. There is no cr
 
 ### Naming rules
 
-- The package id shape is `<prefix>.EntityFrameworkCore.<database>`, matching the EF Core provider ecosystem.
+- The assembly name, root namespace and project directory are one identity: `<database>.EntityFrameworkCore`, here `DM.EntityFrameworkCore`. This is the identity consumers see in a stack trace or an assembly reference.
+- The package id is `<prefix>.` plus that identity, here `Cocosip.DM.EntityFrameworkCore`. Only the package id carries the prefix.
 - The prefix is the publisher's personal open-source identity, not an employer name. It must be one the publisher can demonstrate ownership of, and it is registered with NuGet prefix reservation. A generic English word cannot be reserved and shares the namespace with unrelated publishers, so it is not used.
-- The package id is `<prefix>.<product>`; the project directory, assembly name and internal root namespace are the product alone. Changing the NuGet prefix changes one MSBuild property and nothing else: no directory rename, no assembly rename, no namespace rename, no test project rename.
+- Changing the NuGet prefix changes `$(DmPackageId)` and nothing else: no directory rename, no assembly rename, no namespace rename, no test project rename.
 - The assembly is not named after the official provider. Shipping a Microsoft-prefixed binary under an MIT package carries trademark exposure and buys nothing.
 - The previous package id is deprecated on NuGet with a pointer to the current one. It is not unpublished, because unpublished ids cannot be restored by existing builds.
 
@@ -185,7 +186,7 @@ docs/
 |---|---|---|
 | D1 | Layers L0–L6; only L0 is shared across versions | Measured 80% stability; an abstraction over the volatile 20% becomes a second synchronization burden |
 | D2 | One branch per EF Core major version; no multi-targeting with `#if` | EF Core 8 and 9 both target `net8.0`, so one package cannot select dependency ranges by TFM. Conditional compilation would make the query pipeline unreadable. |
-| D3 | The package id carries the `Cocosip` prefix; the source tree, assembly and internal namespace use the product name `DM.EntityFrameworkCore`; the compatibility surface stays in the namespaces the Dameng provider declares | NuGet only grants prefix protection for a prefix the publisher can show is theirs. `Sharp` is a generic word already shared in the EF provider category with an unrelated publisher, so that namespace can never be reserved. An employer's brand ties the package to that employer. `Cocosip` is the publisher's own open-source identity and is already established on NuGet. Publish identity is separated from source identity, so changing the prefix is a one-line edit rather than a repository-wide rename. The compatibility namespace is kept so that consumer source compiles unchanged; only the package reference changes. |
+| D3 | The assembly, root namespace and project directory are one identity, `DM.EntityFrameworkCore`; the package id adds the `Cocosip` prefix; the compatibility surface stays in the namespaces the Dameng provider declares | NuGet only grants prefix protection for a prefix the publisher can show is theirs. `Sharp` is a generic word already shared in the EF provider category with an unrelated publisher, so that namespace can never be reserved. An employer's brand ties the package to that employer. `Cocosip` is the publisher's own open-source identity and is already established on NuGet. Only the package id carries that prefix, so changing it is a one-line edit rather than a repository-wide rename. The compatibility namespace is kept so that consumer source compiles unchanged; only the package reference changes. |
 | D4 | Do not branch the dialect on `CompatibleMode` | Switching SQL dialect per connection string couples type mapping and SQL generation implicitly. The provider targets default (Oracle-compatible) mode. PostgreSQL mode is a verification target, not an implementation branch. |
 | D5 | EF Core dependency always carries an upper bound | The provider uses internal API shapes; an unbounded dependency leads to `MissingMethodException` and `TypeLoadException` on the next major version. |
 | D6 | The EF Core specification suite is the primary gate; self-authored SQL assertions are secondary | A large suite of self-authored SQL assertions can pass while the provider remains unusable. |
