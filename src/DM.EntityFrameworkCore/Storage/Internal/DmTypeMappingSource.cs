@@ -61,7 +61,10 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         ["NUMERIC"] = typeof(decimal),
         ["NUMBER"] = typeof(decimal),
         [DmStoreTypes.Real] = typeof(float),
-        [DmStoreTypes.Float] = typeof(float),
+        // Dameng's FLOAT is FLOAT(53), a double-precision type, and REAL is the single-precision one.
+        // Reading FLOAT back as float would truncate a column the previous provider wrote for a
+        // double property, and would shorten one written by hand.
+        [DmStoreTypes.Float] = typeof(double),
         [DmStoreTypes.Double] = typeof(double),
         ["DOUBLE PRECISION"] = typeof(double),
         [DmStoreTypes.Char] = typeof(string),
@@ -78,6 +81,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         [DmStoreTypes.Date] = typeof(DateTime),
         [DmStoreTypes.Time] = typeof(TimeOnly),
         [DmStoreTypes.Timestamp] = typeof(DateTime),
+        ["DATETIME"] = typeof(DateTime),
         [DmStoreTypes.TimestampWithTimeZone] = typeof(DateTimeOffset),
         [DmStoreTypes.DateTimeWithTimeZone] = typeof(DateTimeOffset),
         [DmStoreTypes.IntervalDayToSecond] = typeof(TimeSpan)

@@ -19,10 +19,15 @@ public class DmReverseTypeMappingTests
     [InlineData("INTEGER", typeof(int))]
     [InlineData("BIGINT", typeof(long))]
     [InlineData("REAL", typeof(float))]
+    // Dameng FLOAT is FLOAT(53), which is double precision, so a column that declares it reads back
+    // as double. REAL is the single-precision type.
+    [InlineData("FLOAT", typeof(double))]
+    [InlineData("FLOAT(53)", typeof(double))]
     [InlineData("DOUBLE", typeof(double))]
     [InlineData("DOUBLE PRECISION", typeof(double))]
     [InlineData("DECIMAL(18,2)", typeof(decimal))]
     [InlineData("NUMBER", typeof(decimal))]
+    [InlineData("NUMERIC", typeof(decimal))]
     [InlineData("VARCHAR(50)", typeof(string))]
     [InlineData("VARCHAR2(50)", typeof(string))]
     [InlineData("NVARCHAR(50)", typeof(string))]
@@ -31,7 +36,11 @@ public class DmReverseTypeMappingTests
     [InlineData("VARBINARY(64)", typeof(byte[]))]
     [InlineData("DATE", typeof(DateTime))]
     [InlineData("TIMESTAMP(3)", typeof(DateTime))]
+    [InlineData("DATETIME", typeof(DateTime))]
     [InlineData("TIME", typeof(TimeOnly))]
+    [InlineData("TIMESTAMP WITH TIME ZONE", typeof(DateTimeOffset))]
+    [InlineData("DATETIME WITH TIME ZONE", typeof(DateTimeOffset))]
+    [InlineData("CHAR(10)", typeof(string))]
     [InlineData("INTERVAL DAY TO SECOND", typeof(TimeSpan))]
     [InlineData("CHAR(36)", typeof(Guid))]
     public void StoreType_ResolvesToClrType(string storeType, Type expected)
