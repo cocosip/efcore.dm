@@ -121,7 +121,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`; unverified against a server |
 | Date and time methods (`AddDays`, `Now`, `UtcNow`, `Today`, `Date`) | `Not started` | — | P2 | Yes | The reference emitted SQL Server functions (`GETDATE`, `DATEPART`) for these |
 | Math functions | `Implemented` | `DmMathTranslationTests` | P2 | Yes | `ABS`, `ACOS`, `ASIN`, `ATAN`, `CEIL`, `COS`, `EXP`, `FLOOR`, `SIGN`, `SIN`, `SQRT`, `TAN`, `TRUNC`, `POWER`, `ROUND`, `LN`, `LOG`. `Math.Max` and `Math.Min` resolve to `GREATEST` and `LEAST` through the translating visitor, which also covers `EF.Functions.Greatest` and `Least`. Unverified against a server |
-| `Convert`, `ToString`, `new Guid()` | `Not started` | — | P2 | Yes | |
+| `Convert` and `ToString` | `Implemented` | `DmConversionTranslationTests` | P2 | Yes | `Convert` becomes `CAST(value AS type)` using the dialect type names; `ToString` becomes `TO_CHAR`, which needs no declared width. Unverified against a server |
+| `new Guid()` and `Guid.NewGuid()` | `Not started` | — | P2 | Yes | Needs confirmation that Dameng exposes a GUID generator such as `SYS_GUID()` |
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
@@ -220,14 +221,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 32 |
+| `Implemented` | 33 |
 | `In progress` | 1 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
 | `Not started` | 53 |
 | `Not applicable` | 2 |
-| **Total rows** | **100** |
+| **Total rows** | **101** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

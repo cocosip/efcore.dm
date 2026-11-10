@@ -8,10 +8,10 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 /// Generates SELECT statements.
 /// </summary>
 /// <remarks>
-/// ponytail: the relational base generator is used for everything except two Dameng shapes:
-/// string concatenation, which is <c>||</c> rather than <c>+</c>, and <c>EXTRACT</c>, whose
-/// first argument is a keyword rather than an expression. Dameng's paging shapes and its
-/// function set are settled against a live server in roadmap phase P2.
+/// ponytail: the relational base generator is used for everything except three Dameng shapes:
+/// string concatenation, which is <c>||</c> rather than <c>+</c>; <c>EXTRACT</c> and
+/// <c>CAST</c>, whose second token is a keyword rather than a comma-separated argument. Dameng's
+/// paging shapes and its full function set are settled against a live server in roadmap phase P2.
 /// </remarks>
 internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
 {
@@ -32,23 +32,31 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             : base.GetOperator(binaryExpression);
 
     /// <summary>
-    /// Renders <c>EXTRACT(PART FROM value)</c>. The base generator separates arguments with a
-    /// comma, which is not valid for this function.
+    /// Renders <c>EXTRACT(PART FROM value)</c> and <c>CAST(value AS type)</c>. The base generator
+    /// separates arguments with a comma, which is not valid for either.
     /// </summary>
     protected override Expression VisitSqlFunction(SqlFunctionExpression functionExpression)
     {
-        if (functionExpression.Name == ExtractFunction
-            && functionExpression.Arguments is [SqlFragmentExpression part, SqlExpression value])
+        switch (functionExpression.Name, functionExpression.Arguments)
         {
-            Visit(new SqlFragmentExpression("EXTRACT("));
-            Visit(part);
-            Visit(new SqlFragmentExpression(" FROM "));
-            Visit(value);
+            case (ExtractFunction, [SqlFragmentExpression part, SqlExpression value]):
+                return Render("EXTRACT(", part, " FROM ", value);
+
+            case (DmConvertTranslator.CastFunction, [SqlExpression operand, SqlFragmentExpression storeType]):
+                return Render("CAST(", operand, " AS ", storeType);
+        }
+
+        return base.VisitSqlFunction(functionExpression);
+
+        Expression Render(string open, SqlExpression first, string separator, SqlExpression second)
+        {
+            Visit(new SqlFragmentExpression(open));
+            Visit(first);
+            Visit(new SqlFragmentExpression(separator));
+            Visit(second);
             Visit(new SqlFragmentExpression(")"));
 
             return functionExpression;
         }
-
-        return base.VisitSqlFunction(functionExpression);
     }
 }
