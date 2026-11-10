@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+
+    <!--
+      The EF Core dependency must carry an upper bound: the provider is built against
+      internal API shapes that are not guaranteed across major versions (architecture D5).
+      NuGet writes this range into the packed nuspec.
+    -->
+    <EfCoreVersionRange>[10.0.14,11.0.0)</EfCoreVersionRange>
+    <DmProviderVersionRange>[8.3.1.47463,)</DmProviderVersionRange>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersionRange)" />
+    <PackageVersion Include="DM.DmProvider" Version="$(DmProviderVersionRange)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test packages">
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+</Project>
