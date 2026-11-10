@@ -113,8 +113,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | `ToQueryString()` for a simple projection | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Works with no database involved |
 | `Where`, `OrderBy`, `Select` | `Implemented` | `DmQuerySqlGenerationTests` | P2 | Yes | |
-| `Join`, `GroupBy`, aggregates | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | `GroupBy` with `COUNT(*)` covered; joins not yet |
-| `Include`, split and single queries | `Not started` | — | P2 | Yes | |
+| `Join`, `GroupBy`, aggregates | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | `INNER JOIN`, `LEFT JOIN`, `GROUP BY`, `COUNT`, `SUM`, `MIN` and `MAX` |
+| `Include`, split and single queries | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Collection loading joins and orders by the root key; the split query keeps the root statement separate |
 | Paging (`Skip`, `Take`) | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Emits ANSI `OFFSET ... FETCH NEXT`; Dameng support unverified |
 | String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `Replace`, `Substring`, `Length`. Function names follow Oracle-compatible mode and are unverified against a server. |
 | String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 34 |
+| `Implemented` | 36 |
 | `In progress` | 1 |
-| `Partial` | 7 |
+| `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 52 |
+| `Not started` | 51 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
