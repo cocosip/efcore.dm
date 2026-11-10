@@ -166,7 +166,9 @@ The following are properties of Dameng, identical across EF Core versions. Their
 
 A date difference is the exception: subtracting two dates answers a number of days rather than an interval, and the conversion to an interval is not used, so that shape stays untranslated instead of declaring a `TimeSpan` the server would not send back. See §9 for the source.
 
-A date part is read with `EXTRACT(PART FROM value)` for a timestamp, a date and a time of day alike. The reference provider reads the same members with `DATEPART(part, value)`; the two agree on the parts this dialect translates, and the live matrix decides which one the server accepts on a `TIME` column.
+A date part is read with `EXTRACT(PART FROM value)` for a timestamp, a date and a time of day alike; `DayOfYear` and `Millisecond` use `DATEPART(part, value)`, because `EXTRACT` has no such part. The reference provider reads every member with `DATEPART`; the two agree on the parts this dialect translates, and the live matrix decides which one the server accepts on a `TIME` column.
+
+`Guid.NewGuid()` renders `NEWID()`, the function the reference provider uses; Dameng's `GUID()` answers a 32-character string without the hyphens and is not used.
 
 This is the reason the `Dialect/` layer exists: these are written once rather than once per version.
 

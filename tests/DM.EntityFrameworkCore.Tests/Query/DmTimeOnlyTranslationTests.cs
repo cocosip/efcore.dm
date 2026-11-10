@@ -51,6 +51,7 @@ public class DmTimeOnlyTranslationTests
     [InlineData("Hour", "EXTRACT(HOUR FROM \"p\".\"At\") > 12")]
     [InlineData("Minute", "EXTRACT(MINUTE FROM \"p\".\"At\") > 12")]
     [InlineData("Second", "EXTRACT(SECOND FROM \"p\".\"At\") > 12")]
+    [InlineData("Millisecond", "DATEPART(millisecond, \"p\".\"At\") > 12")]
     public void Member_ReadsThePart(string member, string predicate)
     {
         using var context = new ProbeContext();
@@ -59,6 +60,7 @@ public class DmTimeOnlyTranslationTests
         {
             "Hour" => context.Probes.Where(p => p.At.Hour > 12),
             "Minute" => context.Probes.Where(p => p.At.Minute > 12),
+            "Millisecond" => context.Probes.Where(p => p.At.Millisecond > 12),
             _ => context.Probes.Where(p => p.At.Second > 12)
         };
 

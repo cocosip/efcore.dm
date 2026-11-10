@@ -21,6 +21,7 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
 {
     private const string ExtractFunction = "EXTRACT";
+    private const string DatePartFunction = "DATEPART";
     private const string TruncFunction = "TRUNC";
     private const string CurrentTimestampFunction = "CURRENT_TIMESTAMP";
     private const string SysTimestampFunction = "SYSTIMESTAMP";
@@ -34,6 +35,17 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         [nameof(DateTime.Hour)] = "HOUR",
         [nameof(DateTime.Minute)] = "MINUTE",
         [nameof(DateTime.Second)] = "SECOND"
+    };
+
+    /// <summary>
+    /// The two parts <c>EXTRACT</c> does not have, which <c>DATEPART</c> reads with the part as its
+    /// first argument. The reference provider reads every part this way; this dialect reads the
+    /// common ones with <c>EXTRACT</c> and these two here, because <c>EXTRACT</c> cannot express them.
+    /// </summary>
+    private static readonly Dictionary<string, string> DatePartArguments = new(StringComparer.Ordinal)
+    {
+        [nameof(DateTime.DayOfYear)] = "dayofyear",
+        [nameof(DateTime.Millisecond)] = "millisecond"
     };
 
     /// <summary>
@@ -160,8 +172,13 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
             return Function(UtcFunction, [instance], returnType);
         }
 
-        return DateParts.TryGetValue(memberName, out var part)
-            ? Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], returnType)
+        if (DateParts.TryGetValue(memberName, out var part))
+        {
+            return Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], returnType);
+        }
+
+        return DatePartArguments.TryGetValue(memberName, out var argument)
+            ? Function(DatePartFunction, [_sqlExpressionFactory.Fragment(argument), instance], returnType)
             : null;
     }
 
