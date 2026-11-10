@@ -101,7 +101,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `DateOnly`, `TimeOnly` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | |
 | `Guid` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Stored as `VARCHAR(36)` provisionally |
 | `char`, `enum` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | A character is stored as `VARCHAR(1)` and bound as a one character string; an enum is stored as `INT` and bound as its underlying integer, including the nullable form |
-| JSON column type | `Not started` | — | P1 | Yes | |
+| JSON column type | `Not started` | — | P1 | Yes | A store type alone is not enough in EF Core 10: with one in place the model builds, the DDL and the writes are correct, and materialization then fails because the container column also needs a JSON reader/writer, which `JsonTypeMapping` exposes no hook for |
 | Spatial types (NetTopologySuite) | `Deferred` | — | After P6 | No | Not required by the specification suite core cases; revisit after the first release |
 | Store type to CLR reverse lookup | `Implemented` | `DmReverseTypeMappingTests` | P1 | Yes | Recovers the CLR type and the size, precision and scale written in the name. `DATE` maps to `DateTime` because Dameng keeps a time part in it, while the forward direction maps `DateOnly` to `DATE`; a GUID column reads back as a string because the database has no GUID type |
 | Concurrency token (`rowversion`) | `Not started` | — | P3 | Yes | |
