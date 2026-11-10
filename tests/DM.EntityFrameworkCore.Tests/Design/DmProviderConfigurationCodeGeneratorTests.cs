@@ -1,5 +1,6 @@
 using System.Reflection;
 using DM.EntityFrameworkCore.Design.Internal;
+using DM.EntityFrameworkCore.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.EntityFrameworkCore.Scaffolding;
@@ -17,7 +18,7 @@ public class DmProviderConfigurationCodeGeneratorTests
     [Fact]
     public void DesignTimeServices_RegisterThisProvidersGenerator()
     {
-        using var services = DesignTimeServices();
+        using var services = ProviderDesignTimeServices.Build();
         var generator = services.GetRequiredService<IProviderConfigurationCodeGenerator>();
 
         Assert.IsType<DmProviderConfigurationCodeGenerator>(generator);
@@ -26,7 +27,8 @@ public class DmProviderConfigurationCodeGeneratorTests
     [Fact]
     public void GenerateUseProvider_EmitsTheEntryPointWithTheConnectionString()
     {
-        var generator = Generator();
+        using var services = ProviderDesignTimeServices.Build();
+        var generator = services.GetRequiredService<IProviderConfigurationCodeGenerator>();
 
         var fragment = generator.GenerateUseProvider("SERVER=demandb");
 
@@ -38,7 +40,8 @@ public class DmProviderConfigurationCodeGeneratorTests
     public void GenerateUseProvider_IgnoresAProviderOptionsChain()
     {
         // The provider declares no options, so nothing is chained onto the call.
-        var generator = Generator();
+        using var services = ProviderDesignTimeServices.Build();
+        var generator = services.GetRequiredService<IProviderConfigurationCodeGenerator>();
 
         var fragment = generator.GenerateUseProvider(
             "SERVER=demandb",
@@ -52,7 +55,8 @@ public class DmProviderConfigurationCodeGeneratorTests
     [Fact]
     public void GenerateProviderOptions_AndContextOptions_ReturnNothing()
     {
-        var generator = Generator();
+        using var services = ProviderDesignTimeServices.Build();
+        var generator = services.GetRequiredService<IProviderConfigurationCodeGenerator>();
 
         Assert.Null(generator.GenerateProviderOptions());
         Assert.Null(generator.GenerateContextOptions());
@@ -84,19 +88,4 @@ public class DmProviderConfigurationCodeGeneratorTests
         Assert.NotNull(method);
     }
 
-    private static IProviderConfigurationCodeGenerator Generator()
-    {
-        using var services = DesignTimeServices();
-
-        return services.GetRequiredService<IProviderConfigurationCodeGenerator>();
-    }
-
-    private static ServiceProvider DesignTimeServices()
-    {
-        var services = new ServiceCollection();
-        services.AddEntityFrameworkDesignTimeServices();
-        new DmDesignTimeServices().ConfigureDesignTimeServices(services);
-
-        return services.BuildServiceProvider();
-    }
 }
