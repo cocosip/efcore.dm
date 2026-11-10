@@ -25,13 +25,14 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
 {
     private const string AddMonthsFunction = "ADD_MONTHS";
 
-    private static readonly Dictionary<string, int> DaysPerUnit = new(StringComparer.Ordinal)
+    private static readonly Dictionary<string, long> DaysPerUnit = new(StringComparer.Ordinal)
     {
         [nameof(DateTime.AddDays)] = 1,
         [nameof(DateTime.AddHours)] = 24,
         [nameof(DateTime.AddMinutes)] = 60 * 24,
         [nameof(DateTime.AddSeconds)] = 60 * 60 * 24,
-        [nameof(DateTime.AddMilliseconds)] = 1000 * 60 * 60 * 24
+        [nameof(DateTime.AddMilliseconds)] = 1000 * 60 * 60 * 24,
+        [nameof(DateTime.AddMicroseconds)] = 1000L * 1000 * 60 * 60 * 24
     };
 
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
@@ -46,7 +47,7 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
         if (instance is null
-            || method.DeclaringType != typeof(DateTime)
+            || (method.DeclaringType != typeof(DateTime) && method.DeclaringType != typeof(DateTimeOffset))
             || (instance.Type != typeof(DateTime) && instance.Type != typeof(DateTimeOffset)))
         {
             return null;
@@ -82,7 +83,7 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
             ? _sqlExpressionFactory.Constant(value * 12, years.TypeMapping)
             : _sqlExpressionFactory.Multiply(years, Constant(12, years));
 
-    private SqlExpression AddDays(SqlExpression instance, SqlExpression days, int daysPerUnit)
+    private SqlExpression AddDays(SqlExpression instance, SqlExpression days, long daysPerUnit)
     {
         var scaled = daysPerUnit == 1
             ? days
@@ -101,7 +102,7 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
             instance.TypeMapping);
     }
 
-    private SqlExpression Constant(int value, SqlExpression like)
+    private SqlExpression Constant(long value, SqlExpression like)
         => _sqlExpressionFactory.Constant(
             Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture),
             like.TypeMapping);

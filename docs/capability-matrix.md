@@ -120,11 +120,12 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `PadLeft`, `PadRight`, `IndexOf`, `Replace`, `Substring`, `Length`. Padding maps to `LPAD` and `RPAD`, a character trim to `LTRIM` and `RTRIM` with that character as the set, and `IndexOf` to `INSTR` shifted by one. Function names follow Oracle-compatible mode and are unverified against a server. |
 | String composition (`IsNullOrWhiteSpace`, `Insert`, `Remove`) | `Not started` | — | P2 | No | Measured: each fails to translate. The rest of the string surface translates |
 | String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
-| Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`; unverified against a server |
-| Date and time methods (`AddDays`, `Now`, `UtcNow`, `Today`, `Date`) | `Implemented` | `DmDateTimeMethodTranslationTests` | P2 | Yes | Day counts are added directly and sub-day units are scaled into a fraction of a day; months use `ADD_MONTHS`; `Date` uses `TRUNC`. The reference emitted SQL Server functions (`GETDATE`, `DATEPART`) for these. `CURRENT_TIMESTAMP` and `SYS_EXTRACT_UTC(SYSTIMESTAMP)` are unverified against a server |
+| Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`, on `DateTime` and `DateTimeOffset` alike; unverified against a server |
+| Date and time methods (`AddDays`, `Now`, `UtcNow`, `Today`, `Date`) | `Implemented` | `DmDateTimeMethodTranslationTests`, `DmDateTimeOffsetTranslationTests` | P2 | Yes | Day counts are added directly and sub-day units are scaled into a fraction of a day, including microseconds; months use `ADD_MONTHS`; `Date` uses `TRUNC`; `DateTimeOffset.UtcDateTime` uses `SYS_EXTRACT_UTC`. `DateTime` and `DateTimeOffset` share the arithmetic. The reference emitted SQL Server functions (`GETDATE`, `DATEPART`) for these. `CURRENT_TIMESTAMP` and `SYS_EXTRACT_UTC(SYSTIMESTAMP)` are unverified against a server |
 | Math functions | `Implemented` | `DmMathTranslationTests` | P2 | Yes | `ABS`, `ACOS`, `ASIN`, `ATAN`, `ATAN2`, `CEIL`, `COS`, `EXP`, `FLOOR`, `SIGN`, `SIN`, `SQRT`, `TAN`, `TRUNC`, `POWER`, `ROUND`, `LN`, `LOG`. `Math.Max` and `Math.Min` resolve to `GREATEST` and `LEAST` through the translating visitor, which also covers `EF.Functions.Greatest` and `Least`. Unverified against a server |
 | `Convert` and `ToString` | `Implemented` | `DmConversionTranslationTests` | P2 | Yes | `Convert` becomes `CAST(value AS type)` using the dialect type names; `ToString` becomes `TO_CHAR`, which needs no declared width. Unverified against a server |
 | `new Guid()` and `Guid.NewGuid()` | `Not started` | — | P2 | Yes | Needs confirmation that Dameng exposes a GUID generator such as `SYS_GUID()` |
+| `byte[].Length` | `Not started` | — | P2 | No | Measured: fails to translate. A byte array is stored as `BLOB` by default, and whether `LENGTH` accepts a `BLOB` rather than only a character or binary string is unverified |
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
 | `TimeOnly` conversions (`FromDateTime`, `FromTimeSpan`) | `Implemented` | `DmTimeOnlyTranslationTests` | P2 | Yes | A time of day built from a timestamp is a cast to `TIME`; one built from an elapsed time is that `INTERVAL DAY TO SECOND` added to the epoch and cast. The generated SQL is unverified against a server |
 | `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
@@ -149,7 +150,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Multiple statements per batch | `Deferred` | `DmUpdateSqlTests` | P3 | Yes | One statement per round trip; the affected row count comes from the driver return value and could not be attributed to individual commands in a shared batch |
 | Store-generated value readback | `Implemented` | `DmGeneratedValueTests` | P3 | Yes | After an insert or an update, a second statement selects the generated columns. An insert is matched by `sql%ROWCOUNT = 1` and by `scope_identity()` for an identity column or the sequence current value for a sequence default; an update is matched by the same where clause and the same parameters as the statement it follows. A computed column therefore comes back after an update, and the statement shape has not been run against a server |
 | Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException` |
-| Modification command factory | `Not started` | — | P3 | No | EF Core 9+ contract |
+| Modification command factory | `Not applicable` | `DmUpdateSqlTests` | P3 | No | The relational default builds the `ModificationCommand` shape this provider's batch already consumes, so substituting a factory would add a type with no behaviour |
 | `SaveChanges` transaction wrapping | `Implemented` | `DmConnectionTests` | P3 | Yes | A unit of work that builds more than one command is wrapped and committed; a single command runs without a transaction |
 
 ### E. Migrations
@@ -234,8 +235,8 @@ Rows by status, updated when the matrix changes:
 | `Blocked` | 2 |
 | `Deferred` | 4 |
 | `Not started` | 13 |
-| `Not applicable` | 2 |
-| **Total rows** | **108** |
+| `Not applicable` | 3 |
+| **Total rows** | **109** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

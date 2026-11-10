@@ -15,6 +15,7 @@ public class DmDateTimeMethodTranslationTests
         ["AddMinutes"] = q => q.Where(p => p.CreatedAt.AddMinutes(1) > p.CreatedAt),
         ["AddSeconds"] = q => q.Where(p => p.CreatedAt.AddSeconds(1) > p.CreatedAt),
         ["AddMilliseconds"] = q => q.Where(p => p.CreatedAt.AddMilliseconds(1) > p.CreatedAt),
+        ["AddMicroseconds"] = q => q.Where(p => p.CreatedAt.AddMicroseconds(1) > p.CreatedAt),
         ["AddMonths"] = q => q.Where(p => p.CreatedAt.AddMonths(1) > p.CreatedAt),
         ["AddYears"] = q => q.Where(p => p.CreatedAt.AddYears(1) > p.CreatedAt),
         ["AddDaysColumn"] = q => q.Where(p => p.CreatedAt.AddDays(p.Days) > p.CreatedAt),
@@ -30,6 +31,7 @@ public class DmDateTimeMethodTranslationTests
     [InlineData("AddMinutes", "(\"p\".\"CreatedAt\" + (1.0 / 1440.0)) > \"p\".\"CreatedAt\"")]
     [InlineData("AddSeconds", "(\"p\".\"CreatedAt\" + (1.0 / 86400.0)) > \"p\".\"CreatedAt\"")]
     [InlineData("AddMilliseconds", "(\"p\".\"CreatedAt\" + (1.0 / 86400000.0)) > \"p\".\"CreatedAt\"")]
+    [InlineData("AddMicroseconds", "(\"p\".\"CreatedAt\" + (1.0 / 86400000000.0)) > \"p\".\"CreatedAt\"")]
     [InlineData("AddMonths", "ADD_MONTHS(\"p\".\"CreatedAt\", 1) > \"p\".\"CreatedAt\"")]
     [InlineData("AddYears", "ADD_MONTHS(\"p\".\"CreatedAt\", 12) > \"p\".\"CreatedAt\"")]
     [InlineData("AddDaysColumn", "(\"p\".\"CreatedAt\" + \"p\".\"Days\") > \"p\".\"CreatedAt\"")]

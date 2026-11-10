@@ -67,6 +67,11 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
             return Function(TruncFunction, [instance], returnType);
         }
 
+        if (memberName == nameof(DateTimeOffset.UtcDateTime))
+        {
+            return Function(UtcFunction, [instance], returnType);
+        }
+
         return DateParts.TryGetValue(memberName, out var part)
             ? Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], returnType)
             : null;
