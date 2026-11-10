@@ -103,7 +103,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `char`, `enum` | `Not started` | — | P1 | Yes | |
 | JSON column type | `Not started` | — | P1 | Yes | |
 | Spatial types (NetTopologySuite) | `Deferred` | — | After P6 | No | Not required by the specification suite core cases; revisit after the first release |
-| Store type to CLR reverse lookup | `Not started` | — | P1 | Yes | Needed by scaffolding |
+| Store type to CLR reverse lookup | `Implemented` | `DmReverseTypeMappingTests` | P1 | Yes | Recovers the CLR type and the size, precision and scale written in the name. `DATE` maps to `DateTime` because Dameng keeps a time part in it, while the forward direction maps `DateOnly` to `DATE`; a GUID column reads back as a string because the database has no GUID type |
 | Concurrency token (`rowversion`) | `Not started` | — | P3 | Yes | |
 | Type mapping clone semantics | `Not applicable` | — | P1 | Yes | The provider builds a mapping per facet set instead of cloning a base mapping, so no clone override is needed |
 
@@ -220,12 +220,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 30 |
+| `Implemented` | 31 |
 | `In progress` | 1 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 55 |
+| `Not started` | 54 |
 | `Not applicable` | 2 |
 | **Total rows** | **100** |
 

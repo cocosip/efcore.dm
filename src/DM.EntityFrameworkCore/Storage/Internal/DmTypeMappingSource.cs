@@ -5,13 +5,16 @@ using Microsoft.EntityFrameworkCore.Storage;
 namespace DM.EntityFrameworkCore.Storage.Internal;
 
 /// <summary>
-/// Maps CLR types to Dameng store types, applying size, precision, scale, unicode and fixed
-/// length facets. Store type names come from the dialect layer.
+/// Maps CLR types to Dameng store types and back.
 /// </summary>
 /// <remarks>
 /// Facets are applied by building the store type string here rather than by cloning a base
 /// mapping, so that every mapping the provider hands out is self-describing. A facet that is
 /// not configured produces the unsuffixed type, which is what a plain property should get.
+/// <para>
+/// The reverse direction exists for reverse engineering: a column type read from the catalog has
+/// to resolve to a CLR type, and the facets written in that name have to survive the round trip.
+/// </para>
 /// </remarks>
 internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 {
@@ -37,6 +40,45 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         DmStoreTypes.DateTimeWithTimeZone,
         DbType.DateTimeOffset);
 
+    /// <summary>
+    /// Resolves a catalog column type to the CLR type the model should expose. A store type that
+    /// is not listed here is not mapped, so reverse engineering surfaces it rather than silently
+    /// choosing a type that loses data.
+    /// </summary>
+    private static readonly Dictionary<string, Type> ClrTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        [DmStoreTypes.Bit] = typeof(bool),
+        [DmStoreTypes.TinyInt] = typeof(sbyte),
+        [DmStoreTypes.SmallInt] = typeof(short),
+        [DmStoreTypes.Int] = typeof(int),
+        ["INTEGER"] = typeof(int),
+        [DmStoreTypes.BigInt] = typeof(long),
+        [DmStoreTypes.Decimal] = typeof(decimal),
+        ["NUMERIC"] = typeof(decimal),
+        ["NUMBER"] = typeof(decimal),
+        [DmStoreTypes.Real] = typeof(float),
+        [DmStoreTypes.Float] = typeof(float),
+        [DmStoreTypes.Double] = typeof(double),
+        ["DOUBLE PRECISION"] = typeof(double),
+        [DmStoreTypes.Char] = typeof(string),
+        [DmStoreTypes.NChar] = typeof(string),
+        [DmStoreTypes.VarChar] = typeof(string),
+        [DmStoreTypes.VarChar2] = typeof(string),
+        [DmStoreTypes.NVarChar] = typeof(string),
+        [DmStoreTypes.NVarChar2] = typeof(string),
+        [DmStoreTypes.Text] = typeof(string),
+        [DmStoreTypes.Clob] = typeof(string),
+        [DmStoreTypes.Binary] = typeof(byte[]),
+        [DmStoreTypes.VarBinary] = typeof(byte[]),
+        [DmStoreTypes.Blob] = typeof(byte[]),
+        [DmStoreTypes.Date] = typeof(DateTime),
+        [DmStoreTypes.Time] = typeof(TimeOnly),
+        [DmStoreTypes.Timestamp] = typeof(DateTime),
+        [DmStoreTypes.TimestampWithTimeZone] = typeof(DateTimeOffset),
+        [DmStoreTypes.DateTimeWithTimeZone] = typeof(DateTimeOffset),
+        [DmStoreTypes.IntervalDayToSecond] = typeof(TimeSpan)
+    };
+
     public DmTypeMappingSource(
         TypeMappingSourceDependencies dependencies,
         RelationalTypeMappingSourceDependencies relationalDependencies)
@@ -45,38 +87,102 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
     }
 
     protected override RelationalTypeMapping? FindMapping(in RelationalTypeMappingInfo mappingInfo)
-        => FindByClrType(mappingInfo) ?? base.FindMapping(mappingInfo);
-
-    private static RelationalTypeMapping? FindByClrType(in RelationalTypeMappingInfo mappingInfo)
-        => mappingInfo.ClrType switch
+    {
+        if (mappingInfo.StoreTypeName is null)
         {
-            null => null,
-            var t when t == typeof(bool) => BoolMapping,
-            var t when t == typeof(byte) => ByteMapping,
-            var t when t == typeof(sbyte) => SByteMapping,
-            var t when t == typeof(short) => ShortMapping,
-            var t when t == typeof(int) => IntMapping,
-            var t when t == typeof(long) => LongMapping,
-            var t when t == typeof(float) => FloatMapping,
-            var t when t == typeof(double) => DoubleMapping,
-            var t when t == typeof(decimal) => Decimal(mappingInfo),
-            var t when t == typeof(string) => String(mappingInfo),
-            var t when t == typeof(byte[]) => Binary(mappingInfo),
-            var t when t == typeof(Guid) => GuidMapping,
-            var t when t == typeof(DateTime) => Temporal(mappingInfo, DmStoreTypes.Timestamp, DbType.DateTime),
-            var t when t == typeof(DateTimeOffset) => DateTimeOffsetMapping,
-            var t when t == typeof(TimeSpan) => TimeSpanMapping,
-            var t when t == typeof(DateOnly) => DateOnlyMapping,
-            var t when t == typeof(TimeOnly) => TimeOnlyMapping,
+            return Build(
+                mappingInfo.ClrType,
+                storeType: null,
+                mappingInfo.Size,
+                mappingInfo.Precision,
+                mappingInfo.Scale,
+                mappingInfo.IsUnicode ?? false,
+                mappingInfo.IsFixedLength ?? false);
+        }
+
+        var unicode = mappingInfo.IsUnicode;
+        var size = mappingInfo.Size;
+        var precision = mappingInfo.Precision;
+        var scale = mappingInfo.Scale;
+
+        var baseName = ParseStoreTypeName(mappingInfo.StoreTypeName, ref unicode, ref size, ref precision, ref scale);
+
+        var clrType = mappingInfo.ClrType
+            ?? (baseName is not null && ClrTypes.TryGetValue(baseName, out var resolved) ? resolved : null);
+
+        return Build(
+            clrType,
+            mappingInfo.StoreTypeName,
+            size,
+            precision,
+            scale,
+            unicode ?? false,
+            mappingInfo.IsFixedLength ?? false);
+    }
+
+    private static RelationalTypeMapping? Build(
+        Type? clrType,
+        string? storeType,
+        int? size,
+        int? precision,
+        int? scale,
+        bool unicode,
+        bool fixedLength)
+    {
+        if (clrType is null)
+        {
+            return null;
+        }
+
+        if (clrType == typeof(string))
+        {
+            return String(storeType, size, unicode, fixedLength);
+        }
+
+        if (clrType == typeof(decimal))
+        {
+            return Decimal(storeType, precision, scale);
+        }
+
+        if (clrType == typeof(byte[]))
+        {
+            return Binary(storeType, size);
+        }
+
+        if (clrType == typeof(DateTime))
+        {
+            return Temporal(storeType, size ?? precision);
+        }
+
+        // A store type carried by the model is honoured verbatim for the remaining mappings, so
+        // that a column declared with a name this provider does not generate still round trips.
+        return clrType switch
+        {
+            var t when t == typeof(bool) => Retype(storeType, () => BoolMapping, s => new BoolTypeMapping(s, DbType.Boolean)),
+            var t when t == typeof(byte) => Retype(storeType, () => ByteMapping, s => new ByteTypeMapping(s, DbType.Byte)),
+            var t when t == typeof(sbyte) => Retype(storeType, () => SByteMapping, s => new SByteTypeMapping(s, DbType.SByte)),
+            var t when t == typeof(short) => Retype(storeType, () => ShortMapping, s => new ShortTypeMapping(s, DbType.Int16)),
+            var t when t == typeof(int) => Retype(storeType, () => IntMapping, s => new IntTypeMapping(s, DbType.Int32)),
+            var t when t == typeof(long) => Retype(storeType, () => LongMapping, s => new LongTypeMapping(s, DbType.Int64)),
+            var t when t == typeof(float) => Retype(storeType, () => FloatMapping, s => new FloatTypeMapping(s, DbType.Single)),
+            var t when t == typeof(double) => Retype(storeType, () => DoubleMapping, s => new DoubleTypeMapping(s, DbType.Double)),
+            var t when t == typeof(Guid) => Retype(storeType, () => GuidMapping, s => new GuidTypeMapping(s, DbType.Guid)),
+            var t when t == typeof(DateOnly) => Retype(storeType, () => DateOnlyMapping, s => new DateOnlyTypeMapping(s, DbType.Date)),
+            var t when t == typeof(TimeOnly) => Retype(storeType, () => TimeOnlyMapping, s => new TimeOnlyTypeMapping(s, DbType.Time)),
+            var t when t == typeof(TimeSpan) => Retype(storeType, () => TimeSpanMapping, s => new TimeSpanTypeMapping(s, DbType.Time)),
+            var t when t == typeof(DateTimeOffset) => Retype(storeType, () => DateTimeOffsetMapping, s => new DateTimeOffsetTypeMapping(s, DbType.DateTimeOffset)),
             _ => null
         };
+    }
 
-    private static RelationalTypeMapping String(in RelationalTypeMappingInfo mappingInfo)
+    private static RelationalTypeMapping Retype(
+        string? storeType,
+        Func<RelationalTypeMapping> fallback,
+        Func<string, RelationalTypeMapping> create)
+        => storeType is null ? fallback() : create(storeType);
+
+    private static RelationalTypeMapping String(string? storeType, int? size, bool unicode, bool fixedLength)
     {
-        var unicode = mappingInfo.IsUnicode ?? false;
-        var fixedLength = mappingInfo.IsFixedLength ?? false;
-        var size = mappingInfo.Size;
-
         var storeTypeBase = (unicode, fixedLength) switch
         {
             (true, true) => DmStoreTypes.NChar,
@@ -85,9 +191,12 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             _ => DmStoreTypes.VarChar
         };
 
-        var storeType = size is null
-            ? storeTypeBase
-            : storeTypeBase + DmTypeSizes.FormatLength(size.Value);
+        if (storeType is null)
+        {
+            storeType = size is null
+                ? storeTypeBase
+                : storeTypeBase + DmTypeSizes.FormatLength(size.Value);
+        }
 
         var dbType = (unicode, fixedLength) switch
         {
@@ -102,54 +211,42 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         return new StringTypeMapping(storeType, dbType, unicode, size);
     }
 
-    private static RelationalTypeMapping Decimal(in RelationalTypeMappingInfo mappingInfo)
+    private static RelationalTypeMapping Decimal(string? storeType, int? precision, int? scale)
     {
-        var precision = mappingInfo.Precision;
-        var scale = mappingInfo.Scale;
-
-        if (precision is null && scale is null)
+        if (storeType is null)
         {
+            var resolvedPrecision = precision ?? DmTypeSizes.DefaultDecimalPrecision;
+            var resolvedScale = scale ?? (precision is null ? DmTypeSizes.DefaultDecimalScale : 0);
+
             return new DecimalTypeMapping(
-                DmStoreTypes.Decimal
-                + DmTypeSizes.FormatDecimal(DmTypeSizes.DefaultDecimalPrecision, DmTypeSizes.DefaultDecimalScale),
+                DmStoreTypes.Decimal + DmTypeSizes.FormatDecimal(resolvedPrecision, resolvedScale),
                 DbType.Decimal,
-                DmTypeSizes.DefaultDecimalPrecision,
-                DmTypeSizes.DefaultDecimalScale);
+                resolvedPrecision,
+                resolvedScale);
         }
 
-        var resolvedPrecision = precision ?? DmTypeSizes.DefaultDecimalPrecision;
-        var resolvedScale = scale ?? 0;
-
-        return new DecimalTypeMapping(
-            DmStoreTypes.Decimal + DmTypeSizes.FormatDecimal(resolvedPrecision, resolvedScale),
-            DbType.Decimal,
-            resolvedPrecision,
-            resolvedScale);
+        return new DecimalTypeMapping(storeType, DbType.Decimal, precision, scale);
     }
 
-    private static RelationalTypeMapping Binary(in RelationalTypeMappingInfo mappingInfo)
+    private static RelationalTypeMapping Binary(string? storeType, int? size)
+        => storeType is null
+            ? size is null
+                ? new ByteArrayTypeMapping(DmStoreTypes.Blob, DbType.Binary)
+                : new ByteArrayTypeMapping(
+                    DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(size.Value),
+                    DbType.Binary,
+                    size)
+            : new ByteArrayTypeMapping(storeType, DbType.Binary, size);
+
+    private static RelationalTypeMapping Temporal(string? storeType, int? precision)
     {
-        var size = mappingInfo.Size;
+        if (storeType is null)
+        {
+            storeType = precision is null
+                ? DmStoreTypes.Timestamp
+                : DmStoreTypes.Timestamp + DmTypeSizes.FormatPrecision(precision.Value);
+        }
 
-        return size is null
-            ? new ByteArrayTypeMapping(DmStoreTypes.Blob, DbType.Binary)
-            : new ByteArrayTypeMapping(
-                DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(size.Value),
-                DbType.Binary,
-                size);
-    }
-
-    private static RelationalTypeMapping Temporal(
-        in RelationalTypeMappingInfo mappingInfo,
-        string storeTypeBase,
-        DbType dbType)
-    {
-        var precision = mappingInfo.Precision;
-
-        var storeType = precision is null
-            ? storeTypeBase
-            : storeTypeBase + DmTypeSizes.FormatPrecision(precision.Value);
-
-        return new DateTimeTypeMapping(storeType, dbType);
+        return new DateTimeTypeMapping(storeType, DbType.DateTime);
     }
 }
