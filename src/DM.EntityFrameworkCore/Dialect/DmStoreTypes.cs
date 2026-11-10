@@ -29,6 +29,7 @@ internal static class DmStoreTypes
     public const string NVarChar2 = "NVARCHAR2";
     public const string Text = "TEXT";
     public const string Clob = "CLOB";
+    public const string NClob = "NCLOB";
 
     public const string Binary = "BINARY";
     public const string VarBinary = "VARBINARY";

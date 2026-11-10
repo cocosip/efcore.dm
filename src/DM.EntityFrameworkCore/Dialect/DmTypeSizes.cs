@@ -27,6 +27,19 @@ internal static class DmTypeSizes
     /// </summary>
     public const int DefaultTimePrecision = 6;
 
+    /// <summary>
+    /// Length a unicode string key or index column gets when the model names none, in characters. A key
+    /// has to be a bounded column, because Dameng indexes no character large object, and this is the bound
+    /// the framework's own providers use for a key.
+    /// </summary>
+    public const int DefaultUnicodeKeyLength = 450;
+
+    /// <summary>
+    /// Length a non-unicode string key or index column gets when the model names none, in bytes. The same
+    /// budget as the unicode bound: 900 single byte characters or 450 characters of two bytes.
+    /// </summary>
+    public const int DefaultAnsiKeyLength = 900;
+
     /// <summary>Length of the binary type used for concurrency tokens.</summary>
     public const int RowVersionLength = 8;
 

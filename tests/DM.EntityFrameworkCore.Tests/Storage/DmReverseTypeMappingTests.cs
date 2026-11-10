@@ -32,6 +32,7 @@ public class DmReverseTypeMappingTests
     [InlineData("VARCHAR2(50)", typeof(string))]
     [InlineData("NVARCHAR(50)", typeof(string))]
     [InlineData("CLOB", typeof(string))]
+    [InlineData("NCLOB", typeof(string))]
     [InlineData("BLOB", typeof(byte[]))]
     [InlineData("VARBINARY(64)", typeof(byte[]))]
     [InlineData("DATE", typeof(DateTime))]

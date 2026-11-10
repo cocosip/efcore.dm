@@ -74,6 +74,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         [DmStoreTypes.NVarChar2] = typeof(string),
         [DmStoreTypes.Text] = typeof(string),
         [DmStoreTypes.Clob] = typeof(string),
+        [DmStoreTypes.NClob] = typeof(string),
         [DmStoreTypes.Binary] = typeof(byte[]),
         [DmStoreTypes.VarBinary] = typeof(byte[]),
         [DmStoreTypes.Blob] = typeof(byte[]),
@@ -104,7 +105,8 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
                 mappingInfo.Precision,
                 mappingInfo.Scale,
                 mappingInfo.IsUnicode ?? false,
-                mappingInfo.IsFixedLength ?? false);
+                mappingInfo.IsFixedLength ?? false,
+                mappingInfo.IsKeyOrIndex);
         }
 
         var unicode = mappingInfo.IsUnicode;
@@ -135,7 +137,8 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             precision,
             scale,
             unicode ?? false,
-            mappingInfo.IsFixedLength ?? false);
+            mappingInfo.IsFixedLength ?? false,
+            mappingInfo.IsKeyOrIndex);
     }
 
     private static RelationalTypeMapping? Build(
@@ -145,7 +148,8 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         int? precision,
         int? scale,
         bool unicode,
-        bool fixedLength)
+        bool fixedLength,
+        bool keyOrIndex)
     {
         if (clrType is null)
         {
@@ -154,7 +158,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 
         if (clrType == typeof(string))
         {
-            return String(storeType, size, unicode, fixedLength);
+            return String(storeType, size, unicode, fixedLength, keyOrIndex);
         }
 
         if (clrType == typeof(decimal))
@@ -199,8 +203,39 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         Func<string, RelationalTypeMapping> create)
         => storeType is null ? fallback() : create(storeType);
 
-    private static RelationalTypeMapping String(string? storeType, int? size, bool unicode, bool fixedLength)
+    private static RelationalTypeMapping String(
+        string? storeType,
+        int? size,
+        bool unicode,
+        bool fixedLength,
+        bool keyOrIndex)
     {
+        if (storeType is null && size is null)
+        {
+            // A key or an index has to name a bounded type, because Dameng indexes no large object, so
+            // the length the model leaves out is the one the framework's own providers use for a key. A
+            // fixed length column has no unbounded form either, and a fixed length defaults to one
+            // character.
+            size = (fixedLength, keyOrIndex) switch
+            {
+                (true, _) => 1,
+                (_, true) => unicode ? DmTypeSizes.DefaultUnicodeKeyLength : DmTypeSizes.DefaultAnsiKeyLength,
+                _ => null
+            };
+        }
+
+        // A string the model gives no length, or one longer than a bounded character column holds, is a
+        // character large object. Naming a bounded type without a length is not a type the server accepts
+        // in a table definition, and a length past the page size is rejected when the table is created.
+        if (storeType is null && (size is null || size > DmTypeSizes.MaxCharacterLength))
+        {
+            return new StringTypeMapping(
+                unicode ? DmStoreTypes.NClob : DmStoreTypes.Clob,
+                unicode ? DbType.String : DbType.AnsiString,
+                unicode,
+                size: null);
+        }
+
         var storeTypeBase = (unicode, fixedLength) switch
         {
             (true, true) => DmStoreTypes.NChar,

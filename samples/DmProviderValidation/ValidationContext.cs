@@ -37,6 +37,10 @@ internal sealed class ValidationContext : DbContext
             entity.Property(record => record.FixedText).HasMaxLength(20).IsFixedLength();
             entity.Property(record => record.Money).HasPrecision(18, 2);
             entity.Property(record => record.Payload).HasMaxLength(64);
+            // A string with no length becomes a character large object, which is right for a document
+            // and wrong for a value a query compares, so the fields this run filters on name a length.
+            entity.Property(record => record.Status).HasMaxLength(32);
+            entity.Property(record => record.Optional).HasMaxLength(100);
             entity.Property(record => record.Version).IsConcurrencyToken();
         });
 

@@ -9,7 +9,11 @@ namespace DM.EntityFrameworkCore.Tests.Storage;
 public class DmTypeMappingTests
 {
     [Theory]
-    [InlineData(nameof(Facets.DefaultString), "VARCHAR")]
+    [InlineData(nameof(Facets.DefaultString), "CLOB")]
+    [InlineData(nameof(Facets.UnicodeDefaultString), "NCLOB")]
+    [InlineData(nameof(Facets.LongString), "CLOB")]
+    [InlineData(nameof(Facets.UnicodeLongString), "NCLOB")]
+    [InlineData(nameof(Facets.LongestBoundedString), "VARCHAR(8188)")]
     [InlineData(nameof(Facets.SizedString), "VARCHAR(50)")]
     [InlineData(nameof(Facets.UnicodeString), "NVARCHAR(50)")]
     [InlineData(nameof(Facets.FixedString), "CHAR(50)")]
@@ -37,6 +41,24 @@ public class DmTypeMappingTests
     }
 
     /// <summary>
+    /// A string the model leaves unbounded is a character large object, which Dameng does not index, so a
+    /// key or an index names the bound the framework's own providers use for a key instead. Without it a
+    /// table with a string key could not be created at all.
+    /// </summary>
+    [Theory]
+    [InlineData("TextKey", "VARCHAR(900)")]
+    [InlineData("UnicodeIndexedKey", "NVARCHAR(450)")]
+    [InlineData("IndexedKey", "VARCHAR(900)")]
+    [InlineData("FixedKey", "CHAR(1)")]
+    public void AStringUsedAsAKeyOrIndex_NamesABoundedLength(string property, string expected)
+    {
+        using var context = new KeyedContext();
+
+        var entity = context.Model.FindEntityType(typeof(Keyed))!;
+
+        Assert.Equal(expected, entity.FindProperty(property)!.GetColumnType());
+    }
+    /// <summary>
     /// An interval literal names its type, which a bare time string does not, and a negative span
     /// carries the sign in front of the value rather than on a field.
     /// </summary>
@@ -57,6 +79,34 @@ public class DmTypeMappingTests
         Assert.Equal(expected, mapping.GenerateSqlLiteral(TimeSpan.Parse(span, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
+    private sealed class KeyedContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Keyed>(entity =>
+            {
+                entity.HasKey(entry => entry.TextKey);
+                entity.Property(entry => entry.UnicodeIndexedKey).IsUnicode();
+                entity.HasIndex(entry => entry.UnicodeIndexedKey);
+                entity.Property(entry => entry.IndexedKey);
+                entity.HasIndex(entry => entry.IndexedKey);
+                entity.Property(entry => entry.FixedKey).IsFixedLength();
+            });
+    }
+
+    private sealed class Keyed
+    {
+        public string TextKey { get; set; } = string.Empty;
+
+        public string UnicodeIndexedKey { get; set; } = string.Empty;
+
+        public string IndexedKey { get; set; } = string.Empty;
+
+        public string FixedKey { get; set; } = string.Empty;
+    }
+
     private sealed class FacetsContext : DbContext
     {
         public DbSet<Facets> Facets => Set<Facets>();
@@ -68,6 +118,10 @@ public class DmTypeMappingTests
             => modelBuilder.Entity<Facets>(entity =>
             {
                 entity.Property(e => e.SizedString).HasMaxLength(50);
+                entity.Property(e => e.UnicodeDefaultString).IsUnicode();
+                entity.Property(e => e.LongString).HasMaxLength(40000);
+                entity.Property(e => e.UnicodeLongString).HasMaxLength(40000).IsUnicode();
+                entity.Property(e => e.LongestBoundedString).HasMaxLength(8188);
                 entity.Property(e => e.UnicodeString).HasMaxLength(50).IsUnicode();
                 entity.Property(e => e.FixedString).HasMaxLength(50).IsFixedLength();
                 entity.Property(e => e.UnicodeFixedString).HasMaxLength(50).IsUnicode().IsFixedLength();
@@ -85,6 +139,14 @@ public class DmTypeMappingTests
         public string DefaultString { get; set; } = string.Empty;
 
         public string SizedString { get; set; } = string.Empty;
+
+        public string UnicodeDefaultString { get; set; } = string.Empty;
+
+        public string LongString { get; set; } = string.Empty;
+
+        public string UnicodeLongString { get; set; } = string.Empty;
+
+        public string LongestBoundedString { get; set; } = string.Empty;
 
         public string UnicodeString { get; set; } = string.Empty;
 
