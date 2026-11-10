@@ -232,6 +232,21 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(builder);
 
+        if (_idempotent)
+        {
+            GenerateIfMissing(
+                builder,
+                Exists("ALL_SEQUENCES", "SEQUENCE_OWNER", "SEQUENCE_NAME", operation.Schema, operation.Name),
+                inner => GenerateSequence(operation, inner));
+
+            return;
+        }
+
+        GenerateSequence(operation, builder);
+    }
+
+    private void GenerateSequence(CreateSequenceOperation operation, MigrationCommandListBuilder builder)
+    {
         builder
             .Append("CREATE SEQUENCE ")
             .Append(Helper.DelimitIdentifier(operation.Name, operation.Schema))
@@ -310,6 +325,212 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
 
         builder.EndCommand();
     }
+
+    /// <summary>
+    /// Records the requested script flavour, so that an operation can wrap itself when the script has
+    /// to be safe to run against a database that already holds part of it.
+    /// </summary>
+    /// <summary>
+    /// Records the requested script flavour, so that an operation can wrap itself when the script has
+    /// to be safe to run against a database that already holds part of it.
+    /// </summary>
+    public override IReadOnlyList<MigrationCommand> Generate(
+        IReadOnlyList<MigrationOperation> operations,
+        IModel? model = null,
+        MigrationsSqlGenerationOptions options = MigrationsSqlGenerationOptions.Default)
+    {
+        _idempotent = options.HasFlag(MigrationsSqlGenerationOptions.Idempotent);
+
+        try
+        {
+            return base.Generate(operations, model, options);
+        }
+        finally
+        {
+            _idempotent = false;
+        }
+    }
+
+    /// <summary>
+    /// Dameng has no <c>IF NOT EXISTS</c> for DDL, so an idempotent script asks the catalog first and
+    /// runs the statement through <c>EXECUTE IMMEDIATE</c>, the same shape the schema guard uses.
+    /// </summary>
+    protected override void Generate(
+        CreateTableOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder,
+        bool terminate)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent)
+        {
+            base.Generate(operation, model, builder, terminate);
+
+            return;
+        }
+
+        GenerateIfMissing(
+            builder,
+            Exists("ALL_TABLES", "OWNER", "TABLE_NAME", operation.Schema, operation.Name),
+            inner => base.Generate(operation, model, inner, terminate));
+    }
+
+    protected override void Generate(
+        CreateIndexOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder,
+        bool terminate)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent)
+        {
+            base.Generate(operation, model, builder, terminate);
+
+            return;
+        }
+
+        GenerateIfMissing(
+            builder,
+            Exists("ALL_INDEXES", "OWNER", "INDEX_NAME", operation.Schema, operation.Name),
+            inner => base.Generate(operation, model, inner, terminate));
+    }
+
+    protected override void Generate(
+        AddPrimaryKeyOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder,
+        bool terminate)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent)
+        {
+            base.Generate(operation, model, builder, terminate);
+
+            return;
+        }
+
+        GenerateIfMissing(
+            builder,
+            Exists("ALL_CONSTRAINTS", "OWNER", "CONSTRAINT_NAME", operation.Schema, operation.Name!),
+            inner => base.Generate(operation, model, inner, terminate));
+    }
+
+    protected override void Generate(
+        AddForeignKeyOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder,
+        bool terminate)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent)
+        {
+            base.Generate(operation, model, builder, terminate);
+
+            return;
+        }
+
+        GenerateIfMissing(
+            builder,
+            Exists("ALL_CONSTRAINTS", "OWNER", "CONSTRAINT_NAME", operation.Schema, operation.Name!),
+            inner => base.Generate(operation, model, inner, terminate));
+    }
+
+    protected override void Generate(
+        AddUniqueConstraintOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent)
+        {
+            base.Generate(operation, model, builder);
+
+            return;
+        }
+
+        GenerateIfMissing(
+            builder,
+            Exists("ALL_CONSTRAINTS", "OWNER", "CONSTRAINT_NAME", operation.Schema, operation.Name!),
+            inner => base.Generate(operation, model, inner));
+    }
+
+    /// <summary>
+    /// Emits a block that runs the statements only when the catalog holds nothing under the name.
+    /// </summary>
+    private void GenerateIfMissing(
+        MigrationCommandListBuilder builder,
+        string query,
+        Action<MigrationCommandListBuilder> generate)
+    {
+        var inner = new MigrationCommandListBuilder(Dependencies);
+        generate(inner);
+
+        builder
+            .AppendLine("DECLARE")
+            .AppendLine("    declared INT;")
+            .AppendLine("BEGIN")
+            .Append("    SELECT COUNT(*) INTO declared FROM ")
+            .Append(query)
+            .AppendLine(";")
+            .AppendLine("    IF declared = 0 THEN");
+
+        foreach (var command in inner.GetCommandList())
+        {
+            builder
+                .Append("        EXECUTE IMMEDIATE ")
+                .Append(Quote(WithoutTerminator(command.CommandText)))
+                .AppendLine(";");
+        }
+
+        builder
+            .AppendLine("    END IF;")
+            .Append("END;");
+
+        builder.EndCommand();
+    }
+
+    /// <summary>
+    /// The row count test behind a guarded statement. A migration that names no schema creates the
+    /// object in the current one, so the guard compares the owner with <c>USER</c>.
+    /// </summary>
+    private static string Exists(string view, string ownerColumn, string nameColumn, string? schema, string name)
+        => view
+            + " WHERE "
+            + ownerColumn
+            + " = "
+            + (schema is null ? "USER" : Quote(schema))
+            + " AND "
+            + nameColumn
+            + " = "
+            + Quote(name);
+
+    /// <summary>
+    /// A statement as it goes inside <c>EXECUTE IMMEDIATE</c>: no line breaks and no trailing statement
+    /// terminator, which the block supplies.
+    /// </summary>
+    private string WithoutTerminator(string commandText)
+    {
+        var text = commandText.Trim();
+
+        if (text.EndsWith(Helper.StatementTerminator, StringComparison.Ordinal))
+        {
+            text = text[..^Helper.StatementTerminator.Length].TrimEnd();
+        }
+
+        return text.ReplaceLineEndings(" ");
+    }
+
+    private bool _idempotent;
 
     /// <summary>
     /// The base class refuses an operation it does not know, and every operation below is this
