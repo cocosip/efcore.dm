@@ -17,7 +17,7 @@ It supports multiple EF Core major versions. Each major version is maintained on
 | G3 | Acceptance defined by the EF Core specification test suite, not by self-authored SQL assertions |
 | G4 | Live Dameng verification is a prerequisite for declaring work complete |
 | G5 | Cost of adopting a new EF Core major version stays predictable |
-| G6 | Source-compatible with existing consumers: same root namespace and `UseDm()` entry point, so migration requires a package reference change but no code changes |
+| G6 | Source-compatible with existing consumers: the consumer-facing types keep the namespaces the official provider declares and the entry point stays `UseDm()`, so migration requires a package reference change but no code changes |
 
 ## 3. Non-goals
 
@@ -84,7 +84,7 @@ Contains plain data and string logic with no EF Core type references:
 
 ### L1–L6
 
-Organized to mirror EF Core's own source layout: `Storage/`, `Query/`, `Update/`, `Migrations/`, `Scaffolding/`, `Metadata/`, `ValueGeneration/`, `Infrastructure/`, `Diagnostics/`, `Design/`, `Extensions/`.
+Organized to mirror EF Core's own source layout: `Storage/`, `Query/`, `Update/`, `Migrations/`, `Metadata/`, `ValueGeneration/`, `Infrastructure/`, `Diagnostics/`, `Design/`. The types consumers compile against sit apart in `Compatibility/`, so no directory mixes provider internals with those namespaces; see the namespace rule in section 7. `Scaffolding/` joins the list when reverse engineering is implemented.
 
 Each EF Core major version implements these layers independently. There is no cross-version abstraction over them, for three reasons:
 
@@ -129,17 +129,24 @@ Each EF Core major version implements these layers independently. There is no cr
 
 ### Namespace rule
 
-The project's root namespace is `DM.EntityFrameworkCore`, so a type declared without an explicit namespace block lands there by default. Provider internals live in that namespace tree.
+Each directory declares exactly one namespace. The path under `Compatibility/` is that namespace without its `Microsoft.` prefix. There are two trees:
 
-Only the source-compatibility surface is declared under the namespaces the official Dameng provider uses, so that consumer source compiles without a new `using` directive:
+- `Compatibility/` holds the types consumers compile against. Their namespaces are the ones the official provider declares, so consumer source keeps working after the package reference changes.
+- Everything else is provider internals under the `DM.EntityFrameworkCore` root namespace, laid out the way EF Core lays out its own code.
 
-| Namespace | Types |
-|---|---|
-| `Microsoft.EntityFrameworkCore` | `UseDm`, `DmPropertyExtensions`, `DmPropertyBuilderExtensions`, `DmModelBuilderExtensions`, `DmModelExtensions` |
-| `Microsoft.EntityFrameworkCore.Infrastructure` | `DmDbContextOptionsBuilder` |
-| `Microsoft.EntityFrameworkCore.Metadata` | `DmValueGenerationStrategy` |
+| Namespace | Directory | Types |
+|---|---|---|
+| `Microsoft.EntityFrameworkCore` | `Compatibility/EntityFrameworkCore/` | `UseDm`; `DmPropertyExtensions`, `DmPropertyBuilderExtensions`; `DmModelExtensions`, `DmModelBuilderExtensions`; `DmDatabaseFacadeExtensions` |
+| `Microsoft.EntityFrameworkCore.Diagnostics` | `Compatibility/EntityFrameworkCore/Diagnostics/` | `DmEventId` |
+| `Microsoft.EntityFrameworkCore.Infrastructure` | `Compatibility/EntityFrameworkCore/Infrastructure/` | `DmDbContextOptionsBuilder` |
+| `Microsoft.EntityFrameworkCore.Metadata` | `Compatibility/EntityFrameworkCore/Metadata/` | `DmValueGenerationStrategy` |
+| `Microsoft.EntityFrameworkCore.Migrations` | `Compatibility/EntityFrameworkCore/Migrations/` | `DmMigrationBuilderExtensions` |
+| `Microsoft.EntityFrameworkCore.Migrations.Operations` | `Compatibility/EntityFrameworkCore/Migrations/Operations/` | `DmCreateSchemaOperation`, `DmDropSchemaOperation`, `DmCreateUserOperation`, `DmDropUserOperation` |
+| `Microsoft.Extensions.DependencyInjection` | `Compatibility/Extensions/DependencyInjection/` | `AddEntityFrameworkDm` |
 
-Everything else is ours and stays under the `DM.EntityFrameworkCore` root namespace, which also keeps the `Dialect/` isolation rule satisfiable.
+Provider internals are ours and stay under `DM.EntityFrameworkCore.*`, which also keeps the `Dialect/` isolation rule satisfiable.
+
+The official provider declares its own internals under `Microsoft.EntityFrameworkCore.Dm.*`. Consumer code does not reference those, so this provider does not reproduce them. The single public type in that tree a consumer can call is `DmDbFunctionsExtensions`, which extends `EF.Functions`; it is not shipped yet and is recorded in the capability matrix.
 
 ## 8. Repository layout
 
@@ -147,12 +154,18 @@ Everything else is ours and stays under the `DM.EntityFrameworkCore` root namesp
 DM.EntityFrameworkCore.slnx
 Directory.Build.props
 Directory.Packages.props
-src/DM.EntityFrameworkCore/                                            provider
-tests/DM.EntityFrameworkCore.Tests/                                    unit and SQL-shape tests
-tests/DM.EntityFrameworkCore.SpecificationTests/                       EF Core specification suite
-samples/DmProviderValidation/                             live-database acceptance console
+src/DM.EntityFrameworkCore/                                provider
+  Compatibility/                                           public API in the namespaces the official provider declares
+  Dialect/                                                 EF Core free dialect knowledge, shared across branches
+  Design/  Diagnostics/  Infrastructure/  Metadata/        provider internals
+  Migrations/  Query/  Storage/  Update/  ValueGeneration/
+tests/DM.EntityFrameworkCore.Tests/                        unit and SQL-shape tests
+tests/DM.EntityFrameworkCore.SpecificationTests/           EF Core specification suite (planned)
+samples/DmProviderValidation/                              live-database acceptance console (planned)
 docs/
 ```
+
+Everything listed exists except the entries marked planned, which are created when their phase starts.
 
 ## 9. Cross-cutting rules
 
@@ -176,7 +189,7 @@ docs/
 | Warnings | Treated as errors. A build with warnings is a failed build. |
 | Target framework | Set once as `$(DmTargetFramework)` in `Directory.Build.props`; retargeting a branch is a one-line change |
 | Package versions | Central management through `Directory.Packages.props`. The specification test project is exempt, because the EF Core test package pins its own dependency versions. |
-| File layout | One public type per file, file name equal to the type name, directory mirroring the EF Core area |
+| File layout | One public type per file, file name equal to the type name. Each directory declares one namespace: provider internals mirror the EF Core area, and the consumer-facing types sit under `Compatibility/` with their path naming their namespace. `NamespaceLayoutTests` fails the build when a directory declares two namespaces or a compatibility type's namespace disagrees with its path. |
 | Test naming | `Method_Scenario_ExpectedOutcome`; test fixtures end in `Tests` |
 | Async | `ConfigureAwait(false)` is not used; EF Core and the provider run without a synchronization context |
 | Public API | Provider internals are `internal` unless a consumer must name the type. Internals are visible to the test assembly only. |

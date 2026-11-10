@@ -56,11 +56,11 @@ The test framework version is bound to the EF Core version and is not unified ac
 ```
 tests/
   DM.EntityFrameworkCore.Tests/                      T1, T2, branch-specific regressions
-  DM.EntityFrameworkCore.SpecificationTests/         T3: inherits EF Core specification base classes
+  DM.EntityFrameworkCore.SpecificationTests/         T3: inherits EF Core specification base classes (planned)
     Fixtures/                           one fixture per test store
     Skipped.md                          skip ledger
 samples/
-  DmProviderValidation/                 live end-to-end acceptance
+  DmProviderValidation/                 live end-to-end acceptance (planned)
 ```
 
 ## 3. Skip ledger

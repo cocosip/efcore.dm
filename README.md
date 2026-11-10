@@ -21,7 +21,9 @@ services.AddDbContext<MyContext>(options =>
     options.UseDm(connectionString));
 ```
 
-The root namespace `Microsoft.EntityFrameworkCore.Dm` and the `UseDm()` entry point are unchanged from the previous provider, so migrating requires updating one `PackageReference`. No application code changes.
+The consumer-facing types keep the namespaces the previous provider declares — `Microsoft.EntityFrameworkCore`, `Microsoft.EntityFrameworkCore.Metadata`, `.Infrastructure`, `.Migrations`, `.Diagnostics` — and the entry point is still `UseDm()`, so migrating requires updating one `PackageReference`. Application code that uses the provider through those types needs no change.
+
+The previous provider also put its internals under `Microsoft.EntityFrameworkCore.Dm`. Those are not part of the public surface and this provider keeps its internals under `DM.EntityFrameworkCore`. The one public type a consumer could call from that tree is `DmDbFunctionsExtensions` (`EF.Functions`), which this provider does not ship yet; see the [Capability Matrix](docs/capability-matrix.md).
 
 The assembly is `DM.EntityFrameworkCore`, the same identity the EF Core providers use, and the package id is `Cocosip.DM.EntityFrameworkCore`: the publisher prefix plus that identity. The package is not binary compatible with the previous provider, so consumers recompile, which a package change requires anyway. Consumers using a compiled model (`dotnet ef dbcontext optimize`) regenerate it.
 
