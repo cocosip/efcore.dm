@@ -167,6 +167,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `MigrationBuilder` extensions | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `IsDm()` lets one migration assembly guard its provider specific operations |
 | Idempotent script generation | `Implemented` | `DmHistoryRepositoryTests` `DmIdempotentScriptTests` | P4 | Yes | Every guarded statement reads the catalog in a PL/SQL block and runs through `EXECUTE IMMEDIATE`, because Dameng has no `IF NOT EXISTS` for DDL: the history table and each migration row through `SYS.SYSOBJECTS` and the history table, and a create of a table, sequence, index, constraint or added column through the Oracle compatible views, with the owner compared against `USER` when the migration names no schema and the table named as well for a column, whose name is unique within a table rather than within a schema. Whether DDL inside such a block is accepted, and whether the catalog views report the objects under those names, is not yet confirmed against a server |
 | Migration script composition | `Implemented` | `DmMigrationScriptTests` | P4 | Yes | A whole script is composed through the migrator rather than operation by operation, which is what a deployment runs: every batch separator is a slash on a line of its own, because the writer appends the next statement directly after it, and a script opens no transaction, because Dameng starts one with the first statement it runs and its manual defines no `START TRANSACTION`; `COMMIT` stays. The guards of an idempotent script nest as blocks and close in the order they opened. The shape was wrong in both places before the test existed, and no server was needed to see it |
+| Schema agreement between the DDL paths | `Implemented` | `DmSchemaConsistencyTests` | P4 | Yes | The create script the relational database creator builds and the statements a differ produces are compared statement for statement over a model that carries identity, hi-lo, a sequence, a default value, comments, a fixed length string, a Guid, a byte array, a timestamp with a precision, an offset timestamp, a date and an elapsed time. Both paths read the same model and the same generator, so they agree today; the test is what keeps a change to one layer from making them disagree, which would only show up on a database |
 | Model differ integration | `Implemented` | `DmModelDifferTests` | P4 | Yes | The EF Core differ compares the two relational models and keeps the provider metadata: a new hi-lo property produces the schema and the sequence, a column that appears produces an added column rather than a modified one, and a widened column produces the matching `MODIFY`. Changing the value generation strategy between identity and hi-lo yields an `ALTER` that only repeats the type, because Dameng defines identity at column creation; a migration that switches strategy needs a hand-written operation |
 
 ### F. Scaffolding and design time
@@ -234,14 +235,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 87 |
+| `Implemented` | 88 |
 | `In progress` | 0 |
 | `Partial` | 10 |
 | `Blocked` | 3 |
 | `Deferred` | 4 |
 | `Not started` | 6 |
 | `Not applicable` | 4 |
-| **Total rows** | **114** |
+| **Total rows** | **115** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 
