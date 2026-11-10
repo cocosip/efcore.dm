@@ -22,7 +22,7 @@ public class DmTypeMappingTests
     [InlineData(nameof(Facets.PreciseDateTime), "TIMESTAMP(3)")]
     [InlineData(nameof(Facets.DateOnly), "DATE")]
     [InlineData(nameof(Facets.TimeOnly), "TIME")]
-    [InlineData(nameof(Facets.Guid), "VARCHAR(36)")]
+    [InlineData(nameof(Facets.Guid), "CHAR(36)")]
     [InlineData(nameof(Facets.Flag), "BIT")]
     [InlineData(nameof(Facets.Count), "BIGINT")]
     [InlineData(nameof(Facets.SmallCount), "SMALLINT")]

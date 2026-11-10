@@ -18,6 +18,11 @@ namespace DM.EntityFrameworkCore.Storage.Internal;
 /// </remarks>
 internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 {
+    /// <summary>
+    /// The width of the text a <see cref="Guid" /> is stored as, in both directions.
+    /// </summary>
+    private const int GuidSize = 36;
+
     private static readonly RelationalTypeMapping BoolMapping = new BoolTypeMapping(DmStoreTypes.Bit, DbType.Boolean);
     private static readonly RelationalTypeMapping ByteMapping = new ByteTypeMapping(DmStoreTypes.SmallInt, DbType.Byte);
     private static readonly RelationalTypeMapping SByteMapping = new SByteTypeMapping(DmStoreTypes.TinyInt, DbType.SByte);
@@ -28,7 +33,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
     private static readonly RelationalTypeMapping FloatMapping = new FloatTypeMapping(DmStoreTypes.Real, DbType.Single);
     private static readonly RelationalTypeMapping DoubleMapping = new DoubleTypeMapping(DmStoreTypes.Double, DbType.Double);
     private static readonly RelationalTypeMapping GuidMapping = new GuidTypeMapping(
-        DmStoreTypes.VarChar + DmTypeSizes.FormatLength(36),
+        DmStoreTypes.Char + DmTypeSizes.FormatLength(GuidSize),
         DbType.Guid);
 
     private static readonly RelationalTypeMapping DateOnlyMapping = new DateOnlyTypeMapping(DmStoreTypes.Date, DbType.Date);
@@ -106,8 +111,19 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 
         var baseName = ParseStoreTypeName(mappingInfo.StoreTypeName, ref unicode, ref size, ref precision, ref scale);
 
-        var clrType = mappingInfo.ClrType
-            ?? (baseName is not null && ClrTypes.TryGetValue(baseName, out var resolved) ? resolved : null);
+        var clrType = mappingInfo.ClrType;
+
+        if (clrType is null)
+        {
+            // A Guid is a fixed width text of 36 characters, which is the shape the reference
+            // provider writes, so a column of exactly that shape reads back as a Guid rather than as
+            // a string. A wider or narrower character column stays a string.
+            clrType = baseName == DmStoreTypes.Char && size == GuidSize
+                ? typeof(Guid)
+                : baseName is not null && ClrTypes.TryGetValue(baseName, out var resolved)
+                    ? resolved
+                    : null;
+        }
 
         return Build(
             clrType,

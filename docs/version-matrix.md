@@ -183,5 +183,6 @@ The concrete values in that layer — store type names, maximum lengths, default
 - [Oracle interval conversion functions under DM8](https://tidba.com/oracle-to-dm/interval-conversion-funcs/) and [a `NUMTODSINTERVAL` report](https://eco.dameng.com/community/question/f9f8c1e1e53e18977f5d541f9a2a900b) — the conversion exists but is behind, or fails under, Oracle compatible mode
 - [Empty string and NULL after a migration from Oracle](https://eco.dameng.com/community/article/20260807112730LSO2E8Z3PLEEGLVZF7) — the two are the same value only when `COMPATIBLE_MODE` is 2, so a translator cannot decide it
 - [`TO_DAYS` returns a count that disagrees with the difference to year zero](https://eco.dameng.com/community/question/84b0feac5606c18936a18edcbab44cde)
+- [`GUID()` returns a 32-character string, reported as 31 in one version](https://eco.dameng.com/community/question/fcc917faa4035262f9c9915cf929fe2b) — which is why a `Guid` stays client generated
 
 Source verification performed directly against the `dotnet/efcore` repository (`release/8.0`, `release/9.0`, `release/10.0`, `main`) and against published package metadata for EF Core 8.0.33, 9.0.22, 10.0.14 and 11.0.0-rc.3.

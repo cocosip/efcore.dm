@@ -33,6 +33,7 @@ public class DmReverseTypeMappingTests
     [InlineData("TIMESTAMP(3)", typeof(DateTime))]
     [InlineData("TIME", typeof(TimeOnly))]
     [InlineData("INTERVAL DAY TO SECOND", typeof(TimeSpan))]
+    [InlineData("CHAR(36)", typeof(Guid))]
     public void StoreType_ResolvesToClrType(string storeType, Type expected)
     {
         using var context = new ProbeContext();
@@ -72,6 +73,19 @@ public class DmReverseTypeMappingTests
 
         Assert.Equal(typeof(string), mapping?.ClrType);
         Assert.Equal(50, mapping?.Size);
+    }
+
+    /// <summary>
+    /// The width is in the name rather than a facet, because a Guid has no size of its own, so the
+    /// name itself has to survive the round trip.
+    /// </summary>
+    [Fact]
+    public void GuidStoreType_RoundTripsAsATypeThatReadsBack()
+    {
+        var mapping = Find("CHAR(36)");
+
+        Assert.Equal(typeof(Guid), mapping?.ClrType);
+        Assert.Equal("CHAR(36)", mapping?.StoreType);
     }
 
     [Fact]
