@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using DM.EntityFrameworkCore.Tests.TestUtilities;
 
 namespace DM.EntityFrameworkCore.Tests.Architecture;
 
@@ -103,16 +104,5 @@ public class CapabilityMatrixTests
         => lines.SkipWhile(line => !line.StartsWith("## 6.", StringComparison.Ordinal));
 
     private static string[] MatrixLines()
-    {
-        var directory = new DirectoryInfo(AppContext.BaseDirectory);
-
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "docs", "capability-matrix.md")))
-        {
-            directory = directory.Parent;
-        }
-
-        Assert.NotNull(directory);
-
-        return File.ReadAllLines(Path.Combine(directory.FullName, "docs", "capability-matrix.md"));
-    }
+        => RepositoryRoot.Read("docs", "capability-matrix.md").Split('\n');
 }

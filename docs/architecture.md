@@ -168,6 +168,8 @@ docs/
 ```
 
 Everything listed exists except the entries marked planned, which are created when their phase starts.
+`RepositoryLayoutTests` holds both directions: a listed entry that is missing fails, and a directory at
+the top level of the provider that is not listed fails.
 
 ## 9. Cross-cutting rules
 

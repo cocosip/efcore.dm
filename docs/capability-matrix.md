@@ -71,7 +71,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Connection string option | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | |
 | Externally owned `DbConnection` | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Ownership is delegated to `RelationalOptionsExtension` |
 | Command timeout | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | The value the context sets reaches the command it executes |
-| Max batch size | `Partial` | — | P3 | Yes | Read by the batch factory, not honoured yet |
+| Max batch size | `Deferred` | — | P3 | Yes | Follows Multiple statements per batch: with one command per batch there is nothing to cap, so the option is accepted and has no effect. Revisit with that row |
 | Open, close, reopen, async | `Implemented` | `DmConnectionTests` | P1 | Yes | Opens are counted, so a nested open needs its own close. Async members are the driver fallbacks, so they run synchronously underneath |
 | Transactions: begin, commit, rollback | `Implemented` | `DmConnectionTests`, `DmTransactionTests` | P1 | Yes | Commit and rollback reach the driver transaction; disposing without committing disposes it; the isolation level the caller asks for reaches it; a unit of work inside a transaction runs on it rather than opening a second one |
 | Savepoints and nested transactions | `Partial` | `DmConnectionTests`, `DmTransactionTests` | P1 | Yes | The relational layer executes `SAVEPOINT x`, `ROLLBACK TO x` and `RELEASE SAVEPOINT x` as statements rather than through the driver transaction, so the driver methods for it are unused; a unit of work inside a transaction is bracketed by one. A second transaction is rejected while one is open. Dameng support for `RELEASE SAVEPOINT` is unverified |
@@ -223,9 +223,9 @@ Rows by status, updated when the matrix changes:
 |---|---|
 | `Implemented` | 75 |
 | `In progress` | 0 |
-| `Partial` | 6 |
+| `Partial` | 5 |
 | `Blocked` | 2 |
-| `Deferred` | 3 |
+| `Deferred` | 4 |
 | `Not started` | 13 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
