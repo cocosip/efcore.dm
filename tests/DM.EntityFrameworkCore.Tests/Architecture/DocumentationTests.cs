@@ -56,6 +56,26 @@ public class DocumentationTests
         }
     }
 
+    /// <summary>
+    /// The README names provider types for a reader to look up. A type that is renamed while the README
+    /// keeps the old name sends that reader to nothing, which the build can catch.
+    /// </summary>
+    [Fact]
+    public void EveryProviderTypeTheReadmeNamesExists()
+    {
+        var assembly = typeof(Microsoft.EntityFrameworkCore.DmDbContextOptionsExtensions).Assembly;
+
+        var named = Regex.Matches(RepositoryRoot.Read("README.md"), @"`(Dm[A-Za-z0-9]+)`", RegexOptions.CultureInvariant)
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        Assert.NotEmpty(named);
+
+        var exported = assembly.GetExportedTypes().Select(type => type.Name).ToHashSet(StringComparer.Ordinal);
+
+        Assert.All(named, name => Assert.True(exported.Contains(name), $"The README names '{name}', which is not a public type."));
+    }
     [Fact]
     public void EveryCitedDecisionIsDefined()
     {

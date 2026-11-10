@@ -16,10 +16,26 @@ EF Core 8 and 9 reached end of official support on 2026-11-10. Their branches se
 
 ## Usage
 
+A context configures the provider the way it configures any other. The model is built with the ordinary EF Core API; only the parts that depend on Dameng spelling need this provider.
+
+```csharp
+public sealed class MyContext : DbContext
+{
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseDm("Server=localhost;Port=5236;User Id=SYSDBA;Password=SYSDBA");
+
+    public DbSet<Order> Orders => Set<Order>();
+}
+```
+
+An application that builds its services up front makes the same call in the registration. There is also an overload that takes a `DbConnection` the caller owns, and each overload accepts an options action that reaches the relational settings through `DmDbContextOptionsBuilder`: command timeout, batch size, migrations assembly and the execution strategy.
+
 ```csharp
 services.AddDbContext<MyContext>(options =>
     options.UseDm(connectionString));
 ```
+
+Design time needs nothing extra: `dotnet ef` finds the context the way it finds any other, so a context that reads its connection string in `OnConfiguring` or from the environment is enough. The DDL a migration generates is recorded row by row in the [Capability Matrix](docs/capability-matrix.md).
 
 The consumer-facing types keep the namespaces the previous provider declares — `Microsoft.EntityFrameworkCore`, `Microsoft.EntityFrameworkCore.Metadata`, `.Infrastructure`, `.Migrations`, `.Diagnostics` — and the entry point is still `UseDm()`, so migrating requires updating one `PackageReference`. Application code that uses the provider through those types needs no change.
 
