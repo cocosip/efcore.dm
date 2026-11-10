@@ -80,7 +80,10 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Retrying execution strategy | `Not started` | — | P1 | Yes | Needs Dameng error codes |
 | Transient error classification | `Blocked` | — | P1 | Yes | Error codes must be observed, not guessed |
 | Cancellation token honoured on every async path | `Not started` | — | P1 | Yes | |
-| Database exists check | `In progress` | `DmProviderRegistrationTests` | P1 | Yes | Implemented by attempting a connection; unverified |
+| Database exists check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Implemented by attempting a connection; exercised indirectly, the failure branch is unverified |
+| Has tables check | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Catalog query over `SYS.SYSOBJECTS`, excluding system objects and recycle bin entries |
+| `EnsureCreated` | `Implemented` | `DmDatabaseCreatorTests` | P1 | Yes | Creates the model tables when the database exists and is empty |
+| Database creation and deletion | `Not applicable` | `DmDatabaseCreatorTests` | P1 | Yes | Dameng creates a database with `dminit` and drops it by removing files; neither is a statement a connected session can issue |
 
 ### B. Type mapping
 
@@ -217,14 +220,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 27 |
-| `In progress` | 2 |
+| `Implemented` | 30 |
+| `In progress` | 1 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
 | `Not started` | 55 |
-| `Not applicable` | 1 |
-| **Total rows** | **97** |
+| `Not applicable` | 2 |
+| **Total rows** | **100** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

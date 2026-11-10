@@ -24,6 +24,11 @@ internal sealed class FakeDmConnection : DbConnection
     /// </summary>
     public int RowsAffected { get; set; } = 1;
 
+    /// <summary>
+    /// The value every scalar statement returns.
+    /// </summary>
+    public object ScalarResult { get; set; }
+
     public override string ConnectionString { get; set; } = "Server=fake";
 
     public override string Database => "fake";
@@ -112,7 +117,7 @@ internal sealed class FakeDmCommand : DbCommand
     {
         _connection.Commands.Add(CommandText);
 
-        return null;
+        return _connection.ScalarResult;
     }
 
     public override void Prepare()
