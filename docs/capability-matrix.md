@@ -115,7 +115,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `Where`, `OrderBy`, `Select` | `Implemented` | `DmQuerySqlGenerationTests` | P2 | Yes | |
 | `Join`, `GroupBy`, aggregates | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | `INNER JOIN`, `LEFT JOIN`, `GROUP BY`, `COUNT`, `SUM`, `MIN` and `MAX` |
 | `Include`, split and single queries | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Collection loading joins and orders by the root key; the split query keeps the root statement separate |
-| Paging (`Skip`, `Take`) | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Emits ANSI `OFFSET ... FETCH NEXT`; Dameng support unverified |
+| Paging (`Skip`, `Take`) | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Emits `OFFSET ... ROWS FETCH NEXT ... ROWS ONLY`, which the DM SQL manual documents as its `ROW_LIMIT` clause in [数据的插入、删除和修改](https://eco.dameng.com/document/dm/zh-cn/pm/insertion-deletion-modification.html). `LIMIT n OFFSET m` is the alternative form and is not used |
 | String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `Replace`, `Substring`, `Length`. Function names follow Oracle-compatible mode and are unverified against a server. |
 | String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
 | Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`; unverified against a server |
@@ -128,8 +128,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
 | Compiled query cache key | `Not started` | — | P2 | Yes | |
 | Collection parameter translation | `Not started` | — | P2 | No | EF Core 8+ contract |
-| `FromSql` and composable raw SQL | `Not started` | — | P2 | Yes | |
-| `ExecuteUpdate`, `ExecuteDelete` | `Not started` | — | P3 | No | EF Core 7+ contract |
+| `FromSql` and composable raw SQL | `Implemented` | `DmDmlQueryTests` | P2 | Yes | Passed through verbatim, or wrapped as a derived table when composed |
+| `ExecuteUpdate`, `ExecuteDelete` | `Implemented` | `DmDmlQueryTests` | P3 | No | EF Core 7+ contract. The table alias is declared with `AS`, which the manual writes as `[AS] <表别名>` |
 | Inheritance mapping (TPH, TPT, TPC) | `Not started` | — | P2 | Yes | |
 | JSON querying | `Deferred` | — | After P6 | No | The store type exists in the dialect; query translation is not required for the first release |
 | Query filters and global filters | `Not started` | — | P2 | Yes | |
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 36 |
+| `Implemented` | 39 |
 | `In progress` | 1 |
-| `Partial` | 6 |
+| `Partial` | 5 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 51 |
+| `Not started` | 49 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 

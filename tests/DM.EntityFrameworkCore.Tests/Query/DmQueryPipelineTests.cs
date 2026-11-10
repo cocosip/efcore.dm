@@ -85,8 +85,8 @@ public class DmQueryPipelineTests
             FROM "Posts" AS "p"
             WHERE "b"."Id" = "p"."BlogId" AND "p"."Title" = 'x')
         """)]
-    // Dameng support for ANSI paging is unverified, so this pins the shape the relational layer
-    // produces: a change to it then becomes a visible decision rather than a silent drift.
+    // Dameng's grammar has a ROW_LIMIT clause, `[OFFSET n ROW] [FETCH NEXT n ROW ONLY]`, so the
+    // ANSI shape the relational layer emits is the documented one.
     [InlineData("SkipTake", """
         -- :p='10'
         -- :p1='5'
