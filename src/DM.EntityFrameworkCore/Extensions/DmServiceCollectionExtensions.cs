@@ -1,5 +1,6 @@
 using DM.EntityFrameworkCore.Diagnostics.Internal;
 using DM.EntityFrameworkCore.Infrastructure;
+using DM.EntityFrameworkCore.Infrastructure.Internal;
 using DM.EntityFrameworkCore.Metadata.Conventions;
 using DM.EntityFrameworkCore.Migrations.Internal;
 using DM.EntityFrameworkCore.Query.Internal;
@@ -48,7 +49,8 @@ public static class DmServiceCollectionExtensions
             .TryAdd<IRelationalParameterBasedSqlProcessorFactory, DmParameterBasedSqlProcessorFactory>()
             .TryAdd<IProviderConventionSetBuilder, DmConventionSetBuilder>()
             .TryAdd<IValueGeneratorSelector, DmValueGeneratorSelector>()
-            .TryAdd<IValueGeneratorCache, DmValueGeneratorCache>();
+            .TryAdd<IValueGeneratorCache, DmValueGeneratorCache>()
+            .TryAdd<IModelValidator, DmModelValidator>();
 
         builder.TryAddCoreServices();
 

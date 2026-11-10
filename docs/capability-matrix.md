@@ -167,7 +167,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Code generator | `Not started` | — | P4 | Yes | |
 | Annotation code generator | `Not started` | — | P4 | Yes | |
 | Design-time services | `Not started` | — | P4 | Yes | |
-| Provider model validator | `Not started` | — | P1 | Yes | Relational default applies |
+| Provider model validator | `Implemented` | `DmModelValidatorTests` | P1 | Yes | Rejects an identity column that is not an integer, one that also has a default expression, and a table with two of them, all while the model is built |
 | Compiled model support | `Not started` | — | P6 | Yes | |
 
 ### G. Value generation
@@ -221,12 +221,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 52 |
+| `Implemented` | 53 |
 | `In progress` | 0 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
-| `Not started` | 35 |
+| `Not started` | 34 |
 | `Not applicable` | 2 |
 | **Total rows** | **101** |
 
