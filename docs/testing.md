@@ -113,10 +113,10 @@ A match is not proof of correctness: both implementations can be wrong in the sa
 | Dimension | Values |
 |---|---|
 | Dameng server | Versions in production use |
-| Compatibility mode | Default (Oracle-compatible); PostgreSQL-compatible mode is verified but does not change the implementation (D4) |
+| Compatibility mode | Default (Oracle-compatible), which is what the dialect targets; PostgreSQL-compatible mode is a dimension of this matrix and does not change the implementation (D4). Neither mode has been exercised against a server yet: the instance in PostgreSQL-compatible mode is a P6 exit criterion |
 | Operating system | Windows x64, Linux x64 |
 | Target framework | `net8.0` on the EF Core 8/9 branches, `net10.0` on EF Core 10, `net11.0` from EF Core 11 |
-| Driver | The verified `DM.DmProvider` version; EF Core 10 consumes its `net9.0` asset |
+| Driver | The `DM.DmProvider` version the package depends on, which is the floor the provider is compiled against; EF Core 10 consumes its `net9.0` asset |
 
 ### When no live environment is available
 

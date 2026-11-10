@@ -218,6 +218,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | T1 unit tests for `Dialect/` | `Implemented` | `DmIdentifierTests`, `DmParametersTests`, `DmDialectConstantsTests` | P0a | Yes | |
 | Dialect isolation guard | `Implemented` | `DialectLayerIsolationTests` | P0a | No | This project's rule |
+| Documentation consistency guards | `Implemented` | `DocumentationTests` | P0a | No | This project's rule. A relative link has to resolve, every document in `docs/` has to be indexed, a cited decision has to be defined in the architecture record, and a cited phase in the roadmap. Each guard was mutation tested: a broken link, an unindexed document, an undefined decision and an undefined phase each fail the suite |
 | T2 SQL shape tests | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Complete statement asserted, expression placed where server execution is required |
 | T3 specification suite | `Not started` | — | P0b | **No** | The reference never had one |
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
@@ -231,14 +232,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 84 |
+| `Implemented` | 85 |
 | `In progress` | 0 |
 | `Partial` | 10 |
 | `Blocked` | 3 |
 | `Deferred` | 4 |
 | `Not started` | 6 |
 | `Not applicable` | 4 |
-| **Total rows** | **111** |
+| **Total rows** | **112** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 
