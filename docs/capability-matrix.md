@@ -98,7 +98,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `byte[]` with size | `Implemented` | `DmTypeMappingTests` | P1 | Yes | `BLOB` without a size, `VARBINARY(n)` with one |
 | `DateTime` with fractional seconds | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Precision suffix only when configured |
 | `DateTimeOffset` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | Stored as `DATETIME WITH TIME ZONE`, bound as `DbType.DateTimeOffset` with the offset intact |
-| `TimeSpan` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | Stored as `INTERVAL DAY TO SECOND`, bound as `DbType.Time` |
+| `TimeSpan` | `Implemented` | `DmParameterBindingTests`, `DmTypeMappingTests` | P1 | Yes | Stored as `INTERVAL DAY TO SECOND` and bound as `DbType.Time`. A literal names the interval type, `INTERVAL '1 02:03:04' DAY TO SECOND`, because a bare time string is a character value and does not compare with an interval column; a negative span carries the sign in front of the value |
 | `DateOnly`, `TimeOnly` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | |
 | `Guid` | `Implemented` | `DmTypeMappingTests` | P1 | Yes | Stored as `VARCHAR(36)` provisionally |
 | `char`, `enum` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | A character is stored as `VARCHAR(1)` and bound as a one character string; an enum is stored as `INT` and bound as its underlying integer, including the nullable form |
@@ -118,7 +118,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `Include`, split and single queries | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Collection loading joins and orders by the root key; the split query keeps the root statement separate |
 | Paging (`Skip`, `Take`) | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Emits `OFFSET ... ROWS FETCH NEXT ... ROWS ONLY`, which the DM SQL manual documents as its `ROW_LIMIT` clause in [数据的插入、删除和修改](https://eco.dameng.com/document/dm/zh-cn/pm/insertion-deletion-modification.html). `LIMIT n OFFSET m` is the alternative form and is not used |
 | String methods and members | `Implemented` | `DmStringTranslationTests` | P2 | Yes | `Contains`, `StartsWith`, `EndsWith`, `ToUpper`, `ToLower`, `Trim`, `TrimStart`, `TrimEnd`, `PadLeft`, `PadRight`, `IndexOf`, `Replace`, `Substring`, `Length`. Padding maps to `LPAD` and `RPAD`, a character trim to `LTRIM` and `RTRIM` with that character as the set, and `IndexOf` to `INSTR` shifted by one. Function names follow Oracle-compatible mode and are unverified against a server. |
-| String composition (`IsNullOrWhiteSpace`, `Insert`, `Remove`) | `Not started` | — | P2 | No | Measured: each fails to translate. The rest of the string surface translates |
+| String composition (`IsNullOrWhiteSpace`, `Insert`, `Remove`) | `Implemented` | `DmStringTranslationTests` | P2 | No | `Insert` and `Remove` keep the part in front of the index with `SUBSTR` and join the rest back on; `IsNullOrWhiteSpace` tests both `IS NULL` and the trimmed empty value, because an empty string is a value of its own in one Dameng mode and NULL in another, so the test that does not hold never matches. A literal index is folded. An index outside the string is not rejected by the database the way .NET rejects it |
 | String concatenation operator | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Emits the double pipe operator; the base generator emits `+`, which is arithmetic for strings |
 | Date and time date parts (`Year`, `Month`, `Day`, `Hour`, `Minute`, `Second`) | `Implemented` | `DmDateTimeTranslationTests` | P2 | Yes | Rendered as `EXTRACT(PART FROM value)`, on `DateTime` and `DateTimeOffset` alike; unverified against a server |
 | Date and time methods (`AddDays`, `Now`, `UtcNow`, `Today`, `Date`) | `Implemented` | `DmDateTimeMethodTranslationTests`, `DmDateTimeOffsetTranslationTests` | P2 | Yes | Day counts are added directly and sub-day units are scaled into a fraction of a day, including microseconds; months use `ADD_MONTHS`; `Date` uses `TRUNC`; `DateTimeOffset.UtcDateTime` uses `SYS_EXTRACT_UTC`. `DateTime` and `DateTimeOffset` share the arithmetic. The reference emitted SQL Server functions (`GETDATE`, `DATEPART`) for these. `CURRENT_TIMESTAMP` and `SYS_EXTRACT_UTC(SYSTIMESTAMP)` are unverified against a server |
@@ -131,7 +131,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
 | `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date. `DayNumber` is not provided: `TO_DAYS` counts from year zero, and the offset to .NET's day number is unverified. The other members do not translate |
 | `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Not started` | — | P2 | No | Measured: each fails to translate. A `TimeSpan` is stored as `INTERVAL DAY TO SECOND` |
-| `DateTime.Subtract` returning a `TimeSpan` | `Not started` | — | P2 | No | Measured: a subtracted difference compared with a `TimeSpan` fails to translate. Two dates subtract to a day count in Dameng, not an interval |
+| `DateTime.Subtract` returning a `TimeSpan` | `Implemented` | `DmDateTimeMethodTranslationTests` | P2 | No | A date minus an interval is a date, and the difference of two dates is declared a `TimeSpan`, which is the interval between them. Whether Dameng answers a number of days for the second shape, as its Oracle compatible mode suggests, is unverified against a server |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
 | Compiled query cache key | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | The default key already covers everything the translation depends on, because the translation is a function of the model and the query expression |
@@ -230,12 +230,12 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 80 |
+| `Implemented` | 82 |
 | `In progress` | 0 |
 | `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 13 |
+| `Not started` | 11 |
 | `Not applicable` | 3 |
 | **Total rows** | **110** |
 

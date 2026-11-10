@@ -33,9 +33,8 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 
     private static readonly RelationalTypeMapping DateOnlyMapping = new DateOnlyTypeMapping(DmStoreTypes.Date, DbType.Date);
     private static readonly RelationalTypeMapping TimeOnlyMapping = new TimeOnlyTypeMapping(DmStoreTypes.Time, DbType.Time);
-    private static readonly RelationalTypeMapping TimeSpanMapping = new TimeSpanTypeMapping(
-        DmStoreTypes.IntervalDayToSecond,
-        DbType.Time);
+    private static readonly RelationalTypeMapping TimeSpanMapping = new DmTimeSpanTypeMapping(
+        DmStoreTypes.IntervalDayToSecond);
     private static readonly RelationalTypeMapping DateTimeOffsetMapping = new DateTimeOffsetTypeMapping(
         DmStoreTypes.DateTimeWithTimeZone,
         DbType.DateTimeOffset);
@@ -169,7 +168,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             var t when t == typeof(Guid) => Retype(storeType, () => GuidMapping, s => new GuidTypeMapping(s, DbType.Guid)),
             var t when t == typeof(DateOnly) => Retype(storeType, () => DateOnlyMapping, s => new DateOnlyTypeMapping(s, DbType.Date)),
             var t when t == typeof(TimeOnly) => Retype(storeType, () => TimeOnlyMapping, s => new TimeOnlyTypeMapping(s, DbType.Time)),
-            var t when t == typeof(TimeSpan) => Retype(storeType, () => TimeSpanMapping, s => new TimeSpanTypeMapping(s, DbType.Time)),
+            var t when t == typeof(TimeSpan) => Retype(storeType, () => TimeSpanMapping, s => new DmTimeSpanTypeMapping(s)),
             var t when t == typeof(DateTimeOffset) => Retype(storeType, () => DateTimeOffsetMapping, s => new DateTimeOffsetTypeMapping(s, DbType.DateTimeOffset)),
             _ => null
         };

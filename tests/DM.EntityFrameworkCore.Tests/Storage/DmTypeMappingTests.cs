@@ -35,6 +35,27 @@ public class DmTypeMappingTests
         Assert.Equal(expected, entity.FindProperty(property)!.GetColumnType());
     }
 
+    /// <summary>
+    /// An interval literal names its type, which a bare time string does not, and a negative span
+    /// carries the sign in front of the value rather than on a field.
+    /// </summary>
+    [Theory]
+    [InlineData("01:00:00", "INTERVAL '0 01:00:00' DAY TO SECOND")]
+    [InlineData("1.02:03:04", "INTERVAL '1 02:03:04' DAY TO SECOND")]
+    [InlineData("-00:30:00", "INTERVAL '-0 00:30:00' DAY TO SECOND")]
+    [InlineData("00:00:01.500", "INTERVAL '0 00:00:01.500' DAY TO SECOND")]
+    public void TimeSpan_Literal_NamesTheIntervalType(string span, string expected)
+    {
+        using var context = new FacetsContext();
+
+        var mapping = context.Model
+            .FindEntityType(typeof(Facets))!
+            .FindProperty(nameof(Facets.Span))!
+            .GetRelationalTypeMapping();
+
+        Assert.Equal(expected, mapping.GenerateSqlLiteral(TimeSpan.Parse(span, System.Globalization.CultureInfo.InvariantCulture)));
+    }
+
     private sealed class FacetsContext : DbContext
     {
         public DbSet<Facets> Facets => Set<Facets>();
@@ -92,5 +113,7 @@ public class DmTypeMappingTests
         public long Count { get; set; }
 
         public short SmallCount { get; set; }
+
+        public TimeSpan Span { get; set; }
     }
 }

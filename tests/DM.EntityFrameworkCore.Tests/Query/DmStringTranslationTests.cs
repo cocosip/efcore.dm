@@ -236,6 +236,84 @@ public class DmStringTranslationTests
             """);
     }
 
+    [Fact]
+    public void Remove_KeepsThePartBeforeTheIndex()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Remove(3) == "x"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE SUBSTR("p"."Name", 1, 3) = 'x'
+            """);
+    }
+
+    [Fact]
+    public void Remove_WithCount_JoinsThePartAfterTheRemovedRange()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Remove(3, 2) == "x"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (SUBSTR("p"."Name", 1, 3) || SUBSTR("p"."Name", 6)) = 'x'
+            """);
+    }
+
+    [Fact]
+    public void Insert_JoinsTheValueBetweenTheTwoParts()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Insert(3, "y") == "x"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE ((SUBSTR("p"."Name", 1, 3) || 'y') || SUBSTR("p"."Name", 4)) = 'x'
+            """);
+    }
+
+    /// <summary>
+    /// The column is required here, so the null tests are dropped and only the empty test is left.
+    /// The nullable column below keeps them.
+    /// </summary>
+    [Fact]
+    public void IsNullOrWhiteSpace_OnARequiredColumn_KeepsTheEmptyTestOnly()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => string.IsNullOrWhiteSpace(p.Name)),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE TRIM("p"."Name") = ''
+            """);
+    }
+
+    /// <summary>
+    /// An empty string is a value of its own in one Dameng mode and NULL in another, so both are
+    /// tested and the one that does not hold never matches.
+    /// </summary>
+    [Fact]
+    public void IsNullOrWhiteSpace_OnANullableColumn_TestsNullAndTheTrimmedValue()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Where(name => string.IsNullOrWhiteSpace(name.Value)),
+            """
+            SELECT "n"."Id", "n"."Value"
+            FROM "Names" AS "n"
+            WHERE "n"."Value" IS NULL OR TRIM("n"."Value") = ''
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 
@@ -264,5 +342,20 @@ public class DmStringTranslationTests
         public int Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class NullableContext : DbContext
+    {
+        public DbSet<NullableProbe> Names => Set<NullableProbe>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+    }
+
+    private sealed class NullableProbe
+    {
+        public int Id { get; set; }
+
+        public string? Value { get; set; }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Query.Internal;
 
@@ -37,8 +38,15 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
 
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
-    public DmDateTimeMethodTranslator(ISqlExpressionFactory sqlExpressionFactory)
-        => _sqlExpressionFactory = sqlExpressionFactory;
+    private readonly RelationalTypeMapping _timeSpanMapping;
+
+    public DmDateTimeMethodTranslator(
+        ISqlExpressionFactory sqlExpressionFactory,
+        IRelationalTypeMappingSource typeMappingSource)
+    {
+        _sqlExpressionFactory = sqlExpressionFactory;
+        _timeSpanMapping = typeMappingSource.FindMapping(typeof(TimeSpan))!;
+    }
 
     public SqlExpression? Translate(
         SqlExpression? instance,
@@ -71,8 +79,32 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
             return Function(AddMonthsFunction, [instance, YearsInMonths(amount)], instance);
         }
 
+        if (method.Name == nameof(DateTime.Subtract))
+        {
+            return Subtract(instance, amount);
+        }
+
         return null;
     }
+
+    /// <summary>
+    /// A date or timestamp minus an interval is a timestamp, and the difference between two of them is
+    /// the interval between them, which is what a <see cref="TimeSpan" /> is stored as.
+    /// </summary>
+    private SqlExpression Subtract(SqlExpression instance, SqlExpression amount)
+        => amount.Type == typeof(TimeSpan)
+            ? new SqlBinaryExpression(
+                ExpressionType.Subtract,
+                instance,
+                amount,
+                instance.Type,
+                instance.TypeMapping)
+            : new SqlBinaryExpression(
+                ExpressionType.Subtract,
+                instance,
+                amount,
+                typeof(TimeSpan),
+                _timeSpanMapping);
 
     /// <summary>
     /// A literal year count is folded here, so the statement reads <c>ADD_MONTHS(x, 12)</c> rather
