@@ -130,10 +130,10 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `TimeOnly` conversions (`FromDateTime`, `FromTimeSpan`) | `Implemented` | `DmTimeOnlyTranslationTests` | P2 | Yes | A time of day built from a timestamp is a cast to `TIME`; one built from an elapsed time is that `INTERVAL DAY TO SECOND` added to the epoch and cast. The generated SQL is unverified against a server |
 | `TimeOnly` instance methods (`AddHours` and the rest of `Add...`) | `Not started` | — | P2 | Yes | Measured: `AddHours` fails to translate. The conversions translate |
 | `DateOnly` conversions and members (`FromDateTime`, `AddDays`, `DayNumber`) | `Partial` | `DmDateOnlyTranslationTests` | P2 | No | `FromDateTime` truncates with `TRUNC` and then casts, because Dameng's `DATE` keeps a time part; `AddDays` adds the count to the date. `DayNumber` is not provided: `TO_DAYS` counts from year zero, and the offset to .NET's day number is unverified. The other members do not translate |
-| `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Partial` | `DmTimeSpanTranslationTests` | P2 | No | The parts `Days`, `Hours`, `Minutes` and `Seconds` read the interval part with `EXTRACT`, and a part that is not a total truncates the seconds because `EXTRACT(SECOND ...)` keeps the fraction that the member drops. Each of the five totals sums the parts in seconds and scales the result. `Add`, `Subtract`, `Duration`, `Negate`, `Ticks` and `Milliseconds` are not translated. Whether Dameng signs each part of a negative interval the way a negative `TimeSpan` does is unverified |
+| `TimeSpan` members (`TotalMinutes`, `Add` and the rest) | `Partial` | `DmTimeSpanTranslationTests` | P2 | No | The parts `Days`, `Hours`, `Minutes` and `Seconds` read the interval part with `EXTRACT`, and a part that is not a total truncates the seconds because `EXTRACT(SECOND ...)` keeps the fraction that the member drops. Each of the five totals sums the parts in seconds and scales the result. `Add` and `Subtract` are the interval operators. `Duration`, `Negate`, `Ticks` and `Milliseconds` are not translated. Whether Dameng signs each part of a negative interval the way a negative `TimeSpan` does is unverified |
 | `DateTime.Subtract` returning a `TimeSpan` | `Implemented` | `DmDateTimeMethodTranslationTests` | P2 | No | A date minus an interval is a date, and the difference of two dates is declared a `TimeSpan`, which is the interval between them. Whether Dameng answers a number of days for the second shape, as its Oracle compatible mode suggests, is unverified against a server |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
-| Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
+| Parameter-based SQL processor | `Implemented` | `DmQuerySqlGenerationTests`, `DmCollectionParameterTests` | P2 | Yes | The base processor is enough: a parameter renders with a colon prefix, which Oracle-compatible Dameng accepts, and both collection translation modes are verified. Nothing in the processor depends on the database beyond that |
 | Compiled query cache key | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | The default key already covers everything the translation depends on, because the translation is a function of the model and the query expression |
 | Collection parameter translation | `Implemented` | `DmCollectionParameterTests` | P2 | No | The relational layer expands the collection and the provider's generator renders either mode: one parameter per element by default, the values as literals under `UseParameterizedCollectionMode(ParameterTranslationMode.Constant)`. A context that shares a model but differs only in the mode reuses the first translation, because the translation is cached against the compiled query |
 | `FromSql` and composable raw SQL | `Implemented` | `DmDmlQueryTests` | P2 | Yes | Passed through verbatim, or wrapped as a derived table when composed |
@@ -230,9 +230,9 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 82 |
+| `Implemented` | 83 |
 | `In progress` | 0 |
-| `Partial` | 9 |
+| `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
 | `Not started` | 10 |

@@ -54,6 +54,17 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
         IReadOnlyList<SqlExpression> arguments,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
+        // A span is an interval, so it adds and subtracts as a value rather than as a date.
+        if (instance?.Type == typeof(TimeSpan) && method.DeclaringType == typeof(TimeSpan))
+        {
+            return method.Name switch
+            {
+                nameof(TimeSpan.Add) => Interval(ExpressionType.Add, instance, arguments[0]),
+                nameof(TimeSpan.Subtract) => Interval(ExpressionType.Subtract, instance, arguments[0]),
+                _ => null
+            };
+        }
+
         if (instance is null
             || (method.DeclaringType != typeof(DateTime) && method.DeclaringType != typeof(DateTimeOffset))
             || (instance.Type != typeof(DateTime) && instance.Type != typeof(DateTimeOffset)))
@@ -105,6 +116,14 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
                 amount,
                 typeof(TimeSpan),
                 _timeSpanMapping);
+
+    private SqlExpression Interval(ExpressionType operation, SqlExpression instance, SqlExpression amount)
+        => new SqlBinaryExpression(
+            operation,
+            instance,
+            _sqlExpressionFactory.ApplyDefaultTypeMapping(amount)!,
+            typeof(TimeSpan),
+            _timeSpanMapping);
 
     /// <summary>
     /// A literal year count is folded here, so the statement reads <c>ADD_MONTHS(x, 12)</c> rather

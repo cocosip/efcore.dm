@@ -69,6 +69,30 @@ public class DmTimeSpanTranslationTests
             Statement(query.ToQueryString()));
     }
 
+    /// <summary>
+    /// A span is an interval, so the arithmetic is the interval operator and the literal names the
+    /// interval type.
+    /// </summary>
+    [Theory]
+    [InlineData("Add", "(\"p\".\"Span\" + INTERVAL '0 01:00:00' DAY TO SECOND) > \"p\".\"Span\"")]
+    [InlineData("Subtract", "(\"p\".\"Span\" - INTERVAL '0 01:00:00' DAY TO SECOND) > \"p\".\"Span\"")]
+    public void SpanArithmetic_UsesTheIntervalOperator(string name, string predicate)
+    {
+        using var context = new ProbeContext();
+
+        var query = name == "Add"
+            ? context.Probes.Where(p => p.Span.Add(TimeSpan.FromHours(1)) > p.Span)
+            : context.Probes.Where(p => p.Span.Subtract(TimeSpan.FromHours(1)) > p.Span);
+
+        Assert.Equal(
+            $"""
+             SELECT "p"."Id", "p"."Span"
+             FROM "Probes" AS "p"
+             WHERE {predicate}
+             """,
+            Statement(query.ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",
