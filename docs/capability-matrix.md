@@ -70,7 +70,8 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | Connection string option | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | |
 | Externally owned `DbConnection` | `Implemented` | `DmProviderRegistrationTests` | P0a | Yes | Ownership is delegated to `RelationalOptionsExtension` |
-| Command timeout | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | The value the context sets reaches the command it executes |
+| Command timeout | `Implemented` | `DmInheritedBehaviorTests`, `DmDbContextOptionsBuilderTests` | P1 | Yes | The value the context sets reaches the command it executes, whether it is set through `Database.SetCommandTimeout` or through the options builder |
+| Provider options builder | `Implemented` | `DmDbContextOptionsBuilderTests` | P0a | Yes | `DmDbContextOptionsBuilder` derives from `RelationalDbContextOptionsBuilder`, which is the base type that puts the relational settings within reach of a `UseDm` call: command timeout, max batch size, migrations assembly, the collection translation mode and the rest. The reference additionally exposed `EnableRetryOnFailure` on it, which is not provided while there is no retrying strategy |
 | Max batch size | `Deferred` | — | P3 | Yes | Follows Multiple statements per batch: with one command per batch there is nothing to cap, so the option is accepted and has no effect. Revisit with that row |
 | Open, close, reopen, async | `Implemented` | `DmConnectionTests` | P1 | Yes | Opens are counted, so a nested open needs its own close. Async members are the driver fallbacks, so they run synchronously underneath |
 | Transactions: begin, commit, rollback | `Implemented` | `DmConnectionTests`, `DmTransactionTests` | P1 | Yes | Commit and rollback reach the driver transaction; disposing without committing disposes it; the isolation level the caller asks for reaches it; a unit of work inside a transaction runs on it rather than opening a second one |
@@ -124,10 +125,11 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `Convert` and `ToString` | `Implemented` | `DmConversionTranslationTests` | P2 | Yes | `Convert` becomes `CAST(value AS type)` using the dialect type names; `ToString` becomes `TO_CHAR`, which needs no declared width. Unverified against a server |
 | `new Guid()` and `Guid.NewGuid()` | `Not started` | — | P2 | Yes | Needs confirmation that Dameng exposes a GUID generator such as `SYS_GUID()` |
 | `LIKE` with `ESCAPE` | `Implemented` | `DmStringTranslationTests` | P2 | Yes | Wildcards in the search value are escaped with a backslash escape character |
+| `TimeOnly` conversions (`FromDateTime`, `FromTimeSpan`) | `Implemented` | `DmTimeOnlyTranslationTests` | P2 | Yes | A time of day built from a timestamp is a cast to `TIME`; one built from an elapsed time is that `INTERVAL DAY TO SECOND` added to the epoch and cast. The generated SQL is unverified against a server |
 | Null semantics processor | `Not started` | — | P2 | Yes | Override only where Dameng differs |
 | Parameter-based SQL processor | `Partial` | `DmQuerySqlGenerationTests` | P2 | Yes | Base behaviour; parameters render with a colon prefix |
 | Compiled query cache key | `Implemented` | `DmInheritedBehaviorTests` | P2 | Yes | The default key already covers everything the translation depends on, because the translation is a function of the model and the query expression |
-| Collection parameter translation | `Not started` | — | P2 | No | EF Core 8+ contract |
+| Collection parameter translation | `Implemented` | `DmCollectionParameterTests` | P2 | No | The relational layer expands the collection and the provider's generator renders either mode: one parameter per element by default, the values as literals under `UseParameterizedCollectionMode(ParameterTranslationMode.Constant)`. A context that shares a model but differs only in the mode reuses the first translation, because the translation is cached against the compiled query |
 | `FromSql` and composable raw SQL | `Implemented` | `DmDmlQueryTests` | P2 | Yes | Passed through verbatim, or wrapped as a derived table when composed |
 | `ExecuteUpdate`, `ExecuteDelete` | `Implemented` | `DmDmlQueryTests` | P3 | No | EF Core 7+ contract. The table alias is declared with `AS`, which the manual writes as `[AS] <表别名>` |
 | Inheritance mapping (TPH, TPT, TPC) | `Implemented` | `DmInheritanceTests` | P2 | Yes | One table per hierarchy with a discriminator, one table per type with the key generated in the base table only, and one table per concrete type. A hierarchy mapped per concrete type has no generated key until the model names a generator, which is what EF Core does for every provider |
@@ -192,7 +194,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Fluent API: model and entity type extensions | `Partial` | `DmFluentApiTests` | P5 | Yes | `DmModelExtensions` exposes the hi-lo sequence, identity seed and increment settings. The temporal and period extensions of the reference are not provided |
 | `DmValueGenerationStrategy` annotation | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | `DmValueGenerationStrategy` keeps the Dameng member order, so an existing model keeps its annotations |
 | Database facade extensions | `Implemented` | `DmDatabaseFacadeTests` | P1 | Yes | `IsDm` compares the provider name with this assembly, which is the same answer the migration builder extension gives |
-| `DbFunctions` extensions | `Partial` | `DmDateDiffTranslationTests` | P2 | Yes | `DateDiffYear`, `DateDiffMonth`, `DateDiffDay`, `DateDiffHour`, `DateDiffMinute`, `DateDiffSecond` and `DateDiffMillisecond` over `DateTime` and `DateTimeOffset`, each in a nullable form, translate to `DATEDIFF(datepart, date1, date2)`, which the DM SQL manual documents; called outside a query they compute the difference in memory. Microsecond and nanosecond are not provided, because their datepart spelling in `DATEDIFF` is unverified, and the reference `FreeText`, `Contains` and `IsDate` are not provided. The generated SQL is unverified against a server |
+| `DbFunctions` extensions | `Partial` | `DmDateDiffTranslationTests`, `DmIsDateTranslationTests` | P2 | Yes | `DateDiffYear`, `DateDiffMonth`, `DateDiffDay`, `DateDiffHour`, `DateDiffMinute`, `DateDiffSecond` and `DateDiffMillisecond` over `DateTime` and `DateTimeOffset`, each in a nullable form, translate to `DATEDIFF(datepart, date1, date2)`, which the DM SQL manual documents; `IsDate` translates to `ISDATE(value) = 1`, because Dameng has no boolean type for the flag to be used as a condition. Called outside a query these compute the answer in memory. Microsecond and nanosecond are not provided, because their datepart spelling in `DATEDIFF` is unverified, and the reference `FreeText` and `Contains`, which need a full-text index, are not provided. The generated SQL is unverified against a server |
 
 ### I. Diagnostics
 
@@ -221,14 +223,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 76 |
+| `Implemented` | 79 |
 | `In progress` | 0 |
 | `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 10 |
+| `Not started` | 9 |
 | `Not applicable` | 2 |
-| **Total rows** | **101** |
+| **Total rows** | **103** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

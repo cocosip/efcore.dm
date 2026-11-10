@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Microsoft.EntityFrameworkCore.Dm.Extensions;
 
 /// <summary>
@@ -5,10 +7,11 @@ namespace Microsoft.EntityFrameworkCore.Dm.Extensions;
 /// </summary>
 /// <remarks>
 /// <para>
-/// Inside a query these are translated by the provider to Dameng's
+/// Inside a query these are translated by the provider: the date differences become Dameng's
 /// <c>DATEDIFF(datepart, date1, date2)</c>, which counts the boundaries of the named part crossed
-/// between the two values. Called outside a query they compute the same answer in memory, so an
-/// expression the provider cannot translate falls back instead of failing.
+/// between the two values, and <see cref="IsDate" /> becomes <c>ISDATE</c>. Called outside a query they
+/// compute the same answer in memory, so an expression the provider cannot translate falls back instead
+/// of failing.
 /// </para>
 /// <para>
 /// The in-memory form truncates the elapsed time rather than counting boundaries, so it agrees with the
@@ -196,4 +199,14 @@ public static class DmDbFunctionsExtensions
         => startDate.HasValue && endDate.HasValue
             ? (int)(endDate.Value.UtcDateTime - startDate.Value.UtcDateTime).TotalMilliseconds
             : null;
+
+    /// <summary>
+    /// Whether a value is a valid date, which Dameng answers with <c>ISDATE</c>.
+    /// </summary>
+    public static bool IsDate(this DbFunctions _, string value) => ParsesAsDate(value);
+
+    // The parse lives in its own method because this class names its receiver "_", and a discard in the
+    // same scope would bind to that parameter instead.
+    private static bool ParsesAsDate(string value)
+        => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 }

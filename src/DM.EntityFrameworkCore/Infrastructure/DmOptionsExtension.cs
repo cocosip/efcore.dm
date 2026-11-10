@@ -8,7 +8,13 @@ namespace DM.EntityFrameworkCore.Infrastructure;
 /// <see cref="RelationalOptionsExtension" /> is required: EF Core's relational services look
 /// for that base type and report "no relational database providers are configured" without it.
 /// </summary>
-internal sealed class DmOptionsExtension : RelationalOptionsExtension
+/// <remarks>
+/// Public because <see cref="DmDbContextOptionsBuilder" /> names it as the type argument of
+/// <see cref="RelationalDbContextOptionsBuilder{TBuilder, TExtension}" />, and a public base type
+/// cannot be built over an internal one. It is plumbing rather than consumer surface: nothing a
+/// consumer calls names it.
+/// </remarks>
+public sealed class DmOptionsExtension : RelationalOptionsExtension
 {
     private DbContextOptionsExtensionInfo? _info;
 

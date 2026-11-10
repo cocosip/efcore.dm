@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore.Query;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Query.Internal;
 
@@ -11,7 +12,9 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 /// </remarks>
 internal sealed class DmMethodCallTranslatorProvider : RelationalMethodCallTranslatorProvider
 {
-    public DmMethodCallTranslatorProvider(RelationalMethodCallTranslatorProviderDependencies dependencies)
+    public DmMethodCallTranslatorProvider(
+        RelationalMethodCallTranslatorProviderDependencies dependencies,
+        IRelationalTypeMappingSource typeMappingSource)
         : base(dependencies)
         => AddTranslators(
         [
@@ -20,6 +23,8 @@ internal sealed class DmMethodCallTranslatorProvider : RelationalMethodCallTrans
             new DmConvertTranslator(dependencies.SqlExpressionFactory),
             new DmObjectToStringTranslator(dependencies.SqlExpressionFactory),
             new DmDateTimeMethodTranslator(dependencies.SqlExpressionFactory),
-            new DmDateDiffFunctionsTranslator(dependencies.SqlExpressionFactory)
+            new DmDateDiffFunctionsTranslator(dependencies.SqlExpressionFactory),
+            new DmIsDateFunctionTranslator(dependencies.SqlExpressionFactory),
+            new DmTimeOnlyMethodTranslator(dependencies.SqlExpressionFactory, typeMappingSource)
         ]);
 }

@@ -119,7 +119,8 @@ Reference measurement: the EF Core 9 to EF Core 10 migration in the reference im
 `ValuesExpression` exists in EF Core 8, 9, 10 and `main`. What changes across versions is how parameterized collections are translated:
 
 - EF Core 9 exposes `TranslateParameterizedCollectionsToConstants` and `TranslateParameterizedCollectionsToParameters`.
-- EF Core 10 defaults to `ParameterTranslationMode.MultipleParameters` and adds padding.
+- EF Core 10 defaults to `ParameterTranslationMode.MultipleParameters` and adds padding. The option is set through `UseParameterizedCollectionMode`; the two older method names are obsolete.
+- Measured: two contexts that share a model and differ only in the collection mode reuse the first translation, because the translation is cached against the compiled query. A test that exercises both modes gives each its own context type.
 
 Consequence: every branch must handle `ValuesExpression`. The branches differ in default strategy, not in whether the node is supported.
 
@@ -161,7 +162,7 @@ The following are properties of Dameng, identical across EF Core versions. Their
 - DDL syntax: identity columns, sequences, tables, indexes
 - Catalog queries against `SYSOBJECTS` and related system tables
 - Dameng error classification
-- SQL dialect translation rules: `||` concatenation, `TOP` and `OFFSET`/`FETCH`, `CAST` wrapping of aggregates, `GREATEST` and `LEAST`, `DATEDIFF(datepart, date1, date2)` for date differences
+- SQL dialect translation rules: `||` concatenation, `TOP` and `OFFSET`/`FETCH`, `CAST` wrapping of aggregates, `GREATEST` and `LEAST`, `DATEDIFF(datepart, date1, date2)` for date differences, `ISDATE(value) = 1` for a validity check, and `CAST(... AS TIME)` for a `TimeOnly` conversion
 
 This is the reason the `Dialect/` layer exists: these are written once rather than once per version.
 

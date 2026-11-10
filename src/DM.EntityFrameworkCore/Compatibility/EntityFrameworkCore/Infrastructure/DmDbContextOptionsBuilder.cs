@@ -1,4 +1,3 @@
-using System.Data.Common;
 using DM.EntityFrameworkCore.Infrastructure;
 
 namespace Microsoft.EntityFrameworkCore.Infrastructure;
@@ -7,39 +6,17 @@ namespace Microsoft.EntityFrameworkCore.Infrastructure;
 /// Dameng-specific options builder. Declared in the namespace the Dameng provider declares it in,
 /// so that consumer source that names the type compiles unchanged.
 /// </summary>
+/// <remarks>
+/// Deriving from <see cref="RelationalDbContextOptionsBuilder{TBuilder, TExtension}" /> is what puts the
+/// relational settings within reach of a <c>UseDm</c> call: command timeout, max batch size, migrations
+/// assembly, the collection translation mode, the execution strategy and the rest. A plain class here
+/// would compile consumer code that sets none of them.
+/// </remarks>
 public class DmDbContextOptionsBuilder
+    : RelationalDbContextOptionsBuilder<DmDbContextOptionsBuilder, DmOptionsExtension>
 {
     public DmDbContextOptionsBuilder(DbContextOptionsBuilder optionsBuilder)
+        : base(optionsBuilder)
     {
-        ArgumentNullException.ThrowIfNull(optionsBuilder);
-
-        OptionsBuilder = optionsBuilder;
     }
-
-    protected virtual DbContextOptionsBuilder OptionsBuilder { get; }
-
-    public virtual DmDbContextOptionsBuilder WithConnectionString(string connectionString)
-    {
-        ArgumentException.ThrowIfNullOrEmpty(connectionString);
-
-        var extension = (DmOptionsExtension)GetOrCreateExtension().WithConnectionString(connectionString);
-
-        ((IDbContextOptionsBuilderInfrastructure)OptionsBuilder).AddOrUpdateExtension(extension);
-
-        return this;
-    }
-
-    public virtual DmDbContextOptionsBuilder WithConnection(DbConnection connection)
-    {
-        ArgumentNullException.ThrowIfNull(connection);
-
-        var extension = (DmOptionsExtension)GetOrCreateExtension().WithConnection(connection);
-
-        ((IDbContextOptionsBuilderInfrastructure)OptionsBuilder).AddOrUpdateExtension(extension);
-
-        return this;
-    }
-
-    private RelationalOptionsExtension GetOrCreateExtension()
-        => OptionsBuilder.Options.FindExtension<DmOptionsExtension>() ?? new DmOptionsExtension();
 }
