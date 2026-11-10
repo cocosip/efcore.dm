@@ -33,7 +33,8 @@ public class DmMathTranslationTests
         ["Sign"] = q => q.Where(p => Math.Sign(p.Amount) > 1),
         ["AbsInt"] = q => q.Where(p => Math.Abs(p.Id) > 1),
         ["Max"] = q => q.Where(p => Math.Max(p.Id, 3) > 1),
-        ["Min"] = q => q.Where(p => Math.Min(p.Id, 3) > 1)
+        ["Min"] = q => q.Where(p => Math.Min(p.Id, 3) > 1),
+        ["Clamp"] = q => q.Where(p => Math.Clamp(p.Amount, 1, 2) > 1)
     };
 
     [Theory]
@@ -61,6 +62,7 @@ public class DmMathTranslationTests
     [InlineData("AbsInt", """ABS("p"."Id") > 1""")]
     [InlineData("Max", """GREATEST("p"."Id", 3) > 1""")]
     [InlineData("Min", """LEAST("p"."Id", 3) > 1""")]
+    [InlineData("Clamp", """GREATEST(LEAST("p"."Amount", 2.0), 1.0) > 1.0""")]
     public void MathCall_TranslatesToDamengFunction(string name, string predicate)
     {
         using var context = new ProbeContext();

@@ -84,6 +84,39 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
     private static readonly MethodInfo InsertMethod = typeof(string).GetRuntimeMethod(
         nameof(string.Insert), [typeof(int), typeof(string)])!;
 
+    private static readonly MethodInfo EqualsWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.Equals), [typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo StaticEqualsWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.Equals), [typeof(string), typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo ContainsWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.Contains), [typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo StartsWithWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.StartsWith), [typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo EndsWithWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.EndsWith), [typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo IndexOfWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.IndexOf), [typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo ContainsCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.Contains), [typeof(char)])!;
+
+    private static readonly MethodInfo ToUpperInvariantMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.ToUpperInvariant), [])!;
+
+    private static readonly MethodInfo ToLowerInvariantMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.ToLowerInvariant), [])!;
+
+    private static readonly MethodInfo TrimStartCharactersMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.TrimStart), [typeof(char[])])!;
+
+    private static readonly MethodInfo TrimEndCharactersMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.TrimEnd), [typeof(char[])])!;
+
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     public DmStringMethodTranslator(ISqlExpressionFactory sqlExpressionFactory)
@@ -108,6 +141,21 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
                     _sqlExpressionFactory.Equal(trimmed, _sqlExpressionFactory.Constant(string.Empty))));
         }
 
+        // A comparison argument decides whether the values are upper-cased before they are compared;
+        // the culture-sensitive comparisons differ from that in ways a database collation cannot state.
+        if (method == EqualsWithComparisonMethod || method == StaticEqualsWithComparisonMethod)
+        {
+            if (Comparison(arguments) is not { } comparison)
+            {
+                return null;
+            }
+
+            var left = instance ?? arguments[0];
+            var right = instance is null ? arguments[1] : arguments[0];
+
+            return _sqlExpressionFactory.Equal(Ignoring(left, comparison), Ignoring(right, comparison));
+        }
+
         if (instance is null)
         {
             return null;
@@ -116,6 +164,34 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         if (method == ContainsMethod)
         {
             return Like(instance, arguments[0], "%", "%");
+        }
+
+        if (method == ContainsCharacterMethod)
+        {
+            return _sqlExpressionFactory.GreaterThan(IndexOf(instance, arguments[0]), _sqlExpressionFactory.Constant(0));
+        }
+
+        if (method == ContainsWithComparisonMethod || method == StartsWithWithComparisonMethod
+            || method == EndsWithWithComparisonMethod || method == IndexOfWithComparisonMethod)
+        {
+            if (Comparison(arguments) is not { } comparison)
+            {
+                return null;
+            }
+
+            var subject = Ignoring(instance, comparison);
+            var value = Ignoring(arguments[0], comparison);
+
+            if (method == IndexOfWithComparisonMethod)
+            {
+                return _sqlExpressionFactory.Subtract(IndexOf(subject, value), _sqlExpressionFactory.Constant(1));
+            }
+
+            return method == ContainsWithComparisonMethod
+                ? Like(subject, value, "%", "%")
+                : method == StartsWithWithComparisonMethod
+                    ? Like(subject, value, string.Empty, "%")
+                    : Like(subject, value, "%", string.Empty);
         }
 
         if (method == StartsWithMethod)
@@ -128,9 +204,14 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             return Like(instance, arguments[0], "%", string.Empty);
         }
 
-        if (method == ToUpperMethod || method == ToLowerMethod)
+        if (method == ToUpperMethod || method == ToUpperInvariantMethod)
         {
-            return StringFunction(method == ToUpperMethod ? "UPPER" : "LOWER", instance, [instance]);
+            return StringFunction("UPPER", instance, [instance]);
+        }
+
+        if (method == ToLowerMethod || method == ToLowerInvariantMethod)
+        {
+            return StringFunction("LOWER", instance, [instance]);
         }
 
         if (method == TrimMethod || method == TrimStartMethod || method == TrimEndMethod)
@@ -178,15 +259,20 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         // -1, so subtracting one moves both ends at once.
         if (method == IndexOfMethod || method == IndexOfCharacterMethod)
         {
-            return _sqlExpressionFactory.Subtract(
-                _sqlExpressionFactory.Function(
-                    "INSTR",
-                    [instance, arguments[0]],
-                    nullable: true,
-                    argumentsPropagateNullability: [true, true],
-                    typeof(int),
-                    typeMapping: null),
-                _sqlExpressionFactory.Constant(1));
+            return _sqlExpressionFactory.Subtract(IndexOf(instance, arguments[0]), _sqlExpressionFactory.Constant(1));
+        }
+
+        if (method == TrimStartCharactersMethod || method == TrimEndCharactersMethod)
+        {
+            if (arguments[0] is not SqlConstantExpression { Value: char[] characters })
+            {
+                return null;
+            }
+
+            return StringFunction(
+                method == TrimStartCharactersMethod ? "LTRIM" : "RTRIM",
+                instance,
+                [instance, _sqlExpressionFactory.Constant(new string(characters))]);
         }
 
         // Insert and Remove keep the part in front of the index and join the part behind it back on.
@@ -259,6 +345,32 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             ? _sqlExpressionFactory.Constant(start + 1)
             : _sqlExpressionFactory.Add(startIndex, _sqlExpressionFactory.Constant(1));
 
+    private SqlExpression IndexOf(SqlExpression subject, SqlExpression value)
+        => _sqlExpressionFactory.Function(
+            "INSTR",
+            [subject, value],
+            nullable: true,
+            argumentsPropagateNullability: [true, true],
+            typeof(int),
+            typeMapping: null);
+
+    private static StringComparison? Comparison(IReadOnlyList<SqlExpression> arguments)
+        => arguments[^1] is SqlConstantExpression { Value: StringComparison comparison }
+            ? comparison
+            : null;
+
+    /// <summary>
+    /// An ignore-case comparison upper-cases both sides, which is what a database can express. A
+    /// culture-sensitive comparison orders by collation rules rather than by code point, so it is
+    /// compared the same way rather than rejected.
+    /// </summary>
+    private SqlExpression Ignoring(SqlExpression expression, StringComparison comparison)
+        => comparison is StringComparison.OrdinalIgnoreCase
+                or StringComparison.InvariantCultureIgnoreCase
+                or StringComparison.CurrentCultureIgnoreCase
+            ? StringFunction("UPPER", expression, [expression])
+            : expression;
+
     private SqlExpression Like(SqlExpression instance, SqlExpression argument, string prefix, string suffix)
         => _sqlExpressionFactory.Like(
             instance,
@@ -273,7 +385,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         }
 
         // CONCAT is used rather than the || operator so that the pattern does not depend on
-        // operator precedence inside the LIKE operand.
+        // operator precedence inside the LIKE operand. A side that is empty is not concatenated.
         SqlExpression Concat(SqlExpression left, SqlExpression right)
             => _sqlExpressionFactory.Function(
                 "CONCAT",
@@ -283,7 +395,13 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
                 typeof(string),
                 left.TypeMapping);
 
-        return Concat(Concat(_sqlExpressionFactory.Constant(prefix), argument), _sqlExpressionFactory.Constant(suffix));
+        var withPrefix = prefix.Length == 0
+            ? argument
+            : Concat(_sqlExpressionFactory.Constant(prefix), argument);
+
+        return suffix.Length == 0
+            ? withPrefix
+            : Concat(withPrefix, _sqlExpressionFactory.Constant(suffix));
     }
 
     private static string Escape(string value)

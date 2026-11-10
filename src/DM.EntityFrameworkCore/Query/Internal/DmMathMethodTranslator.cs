@@ -46,6 +46,10 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
 
             nameof(Math.Pow) => Function("POWER", arguments, method),
             nameof(Math.Atan2) => Function("ATAN2", arguments, method),
+            nameof(Math.Clamp) => Function(
+                "GREATEST",
+                [Function("LEAST", [arguments[0], arguments[2]], method), arguments[1]],
+                method),
             nameof(Math.Round) => Round(arguments, method),
             nameof(Math.Log) => Log(arguments, method),
             nameof(Math.Log10) => Function("LOG", [Constant(10), arguments[0]], method),

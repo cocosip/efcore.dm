@@ -314,6 +314,148 @@ public class DmStringTranslationTests
             """);
     }
 
+    /// <summary>
+    /// An ignore-case comparison upper-cases both sides, which is what a database can express, and a
+    /// case-sensitive one compares the values as they are.
+    /// </summary>
+    [Theory]
+    [InlineData(
+        "Static",
+        "UPPER(\"p\".\"Name\") = UPPER('a')")]
+    [InlineData(
+        "Comparison",
+        "UPPER(\"p\".\"Name\") = UPPER('a')")]
+    public void Equals_TranslatesTheComparisonArgument(string overload, string predicate)
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            overload == "Static"
+                ? context.Probes.Where(p => string.Equals(p.Name, "a", StringComparison.OrdinalIgnoreCase))
+                : context.Probes.Where(p => p.Name.Equals("a", StringComparison.OrdinalIgnoreCase)),
+            $"""
+             SELECT "p"."Id", "p"."Name"
+             FROM "Probes" AS "p"
+             WHERE {predicate}
+             """);
+    }
+
+    [Fact]
+    public void Equals_CaseSensitiveComparison_ComparesTheValuesAsTheyAre()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => string.Equals(p.Name, "a", StringComparison.Ordinal)),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE "p"."Name" = 'a'
+            """);
+    }
+
+    [Fact]
+    public void Contains_WithIgnoreCaseComparison_UpperCasesBothSides()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Contains("a", StringComparison.OrdinalIgnoreCase)),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE UPPER("p"."Name") LIKE CONCAT(CONCAT('%', UPPER('a')), '%') ESCAPE '\'
+            """);
+    }
+
+    [Fact]
+    public void StartsWith_WithIgnoreCaseComparison_UpperCasesBothSides()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.StartsWith("a", StringComparison.OrdinalIgnoreCase)),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE UPPER("p"."Name") LIKE CONCAT(UPPER('a'), '%') ESCAPE '\'
+            """);
+    }
+
+    [Fact]
+    public void IndexOf_WithIgnoreCaseComparison_UpperCasesBothSides()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.IndexOf("a", StringComparison.OrdinalIgnoreCase) > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR(UPPER("p"."Name"), UPPER('a')) - 1) > 0
+            """);
+    }
+
+    [Fact]
+    public void ContainsCharacter_UsesInstr()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Contains('a')),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE INSTR("p"."Name", 'a') > 0
+            """);
+    }
+
+    [Fact]
+    public void ToLowerInvariant_GeneratesLower()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.ToLowerInvariant() == "a"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE LOWER("p"."Name") = 'a'
+            """);
+    }
+
+    /// <summary>
+    /// A character array becomes the trim set, so a literal array is required; one built at run time
+    /// has no representation and is left untranslated.
+    /// </summary>
+    [Fact]
+    public void TrimStart_WithTheCharacterArray_UsesItAsTheSet()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.TrimStart(new[] { 'a', 'b' }) == "c"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE LTRIM("p"."Name", 'ab') = 'c'
+            """);
+    }
+
+    [Fact]
+    public void TrimEnd_WithTheCharacterArray_UsesItAsTheSet()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.TrimEnd(new[] { 'a', 'b' }) == "c"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE RTRIM("p"."Name", 'ab') = 'c'
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 
