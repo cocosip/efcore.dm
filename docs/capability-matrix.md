@@ -140,7 +140,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | `INSERT`, `UPDATE`, `DELETE` | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | No `RETURNING` clause, because Dameng accepts it only as `RETURNING ... INTO`, which binds to a variable and not to a result set. An insert that has to read a generated value adds a second statement |
 | Multiple statements per batch | `Deferred` | `DmUpdateSqlTests` | P3 | Yes | One statement per round trip; the affected row count comes from the driver return value and could not be attributed to individual commands in a shared batch |
-| Store-generated value readback | `Implemented` | `DmGeneratedValueTests` | P3 | Yes | After an insert, a second statement selects the generated columns, matched by `sql%ROWCOUNT = 1` and `scope_identity()`. Update and delete still reject a read, and the statement shape has not been run against a server |
+| Store-generated value readback | `Implemented` | `DmGeneratedValueTests` | P3 | Yes | After an insert, a second statement selects the generated columns, matched by `sql%ROWCOUNT = 1` and by `scope_identity()` for an identity column or the sequence current value for a sequence default. Update and delete still reject a read, and the statement shape has not been run against a server |
 | Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException` |
 | Modification command factory | `Not started` | — | P3 | No | EF Core 9+ contract |
 | `SaveChanges` transaction wrapping | `Implemented` | `DmConnectionTests` | P3 | Yes | A unit of work that builds more than one command is wrapped and committed; a single command runs without a transaction |
@@ -175,10 +175,10 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
 | Identity columns | `Implemented` | `DmValueGenerationStrategyTests`, `DmFluentApiTests` | P5 | Yes | The model marks an integer key, the DDL emits `IDENTITY(seed,increment)` from the model or property setting, and an insert reads the generated key back |
-| Sequences | `Partial` | `DmHiLoValueGenerationTests` | P5 | Yes | A sequence can be declared in the model, created by a migration and read with `seq.NEXTVAL FROM DUAL`. The plain `Sequence` strategy is still rejected, so a property cannot take one value per insert from a sequence |
+| Sequences | `Implemented` | `DmHiLoValueGenerationTests`, `DmGeneratedValueTests` | P5 | Yes | A sequence can be declared in the model, created by a migration, read in blocks for hi-lo, and used as a key default whose value is read back after the insert. The provider never advances a sequence to produce a client side value one at a time |
 | HiLo over a sequence | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | A block is reserved per round trip, sized by the sequence increment, and shared by every context. The default sequence is added by the model convention |
 | Value generator selector and cache | `Implemented` | `DmHiLoValueGenerationTests` | P5 | Yes | Chooses the hi-lo generator for the strategy and keeps the block state in the singleton cache |
-| Store generation convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | An integer key the store generates becomes an identity column unless the model says otherwise |
+| Store generation convention | `Implemented` | `DmValueGenerationStrategyTests` | P5 | Yes | An integer key the store generates becomes an identity column unless the model or the property says otherwise, and a key that carries a default expression is recorded as sequence generated instead of also becoming an identity column |
 | Client-side value generation | `Not started` | — | P5 | Yes | |
 
 ### H. Conventions and metadata
@@ -221,9 +221,9 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 51 |
+| `Implemented` | 52 |
 | `In progress` | 0 |
-| `Partial` | 8 |
+| `Partial` | 7 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
 | `Not started` | 35 |

@@ -13,8 +13,9 @@ namespace DM.EntityFrameworkCore.Metadata.Conventions;
 /// asks the store to generate becomes an identity column, which is what Dameng does by default and
 /// what a model written for the Dameng provider already relies on.
 /// <para>
-/// A strategy the provider cannot honour fails the model rather than being ignored: a silently
-/// dropped strategy produces an insert that never reads the generated key back.
+/// A key that already carries a default expression is not an identity column: the store fills it
+/// from that expression, so the strategy records where the value comes from and the insert reads it
+/// back instead of writing one.
 /// </para>
 /// </remarks>
 internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConvention
@@ -50,16 +51,6 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
                 property.SetDmValueGenerationStrategy(strategy);
             }
 
-            if (strategy is DmValueGenerationStrategy.Sequence)
-            {
-                throw new NotSupportedException(
-                    $"The value generation strategy {strategy} is declared for "
-                    + $"'{property.DeclaringType.DisplayName()}.{property.Name}' but this provider does not implement it yet. "
-                    + $"Use {nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.SequenceHiLo)}, "
-                    + $"{nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.IdentityColumn)} or "
-                    + $"{nameof(DmValueGenerationStrategy)}.{nameof(DmValueGenerationStrategy.None)}.");
-            }
-
             if (strategy is DmValueGenerationStrategy.SequenceHiLo)
             {
                 EnsureHiLoSequence(modelBuilder, property);
@@ -68,8 +59,9 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
     }
 
     /// <summary>
-    /// The strategy for a property that names none: the model's default when the store generates the
-    /// value, and an identity column for an integer key when the model has no default.
+    /// The strategy for a property that names none: a key the store fills from a default expression
+    /// is sequence generated, otherwise the model's default applies, and an integer key with no
+    /// default at all becomes an identity column.
     /// </summary>
     private static DmValueGenerationStrategy? StrategyFor(IConventionProperty property, DmValueGenerationStrategy? modelDefault)
     {
@@ -78,22 +70,21 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
             return null;
         }
 
-        if (modelDefault is not null)
+        if (property.IsKey() && property.GetDefaultValueSql() is not null)
         {
-            return modelDefault;
+            return DmValueGenerationStrategy.Sequence;
         }
 
-        return property.IsKey() ? DmValueGenerationStrategy.IdentityColumn : null;
+        return modelDefault ?? (property.IsKey() ? DmValueGenerationStrategy.IdentityColumn : null);
     }
 
     /// <summary>
-    /// A column can only carry a strategy if the store is the one producing the value, the type is
-    /// one Dameng accepts, and nothing else already supplies a default.
+    /// A column can only carry a strategy if the store is the one producing the value and the type
+    /// is one Dameng accepts.
     /// </summary>
     private static bool IsGenerated(IConventionProperty property)
         => property.ValueGenerated == ValueGenerated.OnAdd
-            && IdentityTypes.Contains(Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType)
-            && property.GetDefaultValueSql() is null;
+            && IdentityTypes.Contains(Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType);
 
     /// <summary>
     /// A hi-lo property needs the sequence it takes blocks from to be part of the model, so that a

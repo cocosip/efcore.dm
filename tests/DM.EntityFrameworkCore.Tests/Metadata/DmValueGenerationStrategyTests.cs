@@ -78,28 +78,14 @@ public class DmValueGenerationStrategyTests
 
     /// <summary>
     /// A key that already has a default expression is not an identity column: the store supplies
-    /// the value from that expression, and Dameng allows one identity column per table.
+    /// the value from that expression, so the strategy records where the value comes from.
     /// </summary>
     [Fact]
-    public void KeyWithDefaultSql_HasNoStrategy()
+    public void KeyWithDefaultExpression_HasTheSequenceStrategy()
     {
         using var context = new DefaultSqlContext();
 
-        Assert.Null(Key(context, typeof(IdentityProbe)).GetDmValueGenerationStrategy());
-    }
-
-    /// <summary>
-    /// A strategy the provider cannot honour stops the model, rather than producing keys that the
-    /// database never generated.
-    /// </summary>
-    [Fact]
-    public void UnimplementedStrategy_FailsTheModel()
-    {
-        using var context = new SequenceContext();
-
-        var exception = Assert.ThrowsAny<Exception>(() => context.Model);
-
-        Assert.Contains(nameof(DmValueGenerationStrategy.Sequence), exception.Message, StringComparison.Ordinal);
+        Assert.Equal(DmValueGenerationStrategy.Sequence, Key(context, typeof(IdentityProbe)).GetDmValueGenerationStrategy());
     }
 
     private static IProperty Key(DbContext context, Type entityType)
@@ -142,16 +128,6 @@ public class DmValueGenerationStrategyTests
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<IdentityProbe>(e => e.Property(p => p.Id).HasDefaultValueSql("1"));
-        }
-    }
-
-    private sealed class SequenceContext : ProbeContext
-    {
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-            modelBuilder.Entity<IdentityProbe>(
-                e => e.Property(p => p.Id).Metadata.SetDmValueGenerationStrategy(DmValueGenerationStrategy.Sequence));
         }
     }
 
