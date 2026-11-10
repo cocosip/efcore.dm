@@ -61,9 +61,17 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
     {
         if (member.DeclaringType == typeof(TimeSpan))
         {
-            return instance is null || !IntervalParts.TryGetValue(member.Name, out var intervalPart)
-                ? null
-                : Extract(intervalPart, instance, returnType, member.Name);
+            if (instance is null)
+            {
+                return null;
+            }
+
+            if (IntervalParts.TryGetValue(member.Name, out var intervalPart))
+            {
+                return Extract(intervalPart, instance, returnType, member.Name);
+            }
+
+            return Total(instance, member.Name);
         }
 
         if (member.DeclaringType != typeof(DateTime) && member.DeclaringType != typeof(DateTimeOffset))
@@ -75,6 +83,44 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
             ? Clock(member.Name, returnType)
             : Instance(instance, member.Name, returnType);
     }
+
+    /// <summary>
+    /// A total member is the interval expressed in one unit, which is a sum over the parts. The
+    /// fraction of a second is kept here, because a total is not truncated, unlike the parts.
+    /// </summary>
+    private SqlExpression? Total(SqlExpression instance, string memberName)
+    {
+        var seconds = _sqlExpressionFactory.Add(
+            _sqlExpressionFactory.Add(
+                Scaled("DAY", instance, 86400.0),
+                Scaled("HOUR", instance, 3600.0)),
+            _sqlExpressionFactory.Add(
+                Scaled("MINUTE", instance, 60.0),
+                ExtractPart("SECOND", instance)));
+
+        return memberName switch
+        {
+            nameof(TimeSpan.TotalDays) => _sqlExpressionFactory.Divide(seconds, _sqlExpressionFactory.Constant(86400.0)),
+            nameof(TimeSpan.TotalHours) => _sqlExpressionFactory.Divide(seconds, _sqlExpressionFactory.Constant(3600.0)),
+            nameof(TimeSpan.TotalMinutes) => _sqlExpressionFactory.Divide(seconds, _sqlExpressionFactory.Constant(60.0)),
+            nameof(TimeSpan.TotalSeconds) => seconds,
+            nameof(TimeSpan.TotalMilliseconds) => _sqlExpressionFactory.Multiply(
+                seconds,
+                _sqlExpressionFactory.Constant(1000.0)),
+            _ => null
+        };
+    }
+
+    private SqlExpression Scaled(string part, SqlExpression instance, double factor)
+        => _sqlExpressionFactory.Multiply(ExtractPart(part, instance), _sqlExpressionFactory.Constant(factor));
+
+    /// <summary>
+    /// The part is read as a number here, because a total is arithmetic over the parts rather than a
+    /// count read straight from the interval.
+    /// </summary>
+    private SqlExpression ExtractPart(string part, SqlExpression instance)
+        => _sqlExpressionFactory.ApplyDefaultTypeMapping(
+            Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], typeof(double)))!;
 
     /// <summary>
     /// <c>EXTRACT(SECOND ...)</c> keeps the fraction of a second, which .NET's <c>Seconds</c> member

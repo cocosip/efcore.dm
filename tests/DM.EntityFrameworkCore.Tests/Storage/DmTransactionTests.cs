@@ -54,6 +54,33 @@ public class DmTransactionTests
             Joined(connection));
     }
 
+    /// <summary>
+    /// A savepoint is managed by statements rather than by the driver transaction, so the three
+    /// statements are what a database has to accept; the shape is asserted here because it is the
+    /// dialect surface that is unverified against a server.
+    /// </summary>
+    [Fact]
+    public void Savepoints_AreManagedByTheirOwnStatements()
+    {
+        var connection = new FakeDmConnection { RowsAffected = 1 };
+        using var context = new ProbeContext(connection);
+
+        using var transaction = context.Database.BeginTransaction();
+
+        transaction.CreateSavepoint("before");
+        transaction.RollbackToSavepoint("before");
+        transaction.ReleaseSavepoint("before");
+
+        Assert.Equal(
+            Normalize(
+                """
+                SAVEPOINT "before";
+                ROLLBACK TO "before";
+                RELEASE SAVEPOINT "before";
+                """),
+            Joined(connection));
+    }
+
     [Fact]
     public void Commit_ClearsTheCurrentTransaction()
     {
