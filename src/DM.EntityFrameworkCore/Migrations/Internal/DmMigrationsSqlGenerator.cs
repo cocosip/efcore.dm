@@ -199,8 +199,8 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     }
 
     /// <summary>
-    /// Dameng sequences take no type clause, and spell the cycle option <c>CYCLE</c> rather than
-    /// the two-word form the base class emits.
+    /// A Dameng sequence takes no type clause and spells its boundary and cycle options as one word,
+    /// so the statement the base class builds is not valid here.
     /// </summary>
     protected override void Generate(
         CreateSequenceOperation operation,
@@ -210,30 +210,89 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.Append("CREATE SEQUENCE ").Append(Helper.DelimitIdentifier(operation.Name, operation.Schema));
-
         builder
+            .Append("CREATE SEQUENCE ")
+            .Append(Helper.DelimitIdentifier(operation.Name, operation.Schema))
             .Append(" START WITH ")
-            .Append(Number(operation.StartValue))
-            .Append(" INCREMENT BY ")
-            .Append(Number(operation.IncrementBy));
+            .Append(Number(operation.StartValue));
 
-        if (operation.MinValue.HasValue)
-        {
-            builder.Append(" MINVALUE ").Append(Number(operation.MinValue.Value));
-        }
-
-        if (operation.MaxValue.HasValue)
-        {
-            builder.Append(" MAXVALUE ").Append(Number(operation.MaxValue.Value));
-        }
-
-        builder.Append(operation.IsCyclic ? " CYCLE" : " NOCYCLE");
+        AppendSequenceOptions(operation, builder);
 
         EndStatement(builder);
     }
 
+    /// <summary>
+    /// An alteration repeats every option, so that changing one of them does not silently keep the
+    /// previous value.
+    /// </summary>
+    protected override void SequenceOptions(
+        AlterSequenceOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        AppendSequenceOptions(operation, builder);
+    }
+
+    private static void AppendSequenceOptions(SequenceOperation operation, MigrationCommandListBuilder builder)
+    {
+        builder.Append(" INCREMENT BY ").Append(Number(operation.IncrementBy));
+
+        builder.Append(
+            operation.MinValue.HasValue
+                ? " MINVALUE " + Number(operation.MinValue.Value)
+                : " NOMINVALUE");
+
+        builder.Append(
+            operation.MaxValue.HasValue
+                ? " MAXVALUE " + Number(operation.MaxValue.Value)
+                : " NOMAXVALUE");
+
+        builder.Append(operation.IsCyclic ? " CYCLE" : " NOCYCLE");
+    }
+
+    /// <summary>
+    /// Dameng creates a schema with <c>CREATE SCHEMA</c>, and the statement fails when the schema is
+    /// already there, which is the case when a database administrator created it. The block asks the
+    /// catalog first, so a migration is also safe against a schema the user made.
+    /// </summary>
+    /// <remarks>
+    /// The catalog query is the one the Dameng provider uses; it is confirmed against a server with
+    /// the rest of the migration DDL.
+    /// </remarks>
+    protected override void Generate(
+        EnsureSchemaOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        var name = operation.Name;
+
+        builder
+            .AppendLine("DECLARE")
+            .AppendLine("    declared INT;")
+            .AppendLine("BEGIN")
+            .Append("    SELECT COUNT(*) INTO declared FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' AND NAME = ")
+            .Append(Quote(name))
+            .AppendLine(";")
+            .AppendLine("    IF declared = 0 THEN")
+            .Append("        EXECUTE IMMEDIATE ")
+            .Append(Quote("CREATE SCHEMA " + Helper.DelimitIdentifier(name)))
+            .AppendLine(";")
+            .AppendLine("    END IF;")
+            .Append("END;");
+
+        builder.EndCommand();
+    }
+
     private static string Number(long value) => value.ToString(CultureInfo.InvariantCulture);
+
+    /// <summary>Quotes a string literal for a statement body.</summary>
+    private static string Quote(string value) => "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
 
     private void EndStatement(MigrationCommandListBuilder builder)
         => builder.AppendLine(Helper.StatementTerminator).EndCommand();

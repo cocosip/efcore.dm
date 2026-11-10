@@ -149,10 +149,10 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 
 | Capability | Status | Evidence | Phase | Reference | Note |
 |---|---|---|---|---|---|
-| Migrations SQL generator (DDL) | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Table, index, constraint, sequence and data shapes; alter and rename operations are provider-specific and implemented here |
+| Migrations SQL generator (DDL) | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Table, index, constraint, sequence and data shapes. A sequence takes no type clause and spells its options as one word, an alteration repeats every option, and an alter, rename or schema operation is implemented here rather than by the base class |
 | History repository | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Catalog existence check against `SYS.SYSOBJECTS`, unverified against a server |
 | Migration lock | `Implemented` | `DmHistoryRepositoryTests` | P4 | Yes | Exclusive table lock released by the transaction; no lock row, so a failed run cannot strand one |
-| Schema operations | `Partial` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` is rejected: Dameng has no schema DDL separate from users |
+| Schema operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` runs inside a block that asks `SYS.SYSOBJECTS` first, so a schema the database administrator created does not fail the migration. The catalog query is not yet confirmed against a server |
 | User operations | `Not started` | — | P4 | Yes | |
 | Migrations annotation provider | `Not started` | — | P4 | Yes | |
 | `MigrationBuilder` extensions | `Not started` | — | P4 | Yes | |
@@ -221,9 +221,9 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 55 |
+| `Implemented` | 56 |
 | `In progress` | 0 |
-| `Partial` | 7 |
+| `Partial` | 6 |
 | `Blocked` | 2 |
 | `Deferred` | 3 |
 | `Not started` | 32 |

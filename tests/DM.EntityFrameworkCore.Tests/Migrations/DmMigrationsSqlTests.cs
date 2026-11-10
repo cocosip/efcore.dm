@@ -104,13 +104,62 @@ public class DmMigrationsSqlTests
     }
 
     [Fact]
-    public void CreateSequence_OmitsTheTypeAndSpellsCycle()
+    public void CreateSequence_SpellsTheOptionsAsOneWord()
     {
         AssertSql(
             new CreateSequenceOperation { Name = "ProbeSeq", ClrType = typeof(int), StartValue = 5L, IncrementBy = 2 },
-            """CREATE SEQUENCE "ProbeSeq" START WITH 5 INCREMENT BY 2 NOCYCLE;""");
+            """CREATE SEQUENCE "ProbeSeq" START WITH 5 INCREMENT BY 2 NOMINVALUE NOMAXVALUE NOCYCLE;""");
     }
 
+    [Fact]
+    public void CreateSequence_WithBounds_EmitsThem()
+    {
+        AssertSql(
+            new CreateSequenceOperation
+            {
+                Name = "ProbeSeq",
+                ClrType = typeof(int),
+                StartValue = 1L,
+                IncrementBy = 1,
+                MinValue = 1L,
+                MaxValue = 100L,
+                IsCyclic = true
+            },
+            """CREATE SEQUENCE "ProbeSeq" START WITH 1 INCREMENT BY 1 MINVALUE 1 MAXVALUE 100 CYCLE;""");
+    }
+
+    /// <summary>
+    /// An alteration repeats every option, so a sequence that stops cycling also loses a bound that
+    /// was set before rather than keeping it.
+    /// </summary>
+    [Fact]
+    public void AlterSequence_RepeatsEveryOption()
+    {
+        AssertSql(
+            new AlterSequenceOperation { Name = "ProbeSeq", IncrementBy = 5 },
+            """ALTER SEQUENCE "ProbeSeq" INCREMENT BY 5 NOMINVALUE NOMAXVALUE NOCYCLE;""");
+    }
+
+    /// <summary>
+    /// A schema a database administrator already created must not fail the migration, so the
+    /// statement asks the catalog before creating anything.
+    /// </summary>
+    [Fact]
+    public void EnsureSchema_AsksTheCatalogBeforeCreating()
+    {
+        AssertSql(
+            new EnsureSchemaOperation { Name = "APP" },
+            """
+            DECLARE
+                declared INT;
+            BEGIN
+                SELECT COUNT(*) INTO declared FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' AND NAME = 'APP';
+                IF declared = 0 THEN
+                    EXECUTE IMMEDIATE 'CREATE SCHEMA "APP"';
+                END IF;
+            END;
+            """);
+    }
     /// <summary>
     /// Drops the blank line the command list emits before each batch separator, so that the
     /// assertion covers the statements and the separator rather than EF Core's spacing.
