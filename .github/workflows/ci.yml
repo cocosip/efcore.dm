@@ -43,6 +43,14 @@ jobs:
       - name: Unit and SQL shape tests
         run: dotnet test DM.EntityFrameworkCore.slnx -c Release --no-build
 
+      # The specification project is not in the solution: its cases need a running Dameng instance.
+      # It is built, and the part of it that runs without a server - the skip ledger guard - is run.
+      - name: Specification project
+        run: dotnet build tests/DM.EntityFrameworkCore.SpecificationTests -c Release
+
+      - name: Skip ledger guard
+        run: dotnet test tests/DM.EntityFrameworkCore.SpecificationTests -c Release --no-build --filter "FullyQualifiedName~SkipLedgerTests"
+
       - name: Acceptance dry run
         run: dotnet run --project samples/DmProviderValidation -c Release --no-build -- --dry-run
 

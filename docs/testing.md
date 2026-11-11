@@ -130,7 +130,7 @@ Still unverified by a live run, and therefore still recorded as unverified in th
 
 ### What the specification suite measured
 
-`tests/DM.EntityFrameworkCore.SpecificationTests` was run against the Oracle-compatible instance on 2026-11-11: 31 cases of `BuiltInDataTypesDmTest`, 27 passed, and the four that did not are in the [skip ledger](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with the measurement that decided each. The store creates the tables of its own model and drops only those, because the database is one an application already uses and Dameng has no `CREATE DATABASE` to give the suite a fresh one.
+`tests/DM.EntityFrameworkCore.SpecificationTests` was run against the Oracle-compatible instance on 2026-11-11: 31 cases of `BuiltInDataTypesDmTest`, 27 passed, and the four that did not are in the [skip ledger](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with the measurement that decided each. The store creates the tables of its own model and drops only those, because the database is one an application already uses and Dameng has no `CREATE DATABASE` to give the suite a fresh one. The project is not part of the solution and its cases do not run in CI; the pipeline builds it and runs the one part that needs no server, the skip ledger guard.
 
 The suite found three defects that no shape test could have found, and each is fixed:
 
