@@ -136,6 +136,103 @@ public class DmStringTranslationTests
     }
 
     [Fact]
+    public void Replace_WithCharacters_GeneratesReplaceFunction()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.Replace('a', 'b') == "c"),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE REPLACE("p"."Name", 'a', 'b') = 'c'
+            """);
+    }
+
+    /// <summary>
+    /// Dameng's INSTR searches backwards from a negative position, which is where LastIndexOf starts,
+    /// and the shift to .NET's zero-based index turns "not found" into -1 as it does for IndexOf.
+    /// </summary>
+    [Theory]
+    [InlineData("String")]
+    [InlineData("Character")]
+    public void LastIndexOf_ShiftsToTheZeroBasedIndex(string overload)
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            overload == "String"
+                ? context.Probes.Where(p => p.Name.LastIndexOf("x") > 0)
+                : context.Probes.Where(p => p.Name.LastIndexOf('x') > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR("p"."Name", 'x', -1) - 1) > 0
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_WithAParameter_KeepsItAsAParameter()
+    {
+        using var context = new ProbeContext();
+        var term = "x";
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.LastIndexOf(term) > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR("p"."Name", :term, -1) - 1) > 0
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_WithIgnoreCaseComparison_UpperCasesBothSides()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.LastIndexOf("x", StringComparison.OrdinalIgnoreCase) > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR(UPPER("p"."Name"), UPPER('x'), -1) - 1) > 0
+            """);
+    }
+
+    /// <summary>
+    /// A backwards search starts at the position it is given, so the one-based position INSTR takes is
+    /// the start index shifted and negated.
+    /// </summary>
+    [Fact]
+    public void LastIndexOf_WithACharacterStartPosition_SearchesBackwardsFromIt()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.LastIndexOf('x', 2) > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR("p"."Name", 'x', -3) - 1) > 0
+            """);
+    }
+
+    [Fact]
+    public void IndexOf_WithACharacterStartPosition_StartsTheSearchThere()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Name.IndexOf('x', 2) > 0),
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE (INSTR("p"."Name", 'x', 3) - 1) > 0
+            """);
+    }
+
+    [Fact]
     public void StringConcatenation_UsesTheDoublePipeOperator()
     {
         using var context = new ProbeContext();

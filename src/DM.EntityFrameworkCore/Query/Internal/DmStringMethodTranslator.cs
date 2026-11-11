@@ -42,6 +42,24 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
     private static readonly MethodInfo ReplaceMethod = typeof(string).GetRuntimeMethod(
         nameof(string.Replace), [typeof(string), typeof(string)])!;
 
+    private static readonly MethodInfo ReplaceCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.Replace), [typeof(char), typeof(char)])!;
+
+    private static readonly MethodInfo LastIndexOfMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.LastIndexOf), [typeof(string)])!;
+
+    private static readonly MethodInfo LastIndexOfCharacterMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.LastIndexOf), [typeof(char)])!;
+
+    private static readonly MethodInfo LastIndexOfWithComparisonMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.LastIndexOf), [typeof(string), typeof(StringComparison)])!;
+
+    private static readonly MethodInfo LastIndexOfCharacterWithStartMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.LastIndexOf), [typeof(char), typeof(int)])!;
+
+    private static readonly MethodInfo IndexOfCharacterWithStartMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.IndexOf), [typeof(char), typeof(int)])!;
+
     private static readonly MethodInfo SubstringOneArgumentMethod = typeof(string).GetRuntimeMethod(
         nameof(string.Substring), [typeof(int)])!;
 
@@ -200,6 +218,16 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
                     : Like(subject, value, "%", string.Empty);
         }
 
+        if (method == LastIndexOfWithComparisonMethod)
+        {
+            if (Comparison(arguments) is not { } comparison)
+            {
+                return null;
+            }
+
+            return LastIndexOf(Ignoring(instance, comparison), Ignoring(arguments[0], comparison), null);
+        }
+
         if (method == StartsWithMethod)
         {
             return Like(instance, arguments[0], string.Empty, "%");
@@ -227,7 +255,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             return StringFunction(name, instance, [instance]);
         }
 
-        if (method == ReplaceMethod)
+        if (method == ReplaceMethod || method == ReplaceCharacterMethod)
         {
             return StringFunction("REPLACE", instance, [instance, arguments[0], arguments[1]]);
         }
@@ -300,11 +328,21 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
 
         // The position .NET takes is zero-based, and the answer is still measured from the start of
         // the string, which is where INSTR starts counting when it is moved one place.
-        if (method == IndexOfWithStartMethod)
+        if (method == IndexOfWithStartMethod || method == IndexOfCharacterWithStartMethod)
         {
             return _sqlExpressionFactory.Subtract(
                 IndexOf(instance, arguments[0], OneBasedStart(arguments[1])),
                 _sqlExpressionFactory.Constant(1));
+        }
+
+        if (method == LastIndexOfMethod || method == LastIndexOfCharacterMethod)
+        {
+            return LastIndexOf(instance, arguments[0], null);
+        }
+
+        if (method == LastIndexOfCharacterWithStartMethod)
+        {
+            return LastIndexOf(instance, arguments[0], arguments[1]);
         }
 
         // Insert and Remove keep the part in front of the index and join the part behind it back on.
@@ -385,6 +423,26 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             argumentsPropagateNullability: position is null ? [true, true] : [true, true, true],
             typeof(int),
             typeMapping: null);
+
+    /// <summary>
+    /// A backwards search is the same <c>INSTR</c> given a negative position, which counts from the end
+    /// of the string; a search that names a start position begins there and moves towards the front.
+    /// The shift to the zero-based index is the one the forward search uses, so "not found" becomes -1
+    /// here as well.
+    /// </summary>
+    private SqlExpression LastIndexOf(SqlExpression subject, SqlExpression value, SqlExpression? startIndex)
+        => _sqlExpressionFactory.Subtract(
+            IndexOf(subject, value, startIndex is null ? _sqlExpressionFactory.Constant(-1) : Negated(OneBasedStart(startIndex))),
+            _sqlExpressionFactory.Constant(1));
+
+    /// <summary>
+    /// The sign is folded into a constant so the statement reads <c>INSTR(x, 'a', -3)</c> rather than
+    /// <c>INSTR(x, 'a', -(2 + 1))</c>.
+    /// </summary>
+    private SqlExpression Negated(SqlExpression expression)
+        => expression is SqlConstantExpression { Value: int value }
+            ? _sqlExpressionFactory.Constant(-value)
+            : _sqlExpressionFactory.Negate(expression);
 
     private static StringComparison? Comparison(IReadOnlyList<SqlExpression> arguments)
         => arguments[^1] is SqlConstantExpression { Value: StringComparison comparison }
