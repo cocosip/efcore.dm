@@ -37,12 +37,22 @@ public class SkipLedgerTests
     /// <summary>
     /// The cases the fixture bases declare, so a name is checked against what the suite inherited rather
     /// than against what this project wrote. Every test class the project owns is listed here, because a
-    /// case in any of them can be recorded in the ledger.
+    /// case in any of them can be recorded in the ledger. A case is either a fact or a theory: the
+    /// async forms of a case are data rows of the same method, so the method name is the case name.
     /// </summary>
     private static HashSet<string> CaseNames()
-        => new[] { typeof(BuiltInDataTypesDmTest), typeof(StoreGeneratedDmTest), typeof(NorthwindWhereQueryDmTest) }
+        => new[]
+            {
+                typeof(BuiltInDataTypesDmTest),
+                typeof(StoreGeneratedDmTest),
+                typeof(NorthwindWhereQueryDmTest),
+                typeof(NorthwindJoinQueryDmTest)
+            }
             .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
-            .Where(method => method.CustomAttributes.Any(attribute => attribute.AttributeType.Name.Contains("Fact")))
+            .Where(
+                method => method.CustomAttributes.Any(
+                    attribute => attribute.AttributeType.Name.Contains("Fact")
+                        || attribute.AttributeType.Name.Contains("Theory")))
             .Select(method => method.Name)
             .ToHashSet(StringComparer.Ordinal);
 

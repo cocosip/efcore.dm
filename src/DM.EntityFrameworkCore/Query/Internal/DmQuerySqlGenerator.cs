@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Text;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
@@ -97,6 +98,88 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
                 Sql.Append(")");
             }
         }
+    }
+
+    /// <summary>
+    /// Dameng has no <c>VALUES</c> row source. Measured on 8.1.4.80: neither
+    /// <c>(VALUES (1), (2)) AS "t" ("x")</c> nor a bare <c>VALUES</c> inside a set operation parses
+    /// (<c>语法分析出错</c>), while a <c>SELECT ... FROM DUAL</c> per row joined by <c>UNION ALL</c>
+    /// answers. The base class writes the first row that way and the rest as <c>VALUES</c>, which this
+    /// override replaces.
+    /// </summary>
+    protected override void GenerateValues(ValuesExpression valuesExpression)
+    {
+        var rowValues = valuesExpression.RowValues!;
+
+        if (rowValues.Count == 0)
+        {
+            throw new InvalidOperationException(RelationalStrings.EmptyCollectionNotSupportedAsInlineQueryRoot);
+        }
+
+        for (var row = 0; row < rowValues.Count; row++)
+        {
+            if (row > 0)
+            {
+                Sql.Append(" UNION ALL ");
+            }
+
+            Sql.Append("SELECT ");
+
+            var values = rowValues[row].Values;
+
+            for (var index = 0; index < values.Count; index++)
+            {
+                if (index > 0)
+                {
+                    Sql.Append(", ");
+                }
+
+                Visit(values[index]);
+
+                if (row == 0)
+                {
+                    Sql.Append(AliasSeparator)
+                        .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(valuesExpression.ColumnNames[index]));
+                }
+            }
+
+            Sql.Append(" FROM DUAL");
+        }
+    }
+
+    /// <summary>
+    /// Dameng rejects a value in a join predicate the same way it rejects one in a where clause: a bare
+    /// boolean answers <c>查询使用值表达式作为过滤条件</c>. A tautology therefore has to be written as
+    /// <c>1 = 1</c>, which the predicate rewrite already does for the statement's own predicate.
+    /// </summary>
+    protected override Expression VisitInnerJoin(InnerJoinExpression innerJoinExpression)
+    {
+        Sql.Append("INNER JOIN ");
+        Visit(innerJoinExpression.Table);
+        Sql.Append(" ON ");
+        Visit(DmSqlConditions.AsPredicate(innerJoinExpression.JoinPredicate));
+
+        return innerJoinExpression;
+    }
+
+    protected override Expression VisitLeftJoin(LeftJoinExpression leftJoinExpression)
+    {
+        Sql.Append("LEFT JOIN ");
+        Visit(leftJoinExpression.Table);
+        Sql.Append(" ON ");
+        Visit(DmSqlConditions.AsPredicate(leftJoinExpression.JoinPredicate));
+
+        return leftJoinExpression;
+    }
+
+    protected override Expression VisitRightJoin(RightJoinExpression rightJoinExpression)
+    {
+        Sql.Append("RIGHT JOIN ");
+        Visit(rightJoinExpression.Table);
+        Sql.Append(" ON ");
+        Visit(DmSqlConditions.AsPredicate(rightJoinExpression.JoinPredicate));
+
+        return rightJoinExpression;
     }
 
     /// <summary>

@@ -20,19 +20,31 @@ compare two constructed values, which the relational pipeline does not translate
 class asserts that failure, as the SQL Server test does, so those cases pass as written (EF Core issue
 #14672).
 
+The `Join` set of the Northwind query suite (`NorthwindJoinQueryDmTest`, 132 cases) ran against the same
+instance on 2026-11-11: 126 passed, two did not (one case in its two forms), and four are skipped
+upstream (`#30677` and `#35028`). The failing case is below. Two other families failed on that run and
+are fixed rather than recorded: a collection joined in a query was rendered as a bare `VALUES` inside a
+set operation, which the server rejects with `语法分析出错`, and is now a `SELECT ... FROM DUAL` per row
+joined by `UNION ALL`; a tautological join predicate was rendered as a bare `1`, which the server
+rejects with `查询使用值表达式作为过滤条件`, and is now compared with `1` like the statement's own
+predicate.
+
 ## Cases that do not pass
 
 | Case | Cause | Fix |
 |---|---|---|
 | `Can_perform_query_with_max_length` | The case compares a `byte[9000]` with the equality operator, and this server cannot do both ends of that: mapped to `VARBINARY(9000)`, as the reference provider maps it, the value is refused with `记录超长`, because a row cannot hold what the type declares — measured on a one column table, 7500 bytes were stored and 8000 failed; mapped to a `BLOB`, which is what a byte array past that ceiling becomes, the statement is refused with `字符串过长`, because a large object compares with `DBMS_LOB.COMPARE` rather than with an operator | Not a provider defect: a large value must be a large object, and a large object has no equality operator. The case is inapplicable as written. The insert of the same row does pass now, since the oversized byte array is a `BLOB` rather than a column that cannot hold it |
+| `SelectMany_with_selecting_outer_entity_column_and_inner_column` | The statement is the same `CROSS APPLY` with `ORDER BY "o"."OrderID" OFFSET 0 ROWS` inside and `ORDER BY "c"."CustomerID"` outside that the SQL Server test asserts, but the server answered the rows of one customer in a different order: the first row was `1998-04-09` where `1997-08-25` was expected, and the set of rows is the same. SQL does not order the rows inside a subquery, so the outer key is the whole of the ordering guarantee; the case asserts the full order with `assertOrder` | Not a provider defect: the framework's translation keeps the inner ordering and the server does not preserve it. The case is inapplicable as written for this server |
 
 `Case` names are methods of the test classes this project owns. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
 fails when a row names a case the suite does not have.
 
 ## Cases that do not run
 
-None. Every case of the three bases ran in the measurements above; the four capability answers in the
-`BuiltInDataTypesDmTest` fixture narrow what the model contains rather than skipping a case.
+The four cases of the `Join` set are skipped by the shipped base itself (`#30677` and `#35028`), not by
+this project. Every other case of the four bases ran in the measurements above; the four capability
+answers in the `BuiltInDataTypesDmTest` fixture narrow what the model contains rather than skipping a
+case.
 
 `SupportsLargeStringComparisons`, `SupportsBinaryKeys`, `SupportsUnicodeToAnsiConversion` and
 `PreservesDateTimeKind` are answered in the fixture rather than here, because they describe the server
