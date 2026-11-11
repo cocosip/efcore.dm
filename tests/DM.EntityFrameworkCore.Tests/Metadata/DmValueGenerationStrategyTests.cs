@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DM.EntityFrameworkCore.Tests.Metadata;
 
@@ -104,18 +106,49 @@ public class DmValueGenerationStrategyTests
     /// <summary>
     /// The column type decides, not the CLR type: an integer key converted to a string is a character
     /// column, and an identity on one answered `非法IDENTITY列类型`, measured on 8.1.4.80 through the store
-    /// generated cases of the specification suite. The statement names no attribute, and an insert does not
-    /// set the session flag, because the value comes from the application.
+    /// generated cases of the specification suite. The strategy is therefore absent, the statement names no
+    /// attribute, and an insert does not set the session flag, because the value comes from the application.
     /// </summary>
     [Fact]
     public void ConvertedIntegerKey_EmitsNoIdentity()
     {
         using var context = new ConvertedKeyContext();
 
+        Assert.Null(Key(context, typeof(ConvertedKeyProbe)).GetDmValueGenerationStrategy());
         Assert.DoesNotContain(
             "NVARCHAR2(64) IDENTITY",
             context.Database.GenerateCreateScript(),
             StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// An enum key the model asks the store to generate is an identity column on the INT column it maps
+    /// to. The specification suite found the gap: the column answered a `NOT NULL` violation until the
+    /// convention read the column type rather than the property's CLR type.
+    /// </summary>
+    [Fact]
+    public void EnumKey_BecomesIdentityColumn()
+    {
+        using var context = new EnumKeyContext();
+
+        Assert.Equal(DmValueGenerationStrategy.IdentityColumn, Key(context, typeof(EnumKeyProbe)).GetDmValueGenerationStrategy());
+        Assert.Contains("INT IDENTITY(1,1) NOT NULL", context.Database.GenerateCreateScript(), StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A wrapped integer key converted through a converter type is judged by the column the converter
+    /// produces, so it becomes an identity column on its INT column.
+    /// </summary>
+    [Fact]
+    public void WrappedIntegerKey_BecomesIdentityColumn()
+    {
+        using var context = new WrappedKeyContext();
+
+        var key = Key(context, typeof(WrappedKeyProbe));
+
+        Assert.Equal(ValueGenerated.OnAdd, key.ValueGenerated);
+        Assert.Equal(DmValueGenerationStrategy.IdentityColumn, key.GetDmValueGenerationStrategy());
+        Assert.Contains("INT IDENTITY(1,1) NOT NULL", context.Database.GenerateCreateScript(), StringComparison.Ordinal);
     }
 
     private static IProperty Key(DbContext context, Type entityType)
@@ -163,6 +196,27 @@ public class DmValueGenerationStrategyTests
                 e => e.Property(p => p.Id).HasMaxLength(64).HasConversion<string>());
     }
 
+    private sealed class EnumKeyContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<EnumKeyProbe>(e => e.Property(p => p.Id).ValueGeneratedOnAdd());
+    }
+
+    private sealed class WrappedKeyContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<WrappedKeyProbe>(
+                e => e.Property(p => p.Id)
+                    .HasConversion<WrappedKeyConverter, WrappedKeyComparer>()
+                    .ValueGeneratedOnAdd());
+    }
+
     private sealed class DefaultSqlContext : ProbeContext
     {
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -198,5 +252,38 @@ public class DmValueGenerationStrategyTests
         public int Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class EnumKeyProbe
+    {
+        public EnumProbe Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class WrappedKeyProbe
+    {
+        public WrappedKey Id { get; set; } = null!;
+    }
+
+    private sealed class WrappedKey
+    {
+        public int Value { get; set; }
+    }
+
+    private sealed class WrappedKeyConverter() : ValueConverter<WrappedKey, int>(
+        value => value.Value,
+        value => new WrappedKey { Value = value });
+
+    private sealed class WrappedKeyComparer() : ValueComparer<WrappedKey?>(
+        (left, right) => (left == null && right == null)
+            || (left != null && right != null && left.Value.Equals(right.Value)),
+        value => value != null ? value.Value : 0,
+        value => value == null ? null : new WrappedKey { Value = value.Value });
+
+    private enum EnumProbe
+    {
+        A,
+        B
     }
 }

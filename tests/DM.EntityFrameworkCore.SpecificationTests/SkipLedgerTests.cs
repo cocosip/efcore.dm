@@ -35,12 +35,13 @@ public class SkipLedgerTests
             .ToList();
 
     /// <summary>
-    /// The cases the fixture base declares, so a name is checked against what the suite inherited rather
-    /// than against what this project wrote.
+    /// The cases the fixture bases declare, so a name is checked against what the suite inherited rather
+    /// than against what this project wrote. Every test class the project owns is listed here, because a
+    /// case in any of them can be recorded in the ledger.
     /// </summary>
     private static HashSet<string> CaseNames()
-        => typeof(BuiltInDataTypesDmTest)
-            .GetMethods(BindingFlags.Instance | BindingFlags.Public)
+        => new[] { typeof(BuiltInDataTypesDmTest), typeof(StoreGeneratedDmTest) }
+            .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             .Where(method => method.CustomAttributes.Any(attribute => attribute.AttributeType.Name.Contains("Fact")))
             .Select(method => method.Name)
             .ToHashSet(StringComparer.Ordinal);

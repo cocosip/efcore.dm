@@ -21,7 +21,7 @@ internal sealed class DmConventionSetBuilder : RelationalConventionSetBuilder
     {
         var conventionSet = base.CreateConventionSet();
 
-        conventionSet.ModelFinalizingConventions.Add(new DmValueGenerationStrategyConvention());
+        conventionSet.ModelFinalizingConventions.Add(new DmValueGenerationStrategyConvention(Dependencies.TypeMappingSource));
 
         return conventionSet;
     }

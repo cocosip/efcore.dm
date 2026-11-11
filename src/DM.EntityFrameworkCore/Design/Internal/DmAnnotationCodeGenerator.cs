@@ -32,7 +32,8 @@ internal sealed class DmAnnotationCodeGenerator : AnnotationCodeGenerator
 
         if (property.ValueGenerated == ValueGenerated.OnAdd
             && !property.IsPrimaryKey()
-            && DmValueGenerationStrategyConvention.IsIdentityType(property.ClrType)
+            && DmValueGenerationStrategyConvention.IsIdentityType(
+                property.GetTypeMapping().Converter?.ProviderClrType ?? property.ClrType)
             && !calls.Any(call => call.Method == "UseIdentityColumn"))
         {
             calls.Add(new MethodCallCodeFragment("UseIdentityColumn"));

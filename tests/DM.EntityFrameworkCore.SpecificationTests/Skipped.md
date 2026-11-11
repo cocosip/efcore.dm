@@ -11,6 +11,9 @@ runs against keeps every object an application already has.
 Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 32 cases, 31 passed, 1 failed. The
 failure is below, and it is the whole of the gap this fixture set exposes.
 
+The store generated fixture set (`StoreGeneratedDmTest`, 211 cases) ran against the same instance on
+2026-11-11 and every case passed, so it adds no entry here.
+
 ## Cases that do not pass
 
 | Case | Cause | Fix |

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Metadata.Conventions;
 
@@ -20,6 +21,11 @@ namespace DM.EntityFrameworkCore.Metadata.Conventions;
 /// </remarks>
 internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConvention
 {
+    private readonly ITypeMappingSource _typeMappingSource;
+
+    public DmValueGenerationStrategyConvention(ITypeMappingSource typeMappingSource)
+        => _typeMappingSource = typeMappingSource;
+
     /// <summary>
     /// The types a Dameng identity column accepts.
     /// </summary>
@@ -68,7 +74,7 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
     /// is sequence generated, otherwise the model's default applies, and an integer key with no
     /// default at all becomes an identity column.
     /// </summary>
-    private static DmValueGenerationStrategy? StrategyFor(IConventionProperty property, DmValueGenerationStrategy? modelDefault)
+    private DmValueGenerationStrategy? StrategyFor(IConventionProperty property, DmValueGenerationStrategy? modelDefault)
     {
         if (!IsGenerated(property))
         {
@@ -84,17 +90,38 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
     }
 
     /// <summary>
-    /// Whether Dameng accepts an identity column of this type.
+    /// Whether Dameng accepts an identity column for this property's column type.
     /// </summary>
-    internal static bool IsIdentityType(Type clrType)
-        => IdentityTypes.Contains(Nullable.GetUnderlyingType(clrType) ?? clrType);
+    /// <remarks>
+    /// The column is what the store generates into, so a converted property is judged by the type its
+    /// converter produces: an enum or a wrapped integer whose column is an <c>INT</c> is an identity column,
+    /// while an integer key converted onto a character column is not. A converter named by type is only
+    /// instantiated by the type mapping source, which is why this reads the mapping rather than the
+    /// property's converter annotation. Measured on 8.1.4.80: <c>IDENTITY</c> on a character column answered
+    /// <c>非法IDENTITY列类型</c>.
+    /// </remarks>
+    internal static bool IsIdentityType(IReadOnlyProperty property, ITypeMappingSource typeMappingSource)
+        => IsIdentityType(
+            typeMappingSource.FindMapping((IProperty)property)?.Converter?.ProviderClrType
+            ?? property.GetProviderClrType()
+            ?? property.ClrType);
 
     /// <summary>
-    /// A column can only carry a strategy if the store is the one producing the value and the type
-    /// is one Dameng accepts.
+    /// Whether Dameng accepts an identity column of this CLR type, which is the type the column holds.
     /// </summary>
-    private static bool IsGenerated(IConventionProperty property)
-        => property.ValueGenerated == ValueGenerated.OnAdd && IsIdentityType(property.ClrType);
+    internal static bool IsIdentityType(Type providerClrType)
+    {
+        var type = Nullable.GetUnderlyingType(providerClrType) ?? providerClrType;
+
+        return IdentityTypes.Contains(type.IsEnum ? Enum.GetUnderlyingType(type) : type);
+    }
+
+    /// <summary>
+    /// A column can only carry a strategy if the store is the one producing the value and the column's
+    /// type is one Dameng accepts.
+    /// </summary>
+    private bool IsGenerated(IConventionProperty property)
+        => property.ValueGenerated == ValueGenerated.OnAdd && IsIdentityType(property, _typeMappingSource);
 
     /// <summary>
     /// A hi-lo property needs the sequence it takes blocks from to be part of the model, so that a

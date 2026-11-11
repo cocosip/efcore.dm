@@ -1,9 +1,11 @@
 using DM.EntityFrameworkCore.Dialect;
 using DM.EntityFrameworkCore.Diagnostics.Internal;
+using DM.EntityFrameworkCore.Metadata.Conventions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Infrastructure.Internal;
 
@@ -21,22 +23,13 @@ namespace DM.EntityFrameworkCore.Infrastructure.Internal;
 /// </remarks>
 internal sealed class DmModelValidator : RelationalModelValidator
 {
-    /// <summary>
-    /// The types a Dameng identity column accepts.
-    /// </summary>
-    /// <remarks>
-    /// Measured on 8.1.4.80: `IDENTITY` on `INT`, `BIGINT`, `INTEGER`, `NUMBER` and `DECIMAL` was accepted,
-    /// while `TINYINT` and `SMALLINT` answered `非法IDENTITY列类型`, so the server's identity column is an
-    /// integer of at least 32 bits.
-    /// </remarks>
-    private static readonly HashSet<Type> IdentityTypes = [typeof(int), typeof(long)];
+    private readonly ITypeMappingSource _typeMappingSource;
 
     public DmModelValidator(
         ModelValidatorDependencies dependencies,
         RelationalModelValidatorDependencies relationalDependencies)
         : base(dependencies, relationalDependencies)
-    {
-    }
+        => _typeMappingSource = relationalDependencies.TypeMappingSource;
 
     public override void Validate(IModel model, IDiagnosticsLogger<DbLoggerCategory.Model.Validation> logger)
     {
@@ -102,7 +95,7 @@ internal sealed class DmModelValidator : RelationalModelValidator
     /// A table carries at most one identity column, and the column has to be an integer that nothing
     /// else fills. Each violation is reported against the property that caused it.
     /// </summary>
-    private static void ValidateIdentityColumns(IModel model)
+    private void ValidateIdentityColumns(IModel model)
     {
         // Grouped from the metadata rather than from the relational model, which does not exist yet
         // while a model is being validated.
@@ -121,15 +114,14 @@ internal sealed class DmModelValidator : RelationalModelValidator
                     continue;
                 }
 
-                // Two shapes are refused. A property whose own type is not an integer cannot be generated at
+                // Two shapes are refused. A property whose column is not an integer cannot be generated at
                 // all, which is what an explicit request on a character key produces. A narrow integer is
                 // refused because the store has no identity of that width, so the model would silently read
-                // back a value nothing produced. An integer key converted onto a character column is not a
-                // defect: the value comes from the application, and the statement generator writes neither the
-                // attribute nor the session flag for a column that cannot carry one.
-                var clrType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
-
-                if (!IdentityTypes.Contains(clrType) || DmIdentityTypes.IsNarrowInteger(property.GetColumnType()))
+                // back a value nothing produced. The column, not the property's CLR type, decides: an enum or
+                // a wrapped integer converted onto an INT column is generated, while an integer key converted
+                // onto a character column is not.
+                if (!DmValueGenerationStrategyConvention.IsIdentityType(property, _typeMappingSource)
+                    || DmIdentityTypes.IsNarrowInteger(property.GetColumnType()))
                 {
                     throw new InvalidOperationException(
                         $"The property '{property.DeclaringType.DisplayName()}.{property.Name}' is configured as an "
