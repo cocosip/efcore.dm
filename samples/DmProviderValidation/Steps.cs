@@ -29,6 +29,7 @@ internal static class Steps
         ("execute delete", ExecuteDeleteAsync),
         ("left join", LeftJoinAsync),
         ("right join", RightJoinAsync),
+        .. QuerySteps.All,
         ("cancellation", CancellationAsync),
         ("migrations: apply, read back and apply again", MigrationsAsync)
     ];

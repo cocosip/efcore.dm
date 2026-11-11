@@ -122,7 +122,9 @@ A match is not proof of correctness: both implementations can be wrong in the sa
 
 The first runs, on 2026-11-11 against both compatibility modes, passed all eighteen acceptance steps. They also failed one step before the provider changed: `SELECT EXISTS (SELECT 1 ...)` with no `FROM` clause was rejected with `语法分析出错`, which is what made the boolean projection and pseudo FROM clause rows of the [Capability Matrix](capability-matrix.md) exist. A live run that only confirmed what the tests already said would have found nothing; the value of the run is the shape it rejects.
 
-Still unverified by a live run, and therefore still recorded as unverified in the matrix: paging shapes, the string, date and math translations, the reverse engineering catalog queries, the idempotent script executed as a script, the migrations lock held by two concurrent processes, and retry classification.
+The query steps were then added, taking the run to twenty-five. They failed one of them on the default-mode instance only: `ADD_MONTHS` answered a timestamp at day precision there, so `AddMonths` returned midnight instead of the time it was given. The same statement kept the time on the Oracle-compatible instance, which is why a single instance would have hidden it. The provider now names `TIMESTAMPADD`, measured on both modes to clamp and to keep the time, and the step pins a month end so neither property can regress silently.
+
+Still unverified by a live run, and therefore still recorded as unverified in the matrix: `EF.Functions` date differences and the `UtcNow` translation, the reverse engineering catalog queries, the idempotent script executed as a script, the migrations lock held by two concurrent processes, retry classification, and the PostgreSQL-compatible mode.
 
 ### When no live environment is available
 
@@ -133,6 +135,8 @@ Work is not reclassified as complete. Rules:
 - Live CI jobs are never marked optional or allowed to fail silently.
 
 `samples/DmProviderValidation` is the end-to-end acceptance program. It covers connection open and close, synchronous and asynchronous commands, cancellation, CRUD, transaction commit and rollback, savepoints, optimistic concurrency, identity and sequence readback, `ExecuteUpdate` and `ExecuteDelete`, type round trips, and left and right joins, and one migration applied twice. Each step reports on its own, so one failure does not hide the rest.
+
+Its `query:` steps ask the server a question and compare the answer with the value .NET computes from the rows the step wrote: the string functions, the date parts and the arithmetic (including a month end, where a clamp and a time of day are both asserted), the math functions, paging and ordering, grouping and aggregates, null semantics, and a boolean condition in a projection. A translation that is generated but wrong passes every shape test and fails here; both defects found so far were found by these steps or by the step next to them.
 
 Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Applying a migration *down*, a custom history table and concurrent migration locking are not covered: they are exercised through the `dotnet ef` commands that the roadmap names as exit criteria of the migrations phase.
 
