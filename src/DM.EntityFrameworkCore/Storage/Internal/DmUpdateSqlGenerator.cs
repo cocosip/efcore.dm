@@ -1,5 +1,6 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Update;
 
 namespace DM.EntityFrameworkCore.Storage.Internal;
@@ -35,11 +36,22 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     {
         var writeOperations = command.ColumnModifications.Where(c => c.IsWrite).ToList();
         var readOperations = command.ColumnModifications.Where(c => c.IsRead).ToList();
+        var identityColumn = writeOperations.FirstOrDefault(IsIdentityWrite);
+
+        if (identityColumn is not null)
+        {
+            AppendIdentityInsert(commandStringBuilder, command, on: true);
+        }
 
         AppendInsertCommandHeader(commandStringBuilder, command.TableName, command.Schema, writeOperations);
         AppendValuesHeader(commandStringBuilder, writeOperations);
         AppendValues(commandStringBuilder, command.TableName, command.Schema, writeOperations);
         commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);
+
+        if (identityColumn is not null)
+        {
+            AppendIdentityInsert(commandStringBuilder, command, on: false);
+        }
 
         requiresTransaction = false;
 
@@ -95,6 +107,30 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
 
         return ResultSetMapping.NoResults;
     }
+
+    /// <summary>
+    /// Dameng refuses to write a value into an identity column unless the session says so for that table,
+    /// which is the rule SQL Server has as well: <c>仅当指定列列表，且SET IDENTITY_INSERT为ON时，才能对自增列赋值</c>.
+    /// The flag is set before the insert and cleared in the same command, so a pooled connection is not left
+    /// holding it for the next statement.
+    /// </summary>
+    private void AppendIdentityInsert(
+        StringBuilder commandStringBuilder,
+        IReadOnlyModificationCommand command,
+        bool on)
+    {
+        commandStringBuilder.Append("SET IDENTITY_INSERT ");
+        SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, command.TableName, command.Schema);
+        commandStringBuilder.Append(on ? " ON" : " OFF").AppendLine(SqlGenerationHelper.StatementTerminator);
+    }
+
+    /// <summary>
+    /// Whether the statement writes a value into an identity column. A generated key that the caller left
+    /// unset is not written at all, so only an explicit value needs the flag.
+    /// </summary>
+    private static bool IsIdentityWrite(IColumnModification modification)
+        => modification.IsWrite
+            && modification.Property?.GetDmValueGenerationStrategy() == DmValueGenerationStrategy.IdentityColumn;
 
     /// <summary>
     /// Reads the generated columns back from the row the statement just wrote. An insert is matched

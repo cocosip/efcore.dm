@@ -42,13 +42,16 @@ public class DmTransactionTests
         Assert.Single(connection.Transactions);
 
         // The unit of work is bracketed by a savepoint, so a statement that failed part way could be
-        // undone without losing the whole transaction.
+        // undone without losing the whole transaction. The insert writes the key it was given, which
+        // Dameng only allows with the identity flag set for that table.
         Assert.Equal(
             Normalize(
                 """
                 SAVEPOINT "__EFSavePoint";
+                SET IDENTITY_INSERT "Probes" ON;
                 INSERT INTO "Probes" ("Id", "Name")
                 VALUES (:p0, :p1);
+                SET IDENTITY_INSERT "Probes" OFF;
                 RELEASE SAVEPOINT "__EFSavePoint";
                 """),
             Joined(connection));
