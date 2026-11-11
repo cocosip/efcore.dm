@@ -57,6 +57,9 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
     private static readonly MethodInfo LastIndexOfCharacterWithStartMethod = typeof(string).GetRuntimeMethod(
         nameof(string.LastIndexOf), [typeof(char), typeof(int)])!;
 
+    private static readonly MethodInfo LastIndexOfWithStartMethod = typeof(string).GetRuntimeMethod(
+        nameof(string.LastIndexOf), [typeof(string), typeof(int)])!;
+
     private static readonly MethodInfo IndexOfCharacterWithStartMethod = typeof(string).GetRuntimeMethod(
         nameof(string.IndexOf), [typeof(char), typeof(int)])!;
 
@@ -340,7 +343,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             return LastIndexOf(instance, arguments[0], null);
         }
 
-        if (method == LastIndexOfCharacterWithStartMethod)
+        if (method == LastIndexOfCharacterWithStartMethod || method == LastIndexOfWithStartMethod)
         {
             return LastIndexOf(instance, arguments[0], arguments[1]);
         }

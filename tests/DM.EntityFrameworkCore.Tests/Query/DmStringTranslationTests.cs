@@ -204,13 +204,17 @@ public class DmStringTranslationTests
     /// A backwards search starts at the position it is given, so the one-based position INSTR takes is
     /// the start index shifted and negated.
     /// </summary>
-    [Fact]
-    public void LastIndexOf_WithACharacterStartPosition_SearchesBackwardsFromIt()
+    [Theory]
+    [InlineData("String")]
+    [InlineData("Character")]
+    public void LastIndexOf_WithAStartPosition_SearchesBackwardsFromIt(string overload)
     {
         using var context = new ProbeContext();
 
         AssertSql(
-            context.Probes.Where(p => p.Name.LastIndexOf('x', 2) > 0),
+            overload == "String"
+                ? context.Probes.Where(p => p.Name.LastIndexOf("x", 2) > 0)
+                : context.Probes.Where(p => p.Name.LastIndexOf('x', 2) > 0),
             """
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
