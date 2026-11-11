@@ -91,7 +91,7 @@ Largest phase, roughly 35–40% of the total effort.
 | Item | Detail |
 |---|---|
 | Precondition | EF Core 11 reaches general availability and a decision is taken to support it |
-| Delivers | `dev` retargeted to `net11.0`; an EF Core 10 maintenance branch created from the last `10.0.x` tag; reverse adaptation across generic type mappings, structured `JsonPath`, collation quoting, and the xUnit v3 test migration |
+| Delivers | `efcore/11.0` created from `dev` and retargeted to `net11.0`; `efcore/10.0` keeps serving the `10.0.x` line; reverse adaptation across generic type mappings, structured `JsonPath`, collation quoting, and the xUnit v3 test migration |
 | Exit criteria | Specification suite runs on xUnit v3 and passes; live acceptance passes on .NET 11; `v11.0.x` published |
 
 ## 3. Ordering

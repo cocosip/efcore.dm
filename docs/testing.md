@@ -32,9 +32,10 @@ Every translation test places the expression in a position that requires server 
 
 | Branch | Package version | Test framework |
 |---|---|---|
-| `dev` (EF Core 10) | `10.0.14` | xUnit v2 (`xunit.core` 2.9.3) |
-| `efcore9` | `9.0.22` | xUnit v2 |
-| `efcore8` | `8.0.33` | xUnit v2 |
+| `efcore/10.0` (EF Core 10) | `10.0.14` | xUnit v2 (`xunit.core` 2.9.3) |
+| `dev` (EF Core 10) | `10.0.14` | xUnit v2 |
+| `efcore/9.0` | `9.0.22` | xUnit v2 |
+| `efcore/8.0` | `8.0.33` | xUnit v2 |
 | EF Core 11 | `11.0.0-rc` | **xUnit v3** (`xunit.v3.assert` 4.x) |
 
 ### Dependency pinning

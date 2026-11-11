@@ -20,7 +20,7 @@
 
 ## Maintenance rules
 
-1. Documents are maintained on `dev` only. Maintenance branches read them from `dev`.
+1. Documents are maintained on the version branch and reach `dev` and `master` by merge. An older version branch reads them from the newest one.
 2. Decisions are updated in place with a date. No supplementary or superseding documents are created.
 3. [Version Matrix](version-matrix.md) and [Capability Matrix](capability-matrix.md) are living documents. Every newly discovered version difference or capability gap adds a row, which keeps them usable as checklists.
 4. When a document and the implementation disagree, both are corrected in the same commit. Drift is not carried forward.

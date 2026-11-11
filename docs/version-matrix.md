@@ -1,6 +1,6 @@
 # Version Matrix
 
-Status: **living document**, maintained on `dev` only.
+Status: **living document**, maintained on the version branch and read from `dev` and `master` by merge.
 
 Answers one question: **when moving the provider from EF Core version A to version B, what must change?**
 
@@ -10,10 +10,10 @@ Used in two directions: forward when adopting a new EF Core major version, backw
 
 | EF Core | Target framework | Official support until | Branch | Specification tests |
 |---|---|---|---|---|
-| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore8` | 8.0.33 |
-| 9.0 | `net8.0` | 2026-11-10 (expired) | `efcore9` | 9.0.22 |
-| 10.0 | `net10.0` | 2028-11-10 | `dev` | 10.0.14 |
-| 11.0 | `net11.0` | not released | none | 11.0.0-rc (xUnit v3) |
+| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.33 |
+| 9.0 | `net8.0` | 2026-11-10 (expired) | `efcore/9.0` | 9.0.22 |
+| 10.0 | `net10.0` | 2028-11-10 | `efcore/10.0` | 10.0.14 |
+| 11.0 | `net11.0` | not released | `efcore/11.0` (not created) | 11.0.0-rc (xUnit v3) |
 
 EF Core 8 and 9 both ship `net8.0` assets only, so one package cannot carry distinct dependency ranges for them. EF Core 10 ships `net10.0` only and EF Core 11 ships `net11.0` only, so adoption of each major version is a separate build and, from EF Core 11 onward, a runtime cutover.
 

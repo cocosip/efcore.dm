@@ -10,46 +10,47 @@ Governing rule:
 
 | Branch | Role | EF Core | Target framework | Package line | EF Core dependency |
 |---|---|---|---|---|---|
-| `dev` | Primary development. New capabilities land only here. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
-| `efcore9` | Maintenance: capability backport on demand, defect fixes | 9 | `net8.0` | `9.0.x` | `[9.0.0,10.0.0)` |
-| `efcore8` | Maintenance: baseline capabilities, defect fixes | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
+| `efcore/10.0` | Development for the EF Core 10 line. Every change lands here first. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
+| `dev` | Integration. Carries the latest `efcore/10.0` code; a release is cut from it. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
+| `efcore/9.0` | Development for the EF Core 9 line, created when that line starts. | 9 | `net8.0` | `9.0.x` | `[9.0.0,10.0.0)` |
+| `efcore/8.0` | Development for the EF Core 8 line, created when that line starts. | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
+| `master` | Packaging. Receives `dev` once development for a version completes. Tags and packages are made here. | as merged | as merged | as merged | as merged |
 | `hotfix/X.Y.Z` | Temporary, created from a release tag | as source tag | as source tag | as source tag | as source tag |
 
-`dev` always targets the newest EF Core major version this project supports. When a newer major version is adopted, `dev` moves to it and the previous major version receives a maintenance branch, created from the last release tag of that line.
+Development happens on the version branch, never directly on `dev` or `master`: `dev` is the integration line that always holds the newest completed version-branch code, and `master` only moves when a release is prepared. This keeps `master` readable as the packaged history, and keeps a half-finished feature out of it by construction.
 
-Branch names use the EF Core major version (`efcore9`, `efcore8`), matching the package version line one to one and leaving no ambiguity about which EF version a branch serves.
+Branch names carry the EF Core major and minor version (`efcore/10.0`), so a branch states which EF Core release line it serves and which package line it produces.
 
-Reserved names that are not used: `master` or `main` (duplicate of `dev`), `develop` (meaningless prefix), a `release/*` branch per version where the version only receives fixes.
+`efcore/9.0` and `efcore/8.0` are named here and created when that line starts, not before. An empty branch that receives nothing is a placeholder that rots, and the version it would serve is fixed by the EF Core release schedule rather than by this repository.
 
 ## 2. Creating a branch
 
-**Create from a release tag, not from mid-development; chain the branches.**
+**A version branch starts from `dev` when work on that EF Core line begins; a release tag is placed on `master`.**
 
 ```
-dev --*--*--*--*-------------->  10.0.x continues
-      \
-       v10.0.x   (tag, acceptance passed)
-            \
-             +--> efcore9 -->  9.0.x
+efcore/10.0 --*--*--*--*-------------->  development continues
+              \
+               +--> dev -------------->  integration
                        \
-                        v9.0.x (tag)
-                             \
-                              +--> efcore8 -->  8.0.x
+                        +--> master -->  packaging
+                                \
+                                 v10.0.x  (tag, acceptance passed)
 ```
 
-1. The fork point is a commit that passed acceptance and carries a tag. The maintenance branch therefore starts from a verified state rather than from unfinished work.
-2. Branches chain: `dev` to `efcore9` to `efcore8`. Each step absorbs exactly one generation of difference. Forking `efcore8` directly from `dev` would consume two generations at once, making it impossible to attribute a change to EF Core 9 or EF Core 8.
-3. Maintenance branches never merge back into `dev`. A defect found on a maintenance branch that also affects newer versions is fixed independently on each affected branch.
+1. A version branch is created from `dev` at the moment EF Core release line starts, so it inherits every capability the previous line already has. Creating it from an older tag would drop the difference between the lines into a single step, where it could not be attributed to EF Core 9 or EF Core 10.
+2. Work is committed on the version branch and merged into `dev` as it lands. `dev` never receives a commit of its own, so it is always reproducible from the version branch.
+3. `master` only receives `dev`, and only when development for a version is complete. Nothing is committed to `master` directly; the packaging scripts and the tag are the only things that distinguish it from `dev` at that moment.
+4. A branch is closed when its line stops receiving changes. A line that only receives defect fixes is a tag plus a temporary `hotfix/X.Y.Z` branch, not a long-lived branch.
 
 ## 3. Synchronization
 
 | Content | Direction | Mechanism |
 |---|---|---|
-| `Dialect/` | `dev` to maintenance branches only | `git checkout dev -- src/*/Dialect/` or cherry-pick |
-| New dialect capabilities | `dev` to maintenance branches, on demand | See capability tiers |
+| `Dialect/` | Newest version branch to older ones only | `git checkout efcore/10.0 -- src/*/Dialect/` or cherry-pick |
+| New dialect capabilities | Newest version branch to older ones, on demand | See capability tiers |
 | L1–L6 pipeline code | Never | Each branch maintains its own |
 | Defect fixes | Fixed where the defect exists | Pipeline code is never cherry-picked |
-| `docs/` | Maintained on `dev` only | Maintenance branches read `dev` |
+| `docs/` | Maintained on the version branch, travels to `dev` and `master` by merge | An older version branch reads `docs/` from the newest one |
 | Specification test skip ledger | Separate per branch | Never synchronized; baselines differ |
 
 `Dialect/` can move between branches precisely because the L0 rule forbids EF Core references there.
@@ -60,9 +61,9 @@ Without tiers, three branches mean three regression costs and two of them inevit
 
 | Branch | Scope | New dialect capabilities | Defect fixes |
 |---|---|---|---|
-| `dev` (10) | Full. All Dameng dialect capabilities and new features. | Originated here only | Fixed |
-| `efcore9` (9) | Full behavioural baseline, plus backports | Backported when a consumer needs them | Fixed |
-| `efcore8` (8) | Behavioural baseline | Not backported | Fixed |
+| `efcore/10.0` (10) | Full. All Dameng dialect capabilities and new features. | Originated here only | Fixed |
+| `efcore/9.0` (9) | Full behavioural baseline, plus backports | Backported when a consumer needs them | Fixed |
+| `efcore/8.0` (8) | Behavioural baseline | Not backported | Fixed |
 
 The behavioural baseline is the set of specification tests that can execute on that EF Core version. Baselines are not nested. A maintenance branch is not deficient because a newer branch has capabilities it lacks; it is complete when it supports everything its own EF Core version can express.
 
@@ -93,13 +94,13 @@ If a capability is reachable only through an API that exists on an older version
 ## 7. Release process
 
 ```
-feature branch -> pull request (CI: build, unit tests, specification tests)
-               -> dev
-               -> release decision (version number, live-database matrix passed)
-               -> tag vX.Y.Z
-               -> pack
-               -> package consumer smoke test in an isolated NuGet cache
-               -> publish
+feature work on efcore/10.0 -> merge
+efcore/10.0 -> merge -> dev
+            -> merge -> master (development for the version complete)
+                     -> tag vX.Y.Z
+                     -> pack
+                     -> package consumer smoke test in an isolated NuGet cache
+                     -> publish
 ```
 
 `pwsh scripts/package-smoke.ps1` runs the last two steps: it packs into `artifacts/packages`, restores
@@ -117,7 +118,7 @@ Rules:
 
 The trigger is the decision to support that version, not its release date. Steps:
 
-1. Retarget `dev` to the new EF Core major version and its required target framework.
+1. Create `efcore/<new major>.0` from `dev` and retarget it to the new EF Core major version and its required target framework.
 2. Create a maintenance branch for the previous major version from its last release tag, if that line will receive new capabilities. If it will only receive defect fixes, no branch is created; use `hotfix/X.Y.Z` from the tag.
 3. Update the branch table in this document and the support table in `README.md`.
 4. Work through [Version Matrix](version-matrix.md) for the transition.
@@ -137,9 +138,11 @@ These are tracked in [Version Matrix](version-matrix.md).
 
 | Branch | Build | Unit tests | Specification tests (offline) | Specification tests (live) | Pack |
 |---|---|---|---|---|---|
-| `dev` | every pull request | every pull request | every pull request | daily, and before release | on tag |
-| `efcore9` | every pull request | every pull request | every pull request | before release | on tag |
-| `efcore8` | every pull request | every pull request | every pull request | before release | on tag |
+| `efcore/10.0` | every pull request | every pull request | every pull request | daily, and before release | never |
+| `dev` | every merge | every merge | every merge | before release | never |
+| `master` | every merge | every merge | every merge | before release | on tag |
+| `efcore/9.0` | every pull request | every pull request | every pull request | before release | never |
+| `efcore/8.0` | every pull request | every pull request | every pull request | before release | never |
 
 Live-database jobs use protected variables and never run on pull requests from forks. A failing live job fails the pipeline; it is never marked optional.
 

@@ -8,11 +8,13 @@ Status: implementation in progress. Work proceeds per the [Roadmap](docs/roadmap
 
 | Branch | EF Core | Target framework | Package line | Role |
 |---|---|---|---|---|
-| `dev` | 10 | `net10.0` | `10.0.x` | Primary development |
-| `efcore9` | 9 | `net8.0` | `9.0.x` | Maintenance |
-| `efcore8` | 8 | `net8.0` | `8.0.x` | Maintenance |
+| `efcore/10.0` | 10 | `net10.0` | `10.0.x` | Development for the EF Core 10 line |
+| `dev` | 10 | `net10.0` | `10.0.x` | Integration; carries the latest `efcore/10.0` code |
+| `master` | as merged | as merged | as merged | Packaging; receives `dev` when a version is complete |
+| `efcore/9.0` | 9 | `net8.0` | `9.0.x` | Created when EF Core 9 support starts |
+| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Created when EF Core 8 support starts |
 
-EF Core 8 and 9 reached end of official support on 2026-11-10. Their branches serve existing deployments: they receive defect fixes and capability backports on demand, and do not track new features.
+Changes are committed on the version branch, merged into `dev`, and reach `master` only when development for a version is complete. EF Core 8 and 9 reached end of official support on 2026-11-10, so those lines serve existing deployments: they receive defect fixes and capability backports on demand and do not track new features.
 
 ## Usage
 
