@@ -135,6 +135,23 @@ names, a grouping with a sum, a join, a projection, `??`, `HasValue`, a comparis
 both providers. The comparison therefore found no behaviour to change, and its value is the record: a
 future difference is a difference from a known baseline.
 
+### 4c. Differential comparison, executed against the server
+
+The same two projects were then pointed at the Oracle-compatible instance and made to run their queries, not
+just print them: each created its own two tables, seeded three rows with a known string, a decimal, a
+timestamp, a positive and a negative interval and one null payload, and printed the answer of fifty-one
+queries, ordered so that the two runs line up. Forty-nine answers are identical, including every string
+function, the rounding and the sign, every date and interval part, the casts, the grouping with six
+aggregates, the set operations and the correlated subqueries. Two differ:
+
+| Check | Reference | This provider | Verdict |
+|---|---|---|---|
+| `CreatedAt.Date` | the timestamp unchanged, `2020-01-02 03:04:05` | midnight, `2020-01-02 00:00:00` | The reference's statement does not truncate a timestamp, so its answer is the column. `TRUNC` is what the member means and what this provider emits |
+| `Payload!.Length` on a row whose payload is null | `NullReferenceException` | `InvalidOperationException: Nullable object must have a value` | Both refuse the row, because the model says the value is there; the query is only valid for a non-null payload, and neither answer is a translation of it |
+
+The tables the two runs created were dropped again afterwards, and no view, foreign key or stored object
+referred to them.
+
 ## 5. Live database matrix
 
 | Dimension | Values |
