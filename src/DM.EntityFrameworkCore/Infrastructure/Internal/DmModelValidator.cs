@@ -1,3 +1,4 @@
+using DM.EntityFrameworkCore.Dialect;
 using DM.EntityFrameworkCore.Diagnostics.Internal;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -46,21 +47,6 @@ internal sealed class DmModelValidator : RelationalModelValidator
         WarnOnDecimalDefaults(model, logger);
     }
 
-    /// <summary>
-    /// Whether the column type a property maps to is one an identity accepts.
-    /// </summary>
-    /// <remarks>
-    /// The column type is what the store creates, so it is what the attribute has to fit, and it differs
-    /// from the CLR type when a converter sits between them: an <see cref="int" /> key converted to a string
-    /// is an <c>NVARCHAR2</c> column, and an identity on one answered `非法IDENTITY列类型`, measured on
-    /// 8.1.4.80 through the store generated cases of the specification suite.
-    /// </remarks>
-    private static bool IsIdentityColumnType(IProperty property)
-    {
-        var name = property.GetColumnType().Split('(', 2)[0].Trim();
-
-        return name is "INT" or "INTEGER" or "BIGINT" or "NUMBER" or "DECIMAL";
-    }
 
     /// <summary>
     /// Refuses a version column, which the store cannot fill.
@@ -135,12 +121,21 @@ internal sealed class DmModelValidator : RelationalModelValidator
                     continue;
                 }
 
-                if (!IsIdentityColumnType(property))
+                // Two shapes are refused. A property whose own type is not an integer cannot be generated at
+                // all, which is what an explicit request on a character key produces. A narrow integer is
+                // refused because the store has no identity of that width, so the model would silently read
+                // back a value nothing produced. An integer key converted onto a character column is not a
+                // defect: the value comes from the application, and the statement generator writes neither the
+                // attribute nor the session flag for a column that cannot carry one.
+                var clrType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
+
+                if (!IdentityTypes.Contains(clrType) || DmIdentityTypes.IsNarrowInteger(property.GetColumnType()))
                 {
                     throw new InvalidOperationException(
                         $"The property '{property.DeclaringType.DisplayName()}.{property.Name}' is configured as an "
-                        + $"identity column, but its column is {property.GetColumnType()}. Dameng generates identity "
-                        + "values for an INT or BIGINT column only.");
+                        + $"identity column, but its column is {property.GetColumnType()} for a "
+                        + $"{property.ClrType.ShortDisplayName()} property. Dameng generates identity values for an "
+                        + "INT or BIGINT column only.");
                 }
 
                 if (property.GetDefaultValueSql() is not null)

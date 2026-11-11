@@ -1,4 +1,5 @@
 using System.Text;
+using DM.EntityFrameworkCore.Dialect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -164,11 +165,14 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
 
     /// <summary>
     /// Whether the statement writes a value into an identity column. A generated key that the caller left
-    /// unset is not written at all, so only an explicit value needs the flag.
+    /// unset is not written at all, so only an explicit value needs the flag, and the column has to be one
+    /// the store can make an identity: a key converted onto a character column carries the strategy but no
+    /// attribute, and the server refuses the flag on a column that is not an identity.
     /// </summary>
     private static bool IsIdentityWrite(IColumnModification modification)
         => modification.IsWrite
-            && modification.Property?.GetDmValueGenerationStrategy() == DmValueGenerationStrategy.IdentityColumn;
+            && modification.Property?.GetDmValueGenerationStrategy() == DmValueGenerationStrategy.IdentityColumn
+            && DmIdentityTypes.CanCarryIdentity(modification.Property.GetColumnType());
 
     /// <summary>
     /// Reads the generated columns back from the row the statement just wrote. An insert is matched

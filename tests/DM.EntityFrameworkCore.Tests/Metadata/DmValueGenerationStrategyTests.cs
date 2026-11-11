@@ -104,16 +104,18 @@ public class DmValueGenerationStrategyTests
     /// <summary>
     /// The column type decides, not the CLR type: an integer key converted to a string is a character
     /// column, and an identity on one answered `非法IDENTITY列类型`, measured on 8.1.4.80 through the store
-    /// generated cases of the specification suite. The model is refused rather than sent to fail.
+    /// generated cases of the specification suite. The statement names no attribute, and an insert does not
+    /// set the session flag, because the value comes from the application.
     /// </summary>
     [Fact]
-    public void ConvertedIntegerKey_IsRefused()
+    public void ConvertedIntegerKey_EmitsNoIdentity()
     {
         using var context = new ConvertedKeyContext();
 
-        var exception = Assert.Throws<InvalidOperationException>(() => context.Model);
-
-        Assert.Contains("NVARCHAR2(64)", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain(
+            "NVARCHAR2(64) IDENTITY",
+            context.Database.GenerateCreateScript(),
+            StringComparison.Ordinal);
     }
 
     private static IProperty Key(DbContext context, Type entityType)

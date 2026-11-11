@@ -1,5 +1,6 @@
 using System.Globalization;
 using DM.EntityFrameworkCore.Metadata;
+using DM.EntityFrameworkCore.Dialect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -64,7 +65,7 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         // `INT`, `BIGINT`, `INTEGER`, `NUMBER` and `DECIMAL` were accepted. A converted key reaches this
         // point with its store type, so the attribute is what the column can carry rather than what the
         // CLR type suggested.
-        if (IsIdentityType(columnType)
+        if (DmIdentityTypes.CanCarryIdentity(columnType)
             && FindIdentity(schema, table, name, operation, model) is var (seed, increment))
         {
             builder
@@ -80,15 +81,6 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         DefaultValue(operation.DefaultValue, operation.DefaultValueSql, columnType, builder);
     }
 
-    /// <summary>
-    /// Whether a column of this store type can carry <c>IDENTITY</c>.
-    /// </summary>
-    private static bool IsIdentityType(string columnType)
-    {
-        var name = columnType.Split('(', 2)[0].Trim().ToUpperInvariant();
-
-        return name is "INT" or "INTEGER" or "BIGINT" or "NUMBER" or "DECIMAL";
-    }
 
     /// <summary>
     /// The identity a column generates, or null. A migration the differ produced carries the attribute
