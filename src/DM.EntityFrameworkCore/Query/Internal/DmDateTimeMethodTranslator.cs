@@ -32,6 +32,9 @@ namespace DM.EntityFrameworkCore.Query.Internal;
 internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
 {
     private const string TimestampAddFunction = "TIMESTAMPADD";
+
+    /// <summary>The seconds in a day, which scales a difference of dates to the unit the interval takes.</summary>
+    private const double SecondsPerDay = 86400.0;
     private const string MonthArgument = "MONTH";
 
     private static readonly Dictionary<string, long> DaysPerUnit = new(StringComparer.Ordinal)
@@ -48,12 +51,15 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
 
     private readonly RelationalTypeMapping _timeSpanMapping;
 
+    private readonly RelationalTypeMapping _doubleMapping;
+
     public DmDateTimeMethodTranslator(
         ISqlExpressionFactory sqlExpressionFactory,
         IRelationalTypeMappingSource typeMappingSource)
     {
         _sqlExpressionFactory = sqlExpressionFactory;
         _timeSpanMapping = typeMappingSource.FindMapping(typeof(TimeSpan))!;
+        _doubleMapping = typeMappingSource.FindMapping(typeof(double))!;
     }
 
     public SqlExpression? Translate(
@@ -111,12 +117,12 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
     }
 
     /// <summary>
-    /// A date or timestamp minus an interval is a timestamp. The difference of two of them is not the
-    /// interval between them in Dameng: the SQL development guide states that subtracting two dates
-    /// gives a number of days, and turning that number into an interval needs <c>NUMTODSINTERVAL</c>,
-    /// which the migration notes place behind Oracle compatible mode, so a dialect that must work in
-    /// every mode cannot use it. The shape is left untranslated rather than declared a
-    /// <see cref="TimeSpan" /> that the server would not send back.
+    /// A date or timestamp minus an interval is a timestamp, and the difference of two timestamps is the
+    /// interval between them, built with <c>NUMTODSINTERVAL</c>: subtracting two dates answers a number of
+    /// days, so that number is scaled to seconds and the function turns it into an interval. Measured on
+    /// 8.1.4.80 in both compatibility modes, which the migration notes had placed the function behind:
+    /// <c>NUMTODSINTERVAL(86400, 'SECOND')</c> answered one day, a fractional count kept the fraction, and a
+    /// difference that runs backwards answered a negative interval.
     /// </summary>
     private SqlExpression? Subtract(SqlExpression instance, SqlExpression amount)
         => amount.Type == typeof(TimeSpan)
@@ -126,7 +132,28 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
                 amount,
                 instance.Type,
                 instance.TypeMapping)
-            : null;
+            : amount.Type == typeof(DateTime)
+                ? Interval(instance, amount)
+                : null;
+
+    private SqlExpression Interval(SqlExpression end, SqlExpression start)
+        => _sqlExpressionFactory.Function(
+            "NUMTODSINTERVAL",
+            [
+                _sqlExpressionFactory.Multiply(
+                    new SqlBinaryExpression(
+                        ExpressionType.Subtract,
+                        _sqlExpressionFactory.ApplyDefaultTypeMapping(end)!,
+                        _sqlExpressionFactory.ApplyDefaultTypeMapping(start)!,
+                        typeof(double),
+                        _doubleMapping),
+                    _sqlExpressionFactory.Constant(SecondsPerDay)),
+                _sqlExpressionFactory.Fragment("'SECOND'")
+            ],
+            nullable: true,
+            argumentsPropagateNullability: [true, false],
+            typeof(TimeSpan),
+            _timeSpanMapping);
 
     private SqlExpression Interval(ExpressionType operation, SqlExpression instance, SqlExpression amount)
         => new SqlBinaryExpression(

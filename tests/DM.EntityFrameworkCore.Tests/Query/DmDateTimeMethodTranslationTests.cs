@@ -59,19 +59,27 @@ public class DmDateTimeMethodTranslationTests
     }
 
     /// <summary>
-    /// A date difference is a number of days in Dameng, not an interval, so it cannot be declared a
-    /// <see cref="TimeSpan" /> and read back. The measurement is recorded here rather than left to the
-    /// matrix alone.
+    /// The difference of two timestamps is the interval between them: the server answers a number of days,
+    /// which is scaled to seconds and turned into an interval. Measured on 8.1.4.80 in both compatibility
+    /// modes, which the migration notes had placed <c>NUMTODSINTERVAL</c> behind: it answered one day for
+    /// 86400 seconds, kept the fraction of a fractional count, and answered a negative interval for a
+    /// difference that runs backwards.
     /// </summary>
     [Fact]
-    public void SubtractDates_IsNotTranslated()
+    public void SubtractDates_BuildsAnInterval()
     {
         using var context = new ProbeContext();
 
-        Assert.Throws<InvalidOperationException>(
-            () => context.Probes
-                .Where(p => p.CreatedAt.Subtract(p.CreatedAt) > TimeSpan.FromHours(1))
-                .ToQueryString());
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Days"
+            FROM "Probes" AS "p"
+            WHERE NUMTODSINTERVAL(("p"."CreatedAt" - "p"."CreatedAt") * 86400.0, 'SECOND') > INTERVAL '0 01:00:00' DAY TO SECOND
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.CreatedAt.Subtract(p.CreatedAt) > TimeSpan.FromHours(1))
+                    .ToQueryString()));
     }
 
     /// <summary>

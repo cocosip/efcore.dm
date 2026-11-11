@@ -15,6 +15,7 @@ internal static class QuerySteps
         ("query: string functions", StringFunctionsAsync),
         ("query: date parts and arithmetic", DatePartsAsync),
         ("query: date differences", DateDifferencesAsync),
+        ("query: interval between timestamps", IntervalAsync),
         ("query: math", MathAsync),
         ("query: paging and ordering", PagingAsync),
         ("query: grouping and aggregates", GroupingAsync),
@@ -275,6 +276,39 @@ internal static class QuerySteps
                 Equal((long)measured, milliseconds, $"{label}: milliseconds");
             }
         }
+    }
+
+    /// <summary>
+    /// The interval between two timestamps, which the reader hands back as a time span. The difference is
+    /// measured in both directions, because a negative interval carries its sign in a place the parts do
+    /// not: the accessors answer magnitudes and the sign is in the rendered value.
+    /// </summary>
+    private static async Task IntervalAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        var run = Guid.NewGuid();
+
+        var start = new DateTime(2026, 1, 1, 3, 4, 5, 123, DateTimeKind.Unspecified);
+        var end = new DateTime(2026, 1, 2, 4, 5, 6, 456, DateTimeKind.Unspecified);
+
+        var record = NewRecord(run);
+        record.CreatedAt = start;
+
+        context.Records.Add(record);
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        var rows = context.Records.Where(item => item.Id == record.Id);
+
+        var forward = await rows.Select(item => end.Subtract(item.CreatedAt)).SingleAsync(cancellationToken);
+        var backward = await rows.Select(item => item.CreatedAt.Subtract(end)).SingleAsync(cancellationToken);
+
+        Equal(forward, end.Subtract(start), "the difference of two timestamps");
+        Equal(backward, start.Subtract(end), "a difference that runs backwards");
+
+        Equal(
+            await rows.CountAsync(item => end.Subtract(item.CreatedAt) > TimeSpan.FromHours(1), cancellationToken),
+            1,
+            "a difference in a predicate");
     }
 
     private static async Task MathAsync(ValidationContext context, CancellationToken cancellationToken)
