@@ -320,7 +320,10 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             size = DmTypeSizes.DefaultBinaryKeyLength;
         }
 
-        return size is null
+        // A length past what a row can hold is a large object, the same way a string past the character
+        // ceiling is: the column would be created and then refuse a value of its own declared length. A key
+        // keeps its bounded type even then, because the server refuses to index a large object at all.
+        return size is null || (!keyOrIndex && size > DmTypeSizes.MaxBinaryLength)
             ? new DmByteArrayTypeMapping(DmStoreTypes.Blob, DbType.Binary)
             : new DmByteArrayTypeMapping(
                 DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(size.Value),

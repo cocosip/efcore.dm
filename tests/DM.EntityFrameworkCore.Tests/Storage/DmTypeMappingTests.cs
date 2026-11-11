@@ -24,6 +24,8 @@ public class DmTypeMappingTests
     [InlineData(nameof(Facets.UnicodeFixedString), "NCHAR(50)")]
     [InlineData(nameof(Facets.SizedBinary), "VARBINARY(64)")]
     [InlineData(nameof(Facets.UnsizedBinary), "BLOB")]
+    [InlineData(nameof(Facets.LargeBinary), "BLOB")]
+    [InlineData(nameof(Facets.IndexedLargeBinary), "VARBINARY(9000)")]
     [InlineData(nameof(Facets.DefaultDecimal), "DECIMAL(29,4)")]
     [InlineData(nameof(Facets.ScaledDecimal), "DECIMAL(18,2)")]
     [InlineData(nameof(Facets.DefaultDateTime), "TIMESTAMP")]
@@ -199,6 +201,10 @@ public class DmTypeMappingTests
         public byte[] BinaryIndexed { get; set; } = [];
 
         public byte[] SizedBinary { get; set; } = [];
+
+        public byte[] LargeBinary { get; set; } = [];
+
+        public byte[] IndexedLargeBinary { get; set; } = [];
     }
 
     private sealed class FacetsContext : DbContext
@@ -222,6 +228,14 @@ public class DmTypeMappingTests
                 entity.Property(e => e.FixedString).HasMaxLength(50).IsFixedLength();
                 entity.Property(e => e.UnicodeFixedString).HasMaxLength(50).IsUnicode().IsFixedLength();
                 entity.Property(e => e.SizedBinary).HasMaxLength(64);
+
+                // A byte array longer than a row can hold is a large object: measured on 8.1.4.80, a
+                // `VARBINARY(8188)` column refused 8000 bytes with `记录超长`, so a column that declares more
+                // than a row holds cannot store its own declared length. An indexed one keeps the bounded
+                // type, because the server refuses to index a large object at all.
+                entity.Property(e => e.LargeBinary).HasMaxLength(9000);
+                entity.Property(e => e.IndexedLargeBinary).HasMaxLength(9000);
+                entity.HasIndex(e => e.IndexedLargeBinary);
                 entity.Property(e => e.ScaledDecimal).HasPrecision(18, 2);
                 entity.Property(e => e.PreciseDateTime).HasPrecision(3);
                 entity.Property(e => e.PreciseTimeOnly).HasPrecision(3);
@@ -258,6 +272,10 @@ public class DmTypeMappingTests
         public string Document { get; set; } = string.Empty;
 
         public byte[] SizedBinary { get; set; } = [];
+
+        public byte[] LargeBinary { get; set; } = [];
+
+        public byte[] IndexedLargeBinary { get; set; } = [];
 
         public byte[] UnsizedBinary { get; set; } = [];
 

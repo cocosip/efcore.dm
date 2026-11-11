@@ -11,7 +11,20 @@ namespace DM.EntityFrameworkCore.Dialect;
 internal static class DmTypeSizes
 {
     /// <summary>Maximum length of a bounded character type, in bytes.</summary>
+    /// <remarks>
+    /// Measured on 8.1.4.80: a single value near this length is already refused with `记录超长`, because a row
+    /// cannot hold what the type allows, so a string past this length is mapped to a character large object
+    /// rather than to a column that declares more than it can store.
+    /// </remarks>
     public const int MaxCharacterLength = 8188;
+
+    /// <summary>Maximum length of a bounded binary type, in bytes.</summary>
+    /// <remarks>
+    /// The same ceiling as the character types, and the same reason: a `VARBINARY(9000)` column is created and
+    /// then refuses a value of 9000 bytes with `记录超长`, so a byte array past this length is mapped to a
+    /// binary large object. Measured on 8.1.4.80 against a specification case that inserts one.
+    /// </remarks>
+    public const int MaxBinaryLength = 8188;
 
     /// <summary>Precision applied to a decimal property configured without one.</summary>
     public const int DefaultDecimalPrecision = 29;
