@@ -109,14 +109,15 @@ public class DmDateDiffTranslationTests
     /// anyway, which is why the shape used to be pinned here.
     /// </summary>
     [Fact]
-    public void DateDiff_WithAnInterval_IsNotTranslated()
+    public void DateDiff_WithAnInterval_IsNotSentToDatediff()
     {
         using var context = new ProbeContext();
 
-        Assert.Throws<InvalidOperationException>(
-            () => context.Probes
-                .Where(p => EF.Functions.DateDiffHour(p.Span, p.Span) > 0)
-                .ToQueryString());
+        var sql = Statement(
+            context.Probes.Where(p => EF.Functions.DateDiffHour(p.Span, p.Span) > 0).ToQueryString());
+
+        Assert.DoesNotContain("DATEDIFF", sql, StringComparison.Ordinal);
+        Assert.Contains("TRUNC(", sql, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -156,6 +157,38 @@ public class DmDateDiffTranslationTests
         Assert.Null(EF.Functions.DateDiffHour(null, TimeSpan.FromHours(1)));
         Assert.Null(EF.Functions.DateDiffMinute(TimeSpan.FromMinutes(1), null));
     }
+    /// <summary>
+    /// The server refuses an interval where `DATEDIFF` takes a date (`参数不兼容` on 8.1.4.80, measured for
+    /// every unit), so the difference of two intervals is computed from the interval instead, and truncated
+    /// because `CAST(2.9 AS INT)` rounds to 3 on this server.
+    /// </summary>
+    [Theory]
+    [InlineData("Hour", " / 3600.0")]
+    [InlineData("Minute", " / 60.0")]
+    [InlineData("Second", "")]
+    [InlineData("Millisecond", " * 1000.0")]
+    public void DateDiff_WithATimeSpan_ComputesTheElapsedTime(string unit, string reduction)
+    {
+        using var context = new ProbeContext();
+
+        var query = unit switch
+        {
+            "Hour" => context.Probes.Where(p => EF.Functions.DateDiffHour(p.Span, p.Span) > 0),
+            "Minute" => context.Probes.Where(p => EF.Functions.DateDiffMinute(p.Span, p.Span) > 0),
+            "Second" => context.Probes.Where(p => EF.Functions.DateDiffSecond(p.Span, p.Span) > 0),
+            _ => context.Probes.Where(p => EF.Functions.DateDiffMillisecond(p.Span, p.Span) > 0)
+        };
+
+        var sql = Statement(query.ToQueryString());
+
+        Assert.DoesNotContain("DATEDIFF", sql, StringComparison.Ordinal);
+
+        Assert.Contains("EXTRACT(DAY FROM \"p\".\"Span\") * 86400.0", sql, StringComparison.Ordinal);
+        Assert.Contains("EXTRACT(DAY FROM \"p\".\"Span\") * 86400.0", sql, StringComparison.Ordinal);
+
+        Assert.Contains(reduction + ") AS INT) > 0", sql, StringComparison.Ordinal);
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

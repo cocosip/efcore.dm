@@ -16,6 +16,7 @@ internal static class QuerySteps
         ("query: date parts and arithmetic", DatePartsAsync),
         ("query: date differences", DateDifferencesAsync),
         ("query: interval between timestamps", IntervalAsync),
+        ("query: interval date difference", IntervalDateDiffAsync),
         ("query: math", MathAsync),
         ("query: paging and ordering", PagingAsync),
         ("query: grouping and aggregates", GroupingAsync),
@@ -327,6 +328,59 @@ internal static class QuerySteps
         }
     }
 
+    /// <summary>
+    /// The date differences over two intervals, which the server will not compute with `DATEDIFF`: it
+    /// answers `参数不兼容` for an interval where it takes a date. The provider computes the elapsed time from
+    /// the interval instead, so the answers are compared with the value .NET derives from the same span,
+    /// including spans that land exactly on an hour, where a translation that rounds or loses a fraction
+    /// answers a different number.
+    /// </summary>
+    private static async Task IntervalDateDiffAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        var run = Guid.NewGuid();
+        var zero = TimeSpan.Zero;
+
+        (Record Row, TimeSpan Span)[] cases =
+        [
+            (NewRecord(run), TimeSpan.FromHours(2)),
+            (NewRecord(run), new TimeSpan(1, 2, 54, 0)),
+            (NewRecord(run), TimeSpan.FromMinutes(2.9)),
+            (NewRecord(run), TimeSpan.FromSeconds(-5.5))
+        ];
+
+        foreach (var (row, span) in cases)
+        {
+            row.Duration = span;
+            context.Records.Add(row);
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        foreach (var (row, span) in cases)
+        {
+            var answers = await context.Records
+                .Where(item => item.Id == row.Id)
+                .Select(
+                    item => new
+                    {
+                        Forward = EF.Functions.DateDiffHour(item.Duration, zero),
+                        Backward = EF.Functions.DateDiffHour(zero, item.Duration),
+                        Minute = EF.Functions.DateDiffMinute(item.Duration, zero),
+                        Second = EF.Functions.DateDiffSecond(item.Duration, zero),
+                        Millisecond = EF.Functions.DateDiffMillisecond(item.Duration, zero)
+                    })
+                .SingleAsync(cancellationToken);
+
+            // The difference is end minus start, as it is in memory and as `DATEDIFF` reads it, so a call
+            // that starts at the span and ends at zero is the one that runs backwards.
+            Equal(answers.Forward, -(int)span.TotalHours, $"DateDiffHour of {span}");
+            Equal(answers.Backward, (int)span.TotalHours, $"DateDiffHour backwards of {span}");
+            Equal(answers.Minute, -(int)span.TotalMinutes, $"DateDiffMinute of {span}");
+            Equal(answers.Second, -(int)span.TotalSeconds, $"DateDiffSecond of {span}");
+            Equal(answers.Millisecond, -(int)span.TotalMilliseconds, $"DateDiffMillisecond of {span}");
+        }
+    }
     /// <summary>
     /// The interval between two timestamps, which the reader hands back as a time span. The difference is
     /// measured in both directions, because a negative interval carries its sign in a place the parts do

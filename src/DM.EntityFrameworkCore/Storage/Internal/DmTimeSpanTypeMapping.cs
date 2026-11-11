@@ -41,13 +41,34 @@ internal sealed class DmTimeSpanTypeMapping : TimeSpanTypeMapping
     protected override string GenerateNonNullSqlLiteral(object value)
     {
         // A mapping retyped onto a time column keeps the base form, which is what that column holds.
-        if (!StoreType.StartsWith("INTERVAL", StringComparison.OrdinalIgnoreCase))
+        if (!IsInterval)
         {
             return base.GenerateNonNullSqlLiteral(value);
         }
 
         return "INTERVAL '" + Literal((TimeSpan)value) + "' DAY TO SECOND";
     }
+
+    /// <summary>
+    /// Binds a parameter as an interval rather than as a time, which is what the base mapping asks for.
+    /// </summary>
+    /// <remarks>
+    /// The driver sends a <see cref="System.Data.DbType.Time" /> value as a time, and the server then refuses
+    /// to read or subtract it as an interval: measured on 8.1.4.80, an expression over such a parameter
+    /// answered <c>[EXTRACT]中的参数数据非法</c>, and subtracting one interval from another answered
+    /// <c>数据类型不匹配</c>. The driver's own type for the value is what makes the parameter an interval.
+    /// </remarks>
+    protected override void ConfigureParameter(DbParameter parameter)
+    {
+        base.ConfigureParameter(parameter);
+
+        if (IsInterval && parameter is global::Dm.DmParameter dmParameter)
+        {
+            dmParameter.DmSqlType = global::Dm.DmDbType.IntervalDayToSecond;
+        }
+    }
+
+    private bool IsInterval => StoreType.StartsWith("INTERVAL", StringComparison.OrdinalIgnoreCase);
 
     private static TimeSpan ToTimeSpan(object value)
         => value switch
