@@ -90,7 +90,7 @@ internal sealed class DmConvertTranslator : IMethodCallTranslator
             name,
             arguments,
             nullable: true,
-            argumentsPropagateNullability: arguments.Select(_ => true).ToArray(),
+            argumentsPropagateNullability: DmSqlFunctions.PropagatesNullability(arguments),
             method.ReturnType,
             typeMapping: null);
 }

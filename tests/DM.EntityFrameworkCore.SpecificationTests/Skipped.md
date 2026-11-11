@@ -39,6 +39,14 @@ which the server rejects at the comparison; and a difference of two dates was tr
 server answers it with a number of days, which cannot be read back as a time span, so it is now
 projected as the date and subtracted by the client.
 
+The `GroupBy` set (`NorthwindGroupByQueryDmTest`, 512 cases) ran against the same instance on 2026-11-11:
+502 passed, six did not (three cases in their two forms), and the shipped base skips four. The three are
+below, and they are the same server limitation: SQL Server accepts an outer reference where this server
+needs the referenced column to be grouped, or refuses it outright. The run found one defect that was
+fixed: a null-safe comparison of an `EXTRACT` key was written `MONTH IS NULL OR "OrderDate" IS NULL`,
+because the keyword argument propagated nullability like a value, which the server rejects with
+`无效的列名[MONTH]`; a fragment no longer propagates.
+
 ## Cases that do not pass
 
 | Case | Cause | Fix |
@@ -50,16 +58,19 @@ projected as the date and subtracted by the client.
 | `Select_nested_collection_deep_distinct_no_identifiers` | The statement has the same nested `OUTER APPLY` whose inner query references the outermost table, which the server rejects with `不支持的语句类型`; the measurement is in the row above | Not a provider defect, same reason |
 | `Take_on_top_level_and_on_collection_projection_with_outer_apply` | The statement selects the first row of the orders whose customer starts with `F` with no ordering, so the row is whichever the server answers first; the case compares the fields of that row, and the server answered `10347` where the reference provider answered `10264`. The rows are the same set | Not a provider defect: a row limiting operation without an ordering has no defined row, which the framework logs as `RowLimitingOperationWithoutOrderByWarning` |
 | `Project_keyless_entity_FirstOrDefault_without_orderby` | The query asks the first row of a keyless entity per company with no ordering, so the row is whichever the server answers first; it answered the other row of the group, and the rows are the same set | Not a provider defect, same reason |
+| `GroupBy_aggregate_from_multiple_query_in_same_projection_2` | The statement has `SELECT COUNT(*) + MIN("o"."OrderID") … FROM "Employees" … GROUP BY "e"."City"` inside a subquery of a grouped query. The server answers `不是 GROUP BY 表达式` because `"o"."OrderID"` is an outer column that is not a grouping column of the outer query. Measured on 8.1.4.80: the same subquery with the outer column inside `COUNT` answered `存在集函数`, and the outer query with the subquery narrowed to its own tables answered | Not a provider defect: the framework's translation reads an outer column inside a subquery's aggregate, which SQL Server accepts; this server requires the referenced column to be grouped |
+| `GroupBy_with_aggregate_containing_complex_where` | The subquery's `WHERE` references the outer query's aggregate `MAX("o"."OrderID")`, which the server answers with `存在集函数`. Measured on 8.1.4.80: the same statement with the outer aggregate replaced by a constant answered | Not a provider defect: the framework places the outer aggregate in the subquery's predicate, which SQL Server accepts |
+| `Complex_query_with_groupBy_in_subquery4` | A scalar subquery inside an `OUTER APPLY` contains a derived table that references the outermost `Customers` row, and the server answers `引用列未找到`. Measured on 8.1.4.80: the same shape with the reference to the outermost row answered `不支持的语句类型`, while the same shape with the reference narrowed to the `APPLY`'s own row answered | Not a provider defect: a reference two scopes out, through a derived table inside an `APPLY`, is the same limitation the nested `APPLY` rows of the `Select` set record |
 
 `Case` names are methods of the test classes this project owns. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
 fails when a row names a case the suite does not have.
 
 ## Cases that do not run
 
-The four cases of the `Join` set are skipped by the shipped base itself (`#30677` and `#35028`), not by
-this project. Every other case of the five bases ran in the measurements above; the four capability
-answers in the `BuiltInDataTypesDmTest` fixture narrow what the model contains rather than skipping a
-case.
+The four cases of the `Join` set and the four of the `GroupBy` set are skipped by the shipped base
+itself (`#30677`, `#35028` and `#27130`), not by this project. Every other case of the six bases ran in
+the measurements above; the four capability answers in the `BuiltInDataTypesDmTest` fixture narrow what
+the model contains rather than skipping a case.
 
 `SupportsLargeStringComparisons`, `SupportsBinaryKeys`, `SupportsUnicodeToAnsiConversion` and
 `PreservesDateTimeKind` are answered in the fixture rather than here, because they describe the server

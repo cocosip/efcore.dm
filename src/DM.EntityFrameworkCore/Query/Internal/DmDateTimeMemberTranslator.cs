@@ -249,7 +249,7 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
             name,
             arguments,
             nullable: true,
-            argumentsPropagateNullability: arguments.Select(_ => true).ToArray(),
+            argumentsPropagateNullability: DmSqlFunctions.PropagatesNullability(arguments),
             returnType,
             typeMapping: null);
 }

@@ -72,9 +72,41 @@ public class DmQueryTranslationFallbackTests
             context.Items.Select(i => i.CreatedAt - new DateTime(2020, 1, 1)).ToQueryString().Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd());
     }
 
+    /// <summary>
+    /// A null-safe comparison of an <c>EXTRACT</c> is a comparison of the column, not of the keyword
+    /// that names the part: when the keyword propagated nullability the framework wrote
+    /// <c>MONTH IS NULL</c>, which the server rejects with <c>无效的列名[MONTH]</c>.
+    /// </summary>
+    [Fact]
+    public void AGroupKeyComparison_ChecksTheColumnAndNotTheKeyword()
+    {
+        using var context = new StampedContext();
+
+        var actual = context.Stamps
+            .GroupBy(s => s.StampAt!.Value.Month)
+            .Select(g => new { g.Key, Count = context.Stamps.Count(x => x.StampAt!.Value.Month == g.Key) })
+            .ToQueryString().Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
+
+        Assert.Equal(
+            """
+            SELECT "s0"."Key", (
+                SELECT COUNT(*)
+                FROM "Stamps" AS "s1"
+                WHERE EXTRACT(MONTH FROM "s1"."StampAt") = "s0"."Key" OR ("s1"."StampAt" IS NULL AND "s0"."Key" IS NULL)) AS "Count"
+            FROM (
+                SELECT EXTRACT(MONTH FROM "s"."StampAt") AS "Key"
+                FROM "Stamps" AS "s"
+            ) AS "s0"
+            GROUP BY "s0"."Key"
+            """,
+            actual);
+    }
+
     private sealed class StampedContext : DbContext
     {
         public DbSet<Item> Items => Set<Item>();
+
+        public DbSet<Stamp> Stamps => Set<Stamp>();
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
@@ -87,5 +119,12 @@ public class DmQueryTranslationFallbackTests
         public string? Name { get; set; }
 
         public DateTime CreatedAt { get; set; }
+    }
+
+    private sealed class Stamp
+    {
+        public int Id { get; set; }
+
+        public DateTime? StampAt { get; set; }
     }
 }

@@ -235,7 +235,7 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
             name,
             arguments,
             nullable: true,
-            argumentsPropagateNullability: arguments.Select(_ => true).ToArray(),
+            argumentsPropagateNullability: DmSqlFunctions.PropagatesNullability(arguments),
             instance.Type,
             typeMapping: null);
 }
