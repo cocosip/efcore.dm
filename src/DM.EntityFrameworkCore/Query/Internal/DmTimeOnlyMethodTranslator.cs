@@ -29,6 +29,7 @@ internal sealed class DmTimeOnlyMethodTranslator : IMethodCallTranslator
     private static readonly MethodInfo AddMethod = typeof(TimeOnly).GetRuntimeMethod(
         nameof(TimeOnly.Add), [typeof(TimeSpan)])!;
 
+
     private static readonly MethodInfo AddHoursMethod = typeof(TimeOnly).GetRuntimeMethod(
         nameof(TimeOnly.AddHours), [typeof(double)])!;
 
@@ -88,6 +89,7 @@ internal sealed class DmTimeOnlyMethodTranslator : IMethodCallTranslator
         {
             return AddSeconds(instance, arguments[0], 60.0);
         }
+
 
         return method == AddMethod
             ? AddSeconds(instance, DmIntervals.Seconds(_sqlExpressionFactory, arguments[0]))

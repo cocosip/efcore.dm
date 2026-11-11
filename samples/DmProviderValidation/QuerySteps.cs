@@ -172,6 +172,24 @@ internal static class QuerySteps
         var day = new DateOnly(2026, 1, 2);
         var time = new TimeOnly(3, 4, 5, 123);
 
+        // The microsecond member counts within the millisecond, while the part the server names counts
+        // within the second, so the assertion compares the member with the value read from the row.
+        var precise = NewRecord(run);
+        precise.CreatedAt = new DateTime(2026, 1, 2, 3, 4, 5, 123, 456, DateTimeKind.Unspecified);
+        precise.Time = new TimeOnly(3, 4, 5, 123, 456);
+
+        context.Records.Add(precise);
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        var micro = await context.Records
+            .Where(item => item.Id == precise.Id)
+            .Select(item => new { item.CreatedAt, StampMicro = item.CreatedAt.Microsecond, item.Time, TimeMicro = item.Time.Microsecond })
+            .SingleAsync(cancellationToken);
+
+        Equal(micro.StampMicro, micro.CreatedAt.Microsecond, "DateTime.Microsecond");
+        Equal(micro.TimeMicro, micro.Time.Microsecond, "TimeOnly.Microsecond");
+
         Equal(members.DayNumber, day.DayNumber, "DateOnly.DayNumber");
         Equal(members.Later, time.AddHours(1.5), "TimeOnly.AddHours");
         Equal(members.Earlier, time.AddMinutes(-30), "TimeOnly.AddMinutes");

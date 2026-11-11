@@ -22,6 +22,8 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
 {
     private const string ExtractFunction = "EXTRACT";
     private const string DatePartFunction = "DATEPART";
+
+    private const string ModuloFunction = "MOD";
     private const string TruncFunction = "TRUNC";
     private const string CurrentTimestampFunction = "CURRENT_TIMESTAMP";
     private const string SysTimestampFunction = "SYSTIMESTAMP";
@@ -38,9 +40,12 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
     };
 
     /// <summary>
-    /// The two parts <c>EXTRACT</c> does not have, which <c>DATEPART</c> reads with the part as its
-    /// first argument. The reference provider reads every part this way; this dialect reads the
-    /// common ones with <c>EXTRACT</c> and these two here, because <c>EXTRACT</c> cannot express them.
+    /// The parts <c>EXTRACT</c> does not have, which <c>DATEPART</c> reads with the part as its first
+    /// argument. The reference provider reads every part this way; this dialect reads the common ones with
+    /// <c>EXTRACT</c> and these here, because <c>EXTRACT</c> cannot express them: measured on 8.1.4.80,
+    /// <c>EXTRACT(MICROSECOND ...)</c> answered `[EXTRACT]中的参数数据非法` while
+    /// <c>DATEPART(microsecond, ...)</c> answered 123456 for `.123456`, and a <c>nanosecond</c> part is a
+    /// syntax error, so no nanosecond member is translated.
     /// </summary>
     private static readonly Dictionary<string, string> DatePartArguments = new(StringComparer.Ordinal)
     {
@@ -202,6 +207,17 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         if (DateParts.TryGetValue(memberName, out var part))
         {
             return Function(ExtractFunction, [_sqlExpressionFactory.Fragment(part), instance], returnType);
+        }
+
+        // The microsecond part of the server is the count within the second, which a value of
+        // `.123456` answered as 123456, while the member is the count within the millisecond: 456. The
+        // remainder is what makes the two agree, measured on 8.1.4.80.
+        if (memberName == nameof(DateTime.Microsecond))
+        {
+            return Function(
+                ModuloFunction,
+                [Function(DatePartFunction, [_sqlExpressionFactory.Fragment("microsecond"), instance], returnType), _sqlExpressionFactory.Constant(1000)],
+                returnType);
         }
 
         return DatePartArguments.TryGetValue(memberName, out var argument)
