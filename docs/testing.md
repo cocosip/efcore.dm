@@ -140,9 +140,10 @@ future difference is a difference from a known baseline.
 The same two projects were then pointed at the Oracle-compatible instance and made to run their queries, not
 just print them: each created its own two tables, seeded three rows with a known string, a decimal, a
 timestamp, a positive and a negative interval and one null payload, and printed the answer of seventy-six
-queries, ordered so that the two runs line up. Seventy answers are identical, including every string
+queries, ordered so that the two runs line up. A hundred and eight answers are identical, including every string
 function, the rounding and the sign, every date and interval part, the casts, the grouping with six
-aggregates, the set operations, the correlated subqueries and the two bulk operations. Six differ:
+aggregates, the set operations, the correlated subqueries, the two bulk operations and every `DateDiff` unit
+between two timestamps. Eight differ:
 
 | Check | Reference | This provider | Verdict |
 |---|---|---|---|
@@ -151,11 +152,26 @@ aggregates, the set operations, the correlated subqueries and the two bulk opera
 | `Name.StartsWith(…, OrdinalIgnoreCase)` | reported as untranslatable | matches `abc` and `Abc ` | Translated through `UPPER`, the shape `DmStringTranslationTests` pins |
 | `Payload.Length` in a predicate | reported as untranslatable | `LENGTHB("Payload") > 1` | Translated, as `DmByteArrayTranslationTests` records, because `LENGTH` answers the length of the hexadecimal form of a binary value on this server |
 | `CreatedAt.TimeOfDay` in a projection | the server refuses the statement: `无法转换的数据类型` | the column, with the member applied while the row is materialised | Neither provider translates the member: this one fetches the timestamp and answers the span of its day, which a query cannot then use in a predicate |
-| `Payload!.Length` on a row whose payload is null | `NullReferenceException` | `InvalidOperationException: Nullable object must have a value` | Both refuse the row, because the model says the value is there; the query is only valid for a non-null payload, and neither answer is a translation of it |
+| `CreatedAt.Date == new DateTime(...)` in a predicate | answered no row | answered the row | The reference compares the column with the timestamp without truncating it, so a date the column holds never equals it in that comparison. This provider truncates, which is what the member means |
+| `DateTimeOffset.AddHours` | `InvalidCastException: Invalid cast from 'System.DateTime' to 'System.DateTimeOffset'` | the shifted offset | The reference reads a datetimeless value from a column that carries a zone and cannot materialise it back || `Payload!.Length` on a row whose payload is null | `NullReferenceException` | `InvalidOperationException: Nullable object must have a value` | Both refuse the row, because the model says the value is there; the query is only valid for a non-null payload, and neither answer is a translation of it |
 
-Four of the six are therefore places where this provider answers a query the reference cannot, one is a
+Six of the eight are therefore places where this provider answers a query the reference cannot, one is a
 member the reference mistranslates, and one is a row both refuse. The tables the two runs created were
 dropped again afterwards, and no view, foreign key or stored object referred to them.
+
+### 4d. `DbFunctions`, executed
+
+The `DateDiff` units were executed against the Oracle-compatible instance on 2026-11-11, from the same seed of
+three rows and against the reference provider in the same run: `DateDiffDay` answered 1, 33 and 730 days from
+2020-01-01, `DateDiffHour` 27, 796 and 17543, `DateDiffMinute` 1624, 47765 and 1052639, `DateDiffSecond` 97445,
+2865906 and 63158399, `DateDiffMonth` 0, 1 and 23, and `DateDiffYear` 0, 0 and 1, which are the boundaries
+crossed rather than whole units. The same pairs reversed answered the negated counts, which is what the in-memory
+form does. `DateDiffMillisecond` answered 1000 for a one-second pair, and `DateDiffMicrosecond` answered 1000000
+for the same pair when both arguments are timestamps. Both units were also refused, with `数据溢出`, for pairs
+separated by more than the `int` the method returns can hold — about 24.8 days of milliseconds and about 35.8
+minutes of microseconds — and the microsecond form was refused for a pair whose second argument is the column
+plus a fraction of a day, which is the shape `AddSeconds` leaves behind, because the sum is then a number of days
+rather than a timestamp. The reference provider refused the same two shapes, so neither refusal is a divergence.
 
 ## 5. Live database matrix
 
