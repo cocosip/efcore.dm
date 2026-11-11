@@ -183,6 +183,55 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     }
 
     /// <summary>
+    /// A <c>CASE</c> result is a value position, and Dameng rejects a condition there the same way it
+    /// rejects one in an operand: <c>CASE WHEN "a" IS NULL THEN 1 ELSE "b" &lt; 100 END</c> answered
+    /// <c>语法分析出错</c> at the <c>&lt;</c>. A condition therefore becomes the same
+    /// <c>CASE WHEN ... THEN 1 ELSE 0 END</c> the operand rewrite emits.
+    /// </summary>
+    protected override Expression VisitCase(CaseExpression caseExpression)
+    {
+        Sql.Append("CASE");
+
+        if (caseExpression.Operand != null)
+        {
+            Sql.Append(" ");
+            Visit(caseExpression.Operand);
+        }
+
+        foreach (var whenClause in caseExpression.WhenClauses)
+        {
+            Sql.AppendLine().Append("WHEN ");
+            Visit(whenClause.Test);
+            Sql.Append(" THEN ");
+            WriteResult(whenClause.Result);
+        }
+
+        if (caseExpression.ElseResult != null)
+        {
+            Sql.AppendLine().Append("ELSE ");
+            WriteResult(caseExpression.ElseResult);
+        }
+
+        Sql.AppendLine().Append("END");
+
+        return caseExpression;
+
+        void WriteResult(SqlExpression result)
+        {
+            if (DmSqlConditions.IsCondition(result))
+            {
+                Sql.Append("CASE WHEN ");
+                Visit(result);
+                Sql.Append(" THEN 1 ELSE 0 END");
+
+                return;
+            }
+
+            Visit(result);
+        }
+    }
+
+    /// <summary>
     /// Rewrites the predicate into the form Dameng accepts: every boolean it contains is compared with
     /// <c>1</c> rather than used as a value, which the server rejects with
     /// <c>查询使用值表达式作为过滤条件</c>. The generator is the place that knows an expression is a

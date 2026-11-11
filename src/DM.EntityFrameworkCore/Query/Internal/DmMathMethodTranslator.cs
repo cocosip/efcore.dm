@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Query.Internal;
 
@@ -14,8 +15,15 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
 {
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
-    public DmMathMethodTranslator(ISqlExpressionFactory sqlExpressionFactory)
-        => _sqlExpressionFactory = sqlExpressionFactory;
+    private readonly IRelationalTypeMappingSource _typeMappingSource;
+
+    public DmMathMethodTranslator(
+        ISqlExpressionFactory sqlExpressionFactory,
+        IRelationalTypeMappingSource typeMappingSource)
+    {
+        _sqlExpressionFactory = sqlExpressionFactory;
+        _typeMappingSource = typeMappingSource;
+    }
 
     public SqlExpression? Translate(
         SqlExpression? instance,
@@ -95,6 +103,10 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
         => Function(name, [arguments[0]], method);
 
 
+    /// <summary>
+    /// The function carries the mapping of the type the method returns, so an argument that is a
+    /// parameter cannot leave the function without one.
+    /// </summary>
     private SqlExpression Function(string name, IReadOnlyList<SqlExpression> arguments, MethodInfo method)
         => _sqlExpressionFactory.Function(
             name,
@@ -102,7 +114,7 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
             nullable: true,
             argumentsPropagateNullability: arguments.Select(_ => true).ToArray(),
             method.ReturnType,
-            typeMapping: null);
+            _typeMappingSource.FindMapping(method.ReturnType));
 
     private SqlExpression Constant(int value) => _sqlExpressionFactory.Constant(value);
 }

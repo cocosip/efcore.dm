@@ -40,10 +40,33 @@ internal sealed class DmSqlTranslatingExpressionVisitor : RelationalSqlTranslati
                 : base.VisitUnary(unaryExpression);
 
     /// <summary>
+    /// A difference of two dates is answered by the client. Dameng answers <c>date - date</c> with
+    /// the number of days, which the framework would then read back with a <see cref="TimeSpan" />
+    /// mapping and fail to materialize ("No coercion operator is defined"); leaving the operator
+    /// untranslated projects the date column and subtracts the values in memory, as the reference
+    /// provider does.
+    /// </summary>
+    protected override Expression VisitBinary(BinaryExpression binaryExpression)
+        => binaryExpression.NodeType == ExpressionType.Subtract
+            && IsDate(binaryExpression.Left.Type)
+            && IsDate(binaryExpression.Right.Type)
+                ? binaryExpression
+                : base.VisitBinary(binaryExpression);
+
+    private static bool IsDate(Type type)
+        => type == typeof(DateTime) || type == typeof(DateTime?);
+
+    /// <summary>
     /// <see cref="Math.Max(int, int)" />, <see cref="Math.Min(int, int)" /> and the <c>EF.Functions</c> equivalents
     /// never reach a method call translator: the relational visitor resolves them through these
     /// two hooks, so a provider that does not override them silently cannot translate them.
     /// </summary>
+    /// <remarks>
+    /// The function carries the mapping of its first argument, or the mapping of the result type when
+    /// that argument is a parameter without one: <c>Take</c> composes nested limits through these hooks,
+    /// and a <c>LEAST</c> with no mapping fails the statement with "does not have a type mapping
+    /// assigned".
+    /// </remarks>
     public override SqlExpression? GenerateGreatest(IReadOnlyList<SqlExpression> expressions, Type resultType)
         => TwoArgumentFunction("GREATEST", expressions, resultType);
 
@@ -59,5 +82,5 @@ internal sealed class DmSqlTranslatingExpressionVisitor : RelationalSqlTranslati
                 nullable: true,
                 argumentsPropagateNullability: expressions.Select(_ => true).ToArray(),
                 resultType,
-                typeMapping: null);
+                expressions[0].TypeMapping ?? Dependencies.TypeMappingSource.FindMapping(resultType));
 }

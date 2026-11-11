@@ -46,7 +46,8 @@ public class SkipLedgerTests
                 typeof(BuiltInDataTypesDmTest),
                 typeof(StoreGeneratedDmTest),
                 typeof(NorthwindWhereQueryDmTest),
-                typeof(NorthwindJoinQueryDmTest)
+                typeof(NorthwindJoinQueryDmTest),
+                typeof(NorthwindSelectQueryDmTest)
             }
             .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             .Where(
@@ -55,7 +56,6 @@ public class SkipLedgerTests
                         || attribute.AttributeType.Name.Contains("Theory")))
             .Select(method => method.Name)
             .ToHashSet(StringComparer.Ordinal);
-
     private static string LedgerPath
         => Path.Combine(AppContext.BaseDirectory, "Skipped.md");
 }
