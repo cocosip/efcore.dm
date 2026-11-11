@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Dm.Extensions;
 
 namespace DmProviderValidation;
 
@@ -13,6 +14,7 @@ internal static class QuerySteps
     [
         ("query: string functions", StringFunctionsAsync),
         ("query: date parts and arithmetic", DatePartsAsync),
+        ("query: date differences", DateDifferencesAsync),
         ("query: math", MathAsync),
         ("query: paging and ordering", PagingAsync),
         ("query: grouping and aggregates", GroupingAsync),
@@ -141,6 +143,18 @@ internal static class QuerySteps
         Equal(now.InThePast, true, "Now");
         Equal(now.BeforeToday, true, "Today");
 
+        // UtcNow is SYS_EXTRACT_UTC(SYSTIMESTAMP). A translation that forgot to remove the server zone
+        // would answer the local time, which this catches: the client compares against its own UTC clock.
+        var utcNow = await context.Records
+            .Where(item => item.RunId == run)
+            .Select(item => DateTime.UtcNow)
+            .FirstAsync(cancellationToken);
+
+        Equal(
+            Math.Abs((utcNow - DateTime.UtcNow).TotalMinutes) < 5,
+            true,
+            $"UtcNow must answer the UTC clock, not the local one: got {utcNow:O}");
+
         // Month arithmetic has to clamp the way .NET does, and it has to keep the time of day: on a
         // default-mode instance ADD_MONTHS answered a timestamp at day precision, which this pins.
         var monthEnd = NewRecord(run);
@@ -163,6 +177,70 @@ internal static class QuerySteps
         Equal(clamped.Next, monthEnd.CreatedAt.AddMonths(1), "AddMonths clamps and keeps the time");
         Equal(clamped.Previous, monthEnd.CreatedAt.AddMonths(-1), "AddMonths backwards clamps");
         Equal(clamped.Year, monthEnd.CreatedAt.AddYears(1), "AddYears clamps and keeps the time");
+    }
+
+    /// <summary>
+    /// <c>EF.Functions.DateDiff*</c> counts the boundaries of a unit that the two values cross, which is
+    /// not the same as the whole units between them: 03:59 and 04:01 are one hour apart by the first
+    /// measure and zero by the second. Every case here is chosen so the two measures disagree.
+    /// </summary>
+    private static async Task DateDifferencesAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        var run = Guid.NewGuid();
+
+        (DateTime Start, DateTime End, string Label)[] cases =
+        [
+            (new DateTime(2026, 1, 2, 3, 59, 0, DateTimeKind.Unspecified), new DateTime(2026, 1, 2, 4, 1, 0, DateTimeKind.Unspecified), "an hour boundary"),
+            (new DateTime(2026, 11, 30, 10, 0, 0, DateTimeKind.Unspecified), new DateTime(2027, 2, 1, 9, 0, 0, DateTimeKind.Unspecified), "a year boundary"),
+            (new DateTime(2026, 1, 2, 3, 4, 5, 123, DateTimeKind.Unspecified), new DateTime(2026, 1, 2, 3, 4, 9, 456, DateTimeKind.Unspecified), "a second and a millisecond"),
+            (new DateTime(2026, 1, 5, 0, 0, 0, DateTimeKind.Unspecified), new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Unspecified), "a backwards difference")
+        ];
+
+        foreach (var (start, end, label) in cases)
+        {
+            var record = NewRecord(run);
+            record.CreatedAt = start;
+
+            context.Records.Add(record);
+            await context.SaveChangesAsync(cancellationToken);
+            context.ChangeTracker.Clear();
+
+            var differences = await context.Records
+                .Where(item => item.Id == record.Id)
+                .Select(item => new
+                {
+                    Year = EF.Functions.DateDiffYear(item.CreatedAt, end),
+                    Month = EF.Functions.DateDiffMonth(item.CreatedAt, end),
+                    Day = EF.Functions.DateDiffDay(item.CreatedAt, end),
+                    Hour = EF.Functions.DateDiffHour(item.CreatedAt, end),
+                    Minute = EF.Functions.DateDiffMinute(item.CreatedAt, end),
+                    Second = EF.Functions.DateDiffSecond(item.CreatedAt, end)
+                })
+                .SingleAsync(cancellationToken);
+
+            Equal(differences.Year, end.Year - start.Year, $"{label}: years");
+            Equal(differences.Month, (end.Year - start.Year) * 12 + end.Month - start.Month, $"{label}: months");
+            Equal((long)differences.Day, Boundaries(start, end, TimeSpan.TicksPerDay), $"{label}: days");
+            Equal((long)differences.Hour, Boundaries(start, end, TimeSpan.TicksPerHour), $"{label}: hours");
+            Equal((long)differences.Minute, Boundaries(start, end, TimeSpan.TicksPerMinute), $"{label}: minutes");
+            Equal((long)differences.Second, Boundaries(start, end, TimeSpan.TicksPerSecond), $"{label}: seconds");
+
+            // A millisecond difference of more than 24.8 days does not fit the int the method returns,
+            // and the server answers 数据溢出 rather than a wrong number: a 63-day span measured that on
+            // both compatibility modes, which is the same ceiling SQL Server has. The unit is asserted
+            // only where the value fits.
+            var milliseconds = Boundaries(start, end, TimeSpan.TicksPerMillisecond);
+
+            if (milliseconds is > int.MinValue and < int.MaxValue)
+            {
+                var measured = await context.Records
+                    .Where(item => item.Id == record.Id)
+                    .Select(item => EF.Functions.DateDiffMillisecond(item.CreatedAt, end))
+                    .SingleAsync(cancellationToken);
+
+                Equal((long)measured, milliseconds, $"{label}: milliseconds");
+            }
+        }
     }
 
     private static async Task MathAsync(ValidationContext context, CancellationToken cancellationToken)
@@ -393,6 +471,13 @@ internal static class QuerySteps
     private static DateTime Truncated(DateTime value) => value.AddTicks(-(value.Ticks % TimeSpan.TicksPerMillisecond));
 
     private static TimeOnly Truncated(TimeOnly value) => new(value.Ticks - value.Ticks % TimeSpan.TicksPerMillisecond);
+
+    /// <summary>
+    /// The number of <paramref name="unitTicks" /> boundaries two values cross, which is what
+    /// <c>DATEDIFF</c> counts: both values are truncated to the unit first, then subtracted.
+    /// </summary>
+    private static long Boundaries(DateTime start, DateTime end, long unitTicks)
+        => (end.Ticks - end.Ticks % unitTicks) / unitTicks - (start.Ticks - start.Ticks % unitTicks) / unitTicks;
 
     private static void Equal<T>(T actual, T expected, string message)
     {
