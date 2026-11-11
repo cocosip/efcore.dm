@@ -139,18 +139,23 @@ future difference is a difference from a known baseline.
 
 The same two projects were then pointed at the Oracle-compatible instance and made to run their queries, not
 just print them: each created its own two tables, seeded three rows with a known string, a decimal, a
-timestamp, a positive and a negative interval and one null payload, and printed the answer of fifty-one
-queries, ordered so that the two runs line up. Forty-nine answers are identical, including every string
+timestamp, a positive and a negative interval and one null payload, and printed the answer of seventy-six
+queries, ordered so that the two runs line up. Seventy answers are identical, including every string
 function, the rounding and the sign, every date and interval part, the casts, the grouping with six
-aggregates, the set operations and the correlated subqueries. Two differ:
+aggregates, the set operations, the correlated subqueries and the two bulk operations. Six differ:
 
 | Check | Reference | This provider | Verdict |
 |---|---|---|---|
 | `CreatedAt.Date` | the timestamp unchanged, `2020-01-02 03:04:05` | midnight, `2020-01-02 00:00:00` | The reference's statement does not truncate a timestamp, so its answer is the column. `TRUNC` is what the member means and what this provider emits |
+| `Math.Truncate` | the server refuses the statement: `无法解析的成员访问表达式["TRUNCATE"]` | `TRUNC(...)` | The reference names a function this server does not have |
+| `Name.StartsWith(…, OrdinalIgnoreCase)` | reported as untranslatable | matches `abc` and `Abc ` | Translated through `UPPER`, the shape `DmStringTranslationTests` pins |
+| `Payload.Length` in a predicate | reported as untranslatable | `LENGTHB("Payload") > 1` | Translated, as `DmByteArrayTranslationTests` records, because `LENGTH` answers the length of the hexadecimal form of a binary value on this server |
+| `CreatedAt.TimeOfDay` in a projection | the server refuses the statement: `无法转换的数据类型` | the column, with the member applied while the row is materialised | Neither provider translates the member: this one fetches the timestamp and answers the span of its day, which a query cannot then use in a predicate |
 | `Payload!.Length` on a row whose payload is null | `NullReferenceException` | `InvalidOperationException: Nullable object must have a value` | Both refuse the row, because the model says the value is there; the query is only valid for a non-null payload, and neither answer is a translation of it |
 
-The tables the two runs created were dropped again afterwards, and no view, foreign key or stored object
-referred to them.
+Four of the six are therefore places where this provider answers a query the reference cannot, one is a
+member the reference mistranslates, and one is a row both refuse. The tables the two runs created were
+dropped again afterwards, and no view, foreign key or stored object referred to them.
 
 ## 5. Live database matrix
 
