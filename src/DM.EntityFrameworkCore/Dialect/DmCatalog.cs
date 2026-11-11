@@ -31,12 +31,28 @@ internal static class DmCatalog
     /// Columns with the attributes the model needs: the store type, the length or the precision, the
     /// identity flag, the default and the comment.
     /// </summary>
+    /// <remarks>
+    /// <c>ALL_TAB_COLUMNS</c> has no identity column on 8.1.4.80 — naming one fails the whole statement
+    /// with <c>无法解析的成员访问表达式</c> — so the flag is read from the catalog the Oracle-compatible views
+    /// are built on, where bit 1 of <c>SYS.SYSCOLUMNS.INFO2</c> marks an identity column. A column the
+    /// join does not find is not an identity column, which is what the left join and the <c>CASE</c> say.
+    /// </remarks>
     public const string Columns = """
         SELECT c.OWNER, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, c.DATA_LENGTH, c.DATA_PRECISION,
-               c.DATA_SCALE, c.NULLABLE, c.DATA_DEFAULT, c.IDENTITY_COLUMN, c.COLUMN_ID, m.COMMENTS
+               c.DATA_SCALE, c.NULLABLE, c.DATA_DEFAULT,
+               CASE WHEN BITAND(i.INFO2, 1) = 1 THEN 'YES' ELSE 'NO' END,
+               c.COLUMN_ID, m.COMMENTS
         FROM ALL_TAB_COLUMNS c
         LEFT JOIN ALL_COL_COMMENTS m
             ON m.OWNER = c.OWNER AND m.TABLE_NAME = c.TABLE_NAME AND m.COLUMN_NAME = c.COLUMN_NAME
+        LEFT JOIN (
+            SELECT s.INFO2, o.NAME AS TABLE_NAME, sc.NAME AS OWNER, s.COLID + 1 AS COLUMN_ID
+            FROM SYS.SYSCOLUMNS s
+            INNER JOIN SYS.SYSOBJECTS o ON o.ID = s.ID
+            INNER JOIN SYS.SYSOBJECTS sc ON sc.ID = o.SCHID
+            WHERE o.TYPE$ = 'SCHOBJ' AND o.SUBTYPE$ = 'UTAB'
+        ) i
+            ON i.OWNER = c.OWNER AND i.TABLE_NAME = c.TABLE_NAME AND i.COLUMN_ID = c.COLUMN_ID
         ORDER BY c.OWNER, c.TABLE_NAME, c.COLUMN_ID
         """;
 

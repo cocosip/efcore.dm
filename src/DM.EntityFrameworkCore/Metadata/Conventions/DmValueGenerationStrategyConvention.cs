@@ -79,12 +79,17 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
     }
 
     /// <summary>
+    /// Whether Dameng accepts an identity column of this type.
+    /// </summary>
+    internal static bool IsIdentityType(Type clrType)
+        => IdentityTypes.Contains(Nullable.GetUnderlyingType(clrType) ?? clrType);
+
+    /// <summary>
     /// A column can only carry a strategy if the store is the one producing the value and the type
     /// is one Dameng accepts.
     /// </summary>
     private static bool IsGenerated(IConventionProperty property)
-        => property.ValueGenerated == ValueGenerated.OnAdd
-            && IdentityTypes.Contains(Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType);
+        => property.ValueGenerated == ValueGenerated.OnAdd && IsIdentityType(property.ClrType);
 
     /// <summary>
     /// A hi-lo property needs the sequence it takes blocks from to be part of the model, so that a

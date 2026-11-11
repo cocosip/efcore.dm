@@ -35,7 +35,7 @@ public class DmDesignTimeServices : IDesignTimeServices
 
 #pragma warning disable EF1001 // The design services builder is an internal API, as it is for every provider.
         new EntityFrameworkRelationalDesignServicesBuilder(serviceCollection)
-            .TryAdd<IAnnotationCodeGenerator, AnnotationCodeGenerator>()
+            .TryAdd<IAnnotationCodeGenerator, DmAnnotationCodeGenerator>()
             .TryAdd<IDatabaseModelFactory, DmDatabaseModelFactory>()
             .TryAdd<IProviderConfigurationCodeGenerator, DmProviderConfigurationCodeGenerator>()
             .TryAddCoreServices();
