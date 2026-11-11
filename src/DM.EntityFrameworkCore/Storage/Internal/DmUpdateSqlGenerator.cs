@@ -1,5 +1,6 @@
 using System.Text;
 using DM.EntityFrameworkCore.Dialect;
+using DM.EntityFrameworkCore.Migrations.Internal;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -38,7 +39,7 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     {
         var writeOperations = command.ColumnModifications.Where(c => c.IsWrite).ToList();
         var readOperations = command.ColumnModifications.Where(c => c.IsRead).ToList();
-        var identityColumn = writeOperations.FirstOrDefault(IsIdentityWrite);
+        var identityColumn = writeOperations.FirstOrDefault(column => IsIdentityWrite(command, column));
 
         if (identityColumn is not null)
         {
@@ -169,10 +170,27 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     /// the store can make an identity: a key converted onto a character column carries the strategy but no
     /// attribute, and the server refuses the flag on a column that is not an identity.
     /// </summary>
-    private static bool IsIdentityWrite(IColumnModification modification)
-        => modification.IsWrite
-            && modification.Property?.GetDmValueGenerationStrategy() == DmValueGenerationStrategy.IdentityColumn
-            && DmIdentityTypes.CanCarryIdentity(modification.Property.GetColumnType());
+    private static bool IsIdentityWrite(IReadOnlyModificationCommand command, IColumnModification modification)
+    {
+        if (!modification.IsWrite
+            || modification.Property is not { } property
+            || property.GetDmValueGenerationStrategy() != DmValueGenerationStrategy.IdentityColumn
+            || !DmIdentityTypes.CanCarryIdentity(property.GetColumnType()))
+        {
+            return false;
+        }
+
+        // The rule is the one the DDL follows: the column has to generate in the table the statement writes.
+        // A table-per-type derived table repeats the key its base table generated, so the property carries the
+        // strategy while the derived column is not an identity, and the server refuses the flag on it
+        // (`表[...]不存在IDENTITY列`).
+        var column = property.DeclaringType.Model
+            .GetRelationalModel()
+            .FindTable(command.TableName, command.Schema)
+            ?.FindColumn(modification.ColumnName);
+
+        return column is null || DmAnnotationProvider.IdentityProperty(column) is not null;
+    }
 
     /// <summary>
     /// Reads the generated columns back from the row the statement just wrote. An insert is matched

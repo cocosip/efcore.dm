@@ -173,6 +173,26 @@ minutes of microseconds — and the microsecond form was refused for a pair whos
 plus a fraction of a day, which is the shape `AddSeconds` leaves behind, because the sum is then a number of days
 rather than a timestamp. The reference provider refused the same two shapes, so neither refusal is a divergence.
 
+### 4e. Inheritance, executed
+
+The three strategies were executed against the Oracle-compatible instance on 2026-11-11, each on its own tables
+which the run created and dropped: a hierarchy mapped to one table answered its rows through the base set and
+through `OfType`, an update changed the derived column and a delete removed the row; a hierarchy mapped per type
+did the same, with the key generated in the base table and written into the derived one; and a hierarchy mapped
+per concrete type did the same from a sequence the model named.
+
+The per-type run found a defect that the shape tests had not reached: the insert of the derived row was wrapped
+in `SET IDENTITY_INSERT … ON`, which the server refuses for a table that declares no identity
+(`表[DM_LAYER_TPT_CATS]不存在IDENTITY列`), because the provider decided the flag from the property's strategy
+alone rather than from the column the statement writes. The flag now follows the same rule the DDL follows — the
+column of the table being written has to be the one that generates — and both cases are pinned by a test: the
+derived insert carries no flag, and an assigned key carries it on the base table only.
+
+A hierarchy mapped per concrete type needs a key generator that is unique across the tables; the run used a
+sequence named by the model, which is the shape EF documents. A per-table identity answers 1 in every table, so
+the two derived rows collide on the key before any statement runs, which is the model's job rather than the
+provider's.
+
 ## 5. Live database matrix
 
 | Dimension | Values |

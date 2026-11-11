@@ -26,6 +26,7 @@ internal static class Program
     private static readonly string[] Tables =
     [
         "DM_VALIDATION_CHILD",
+        "DM_VALIDATION_COMPUTED",
         "DM_VALIDATION_PARENT",
         "DM_VALIDATION_RECORD"
     ];

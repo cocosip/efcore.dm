@@ -87,6 +87,30 @@ public class DmInheritanceTests
         Assert.Equal(2, connection.Commands.Count);
         Assert.Contains("INSERT INTO \"Animals\"", connection.Commands[0], StringComparison.Ordinal);
         Assert.Contains("INSERT INTO \"Cats\" (\"Id\", \"Lives\")", connection.Commands[1], StringComparison.Ordinal);
+
+        // The derived table repeats a key the base table generated and declares no identity of its own, so the
+        // flag that lets a session write an identity value is neither needed nor accepted there: measured on
+        // 8.1.4.80, setting it answered `表[Cats]不存在IDENTITY列`.
+        Assert.DoesNotContain("IDENTITY_INSERT", connection.Commands[1], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A key the application assigns is written into the base table, which is the table that declares the
+    /// identity, so only that statement carries the flag.
+    /// </summary>
+    [Fact]
+    public void TablePerType_AssignedKeySetsTheFlagOnTheBaseTableOnly()
+    {
+        var connection = new FakeDmConnection { RowsAffected = 1 };
+
+        using var context = new TptContext(connection);
+        context.Add(new Cat { Id = 5, Name = "a", Lives = 9 });
+
+        context.SaveChanges();
+
+        Assert.Equal(2, connection.Commands.Count);
+        Assert.Contains("SET IDENTITY_INSERT \"Animals\" ON", connection.Commands[0], StringComparison.Ordinal);
+        Assert.DoesNotContain("IDENTITY_INSERT", connection.Commands[1], StringComparison.Ordinal);
     }
 
     /// <summary>
