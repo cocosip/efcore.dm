@@ -44,9 +44,11 @@ public class PublicSurfaceTests
     /// <summary>
     /// The date difference surface is the one the previous provider publishes, which a consumer calls
     /// as <c>EF.Functions.DateDiffX</c>. Every unit has a plain and a nullable form over a timestamp,
-    /// an offset timestamp and an elapsed time, so the count is what proves none was dropped.
+    /// an offset timestamp and an elapsed time, so the count is what proves none was dropped. The
+    /// microsecond unit has no elapsed time form, and no nanosecond unit is published, because the server
+    /// has no such part.
     /// </summary>
-    private const int DateDiffOverloads = 36;
+    private const int DateDiffOverloads = 40;
 
     private static readonly string[] DateDiffUnits =
     [
@@ -56,7 +58,8 @@ public class PublicSurfaceTests
         "DateDiffHour",
         "DateDiffMinute",
         "DateDiffSecond",
-        "DateDiffMillisecond"
+        "DateDiffMillisecond",
+        "DateDiffMicrosecond"
     ];
 
     [Fact]

@@ -57,17 +57,28 @@ internal sealed class DmDateDiffFunctionsTranslator : IMethodCallTranslator
             (nameof(DmDbFunctionsExtensions.DateDiffHour), "HOUR"),
             (nameof(DmDbFunctionsExtensions.DateDiffMinute), "MINUTE"),
             (nameof(DmDbFunctionsExtensions.DateDiffSecond), "SECOND"),
-            (nameof(DmDbFunctionsExtensions.DateDiffMillisecond), "MILLISECOND")
+            (nameof(DmDbFunctionsExtensions.DateDiffMillisecond), "MILLISECOND"),
+            (nameof(DmDbFunctionsExtensions.DateDiffMicrosecond), "MICROSECOND")
         ];
 
         var dateParts = new Dictionary<MethodInfo, string>();
 
         // Every overload of a unit differs only in the CLR type of its arguments, so the mapping is
-        // resolved by name and covers all four at once.
+        // resolved by name. The overloads that take an interval are left out: the server refuses one where
+        // `DATEDIFF` takes a date (`参数不兼容`), measured on 8.1.4.80 for every unit, so translating them
+        // would emit a statement the server rejects. A query that calls one is reported as untranslatable,
+        // and outside a query the method still computes the answer in memory.
         foreach (var (method, datePart) in mapping)
         {
             foreach (var overload in typeof(DmDbFunctionsExtensions).GetMethods().Where(m => m.Name == method))
             {
+                var dateType = overload.GetParameters()[1].ParameterType;
+
+                if ((Nullable.GetUnderlyingType(dateType) ?? dateType) == typeof(TimeSpan))
+                {
+                    continue;
+                }
+
                 dateParts[overload] = datePart;
             }
         }

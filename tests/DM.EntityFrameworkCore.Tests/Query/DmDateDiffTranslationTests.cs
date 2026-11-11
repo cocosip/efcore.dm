@@ -103,12 +103,28 @@ public class DmDateDiffTranslationTests
     }
 
     /// <summary>
-    /// An elapsed time is the argument of the same statement: the interval is passed where the date is,
-    /// which is what the previous provider does. Whether <c>DATEDIFF</c> accepts an interval is
-    /// unverified, so the shape is pinned and the matrix records the assumption.
+    /// An elapsed time is not sent as an argument of the statement: the server refuses an interval where
+    /// <c>DATEDIFF</c> takes a date (<c>参数不兼容</c>), measured on 8.1.4.80 for every unit, so the call is
+    /// reported as untranslatable rather than sent to fail. The previous provider emitted the statement
+    /// anyway, which is why the shape used to be pinned here.
     /// </summary>
     [Fact]
-    public void DateDiff_WithAnInterval_TranslatesToDatediff()
+    public void DateDiff_WithAnInterval_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Probes
+                .Where(p => EF.Functions.DateDiffHour(p.Span, p.Span) > 0)
+                .ToQueryString());
+    }
+
+    /// <summary>
+    /// The microsecond part is the finest one the server names: a pair two microseconds apart answered 2,
+    /// measured on 8.1.4.80, and <c>NANOSECOND</c> is a syntax error there.
+    /// </summary>
+    [Fact]
+    public void DateDiffMicrosecond_TranslatesToDatediff()
     {
         using var context = new ProbeContext();
 
@@ -116,11 +132,11 @@ public class DmDateDiffTranslationTests
             """
             SELECT "p"."Id", "p"."CreatedAt", "p"."DeletedAt", "p"."OffsetAt", "p"."Span"
             FROM "Probes" AS "p"
-            WHERE DATEDIFF(HOUR, "p"."Span", "p"."Span") > 0
+            WHERE DATEDIFF(MICROSECOND, "p"."CreatedAt", "p"."DeletedAt") > 0
             """,
             Statement(
                 context.Probes
-                    .Where(p => EF.Functions.DateDiffHour(p.Span, p.Span) > 0)
+                    .Where(p => EF.Functions.DateDiffMicrosecond(p.CreatedAt, p.DeletedAt) > 0)
                     .ToQueryString()));
     }
 

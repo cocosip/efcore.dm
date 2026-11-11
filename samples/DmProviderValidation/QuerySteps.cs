@@ -287,6 +287,25 @@ internal static class QuerySteps
 
                 Equal((long)measured, milliseconds, $"{label}: milliseconds");
             }
+
+            // The microsecond part is the finest one the server names, and it has two limits: the value
+            // must fit the int it returns, and the two values must fall in the same hour, because the
+            // server multiplies the hours into an int of microseconds. It is asserted only where both hold.
+            var microseconds = Boundaries(start, end, TimeSpan.TicksPerMicrosecond);
+
+            if (start.Date == end.Date
+                && start.Hour == end.Hour
+                && microseconds is > int.MinValue and < int.MaxValue)
+            {
+                var measured = await context.Records
+                    .Where(item => item.Id == record.Id)
+                    .Select(item => EF.Functions.DateDiffMicrosecond(item.CreatedAt, end))
+                    .SingleAsync(cancellationToken);
+
+                Equal((long)measured, microseconds, $"{label}: microseconds");
+            }
+
+            await MicrosecondCeilingAsync(context, run, cancellationToken);
         }
     }
 
@@ -649,6 +668,41 @@ internal static class QuerySteps
     /// The number of <paramref name="unitTicks" /> boundaries two values cross, which is what
     /// <c>DATEDIFF</c> counts: both values are truncated to the unit first, then subtracted.
     /// </summary>
+    /// <summary>
+    /// The limits of the microsecond part, measured rather than assumed: the value must fit the int the
+    /// server returns, and the two values must fall in the same hour, because the hours are multiplied
+    /// into an int of microseconds.
+    /// </summary>
+    private static async Task MicrosecondCeilingAsync(
+        ValidationContext context,
+        Guid run,
+        CancellationToken cancellationToken)
+    {
+        var record = NewRecord(run);
+        record.CreatedAt = new DateTime(2026, 1, 2, 3, 59, 0, DateTimeKind.Unspecified);
+
+        context.Records.Add(record);
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        var overflows = false;
+
+        try
+        {
+            await context.Records
+                .Where(item => item.Id == record.Id)
+                .Select(item => EF.Functions.DateDiffMicrosecond(
+                    item.CreatedAt,
+                    new DateTime(2026, 1, 2, 4, 1, 0, DateTimeKind.Unspecified)))
+                .SingleAsync(cancellationToken);
+        }
+        catch (global::Dm.DmException exception)
+        {
+            overflows = exception.Message.Contains("数据溢出", StringComparison.Ordinal);
+        }
+
+        Equal(overflows, true, "a microsecond difference that crosses an hour boundary must overflow");
+    }
     private static long Boundaries(DateTime start, DateTime end, long unitTicks)
         => (end.Ticks - end.Ticks % unitTicks) / unitTicks - (start.Ticks - start.Ticks % unitTicks) / unitTicks;
 

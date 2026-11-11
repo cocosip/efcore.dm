@@ -249,6 +249,39 @@ public static class DmDbFunctionsExtensions
             : null;
 
     /// <summary>
+    /// The number of microsecond boundaries crossed between two dates.
+    /// </summary>
+    /// <remarks>
+    /// The server reads the part as <c>MICROSECOND</c>, measured on 8.1.4.80: a pair two microseconds apart
+    /// answered 2. It answers `数据溢出` as soon as the two values differ in their hour part — the hours are
+    /// multiplied into an int of microseconds, so even two minutes answered an overflow from 03:59 to
+    /// 04:01 — and above about thirty-five minutes within one hour, so a query needs both values inside one
+    /// hour. A nanosecond part has no spelling there — <c>NANOSECOND</c> is a syntax error — so no
+    /// nanosecond form is provided.
+    /// </remarks>
+    public static int DateDiffMicrosecond(this DbFunctions _, DateTime startDate, DateTime endDate)
+        => (int)(endDate - startDate).TotalMicroseconds;
+
+    /// <inheritdoc cref="DateDiffMicrosecond(DbFunctions, DateTime, DateTime)" />
+    public static int? DateDiffMicrosecond(this DbFunctions _, DateTime? startDate, DateTime? endDate)
+        => startDate.HasValue && endDate.HasValue
+            ? (int)(endDate.Value - startDate.Value).TotalMicroseconds
+            : null;
+
+    /// <inheritdoc cref="DateDiffMicrosecond(DbFunctions, DateTime, DateTime)" />
+    public static int DateDiffMicrosecond(this DbFunctions _, DateTimeOffset startDate, DateTimeOffset endDate)
+        => (int)(endDate.UtcDateTime - startDate.UtcDateTime).TotalMicroseconds;
+
+    /// <inheritdoc cref="DateDiffMicrosecond(DbFunctions, DateTime, DateTime)" />
+    public static int? DateDiffMicrosecond(
+        this DbFunctions _,
+        DateTimeOffset? startDate,
+        DateTimeOffset? endDate)
+        => startDate.HasValue && endDate.HasValue
+            ? (int)(endDate.Value.UtcDateTime - startDate.Value.UtcDateTime).TotalMicroseconds
+            : null;
+
+    /// <summary>
     /// Whether a value is a valid date, which Dameng answers with <c>ISDATE</c>.
     /// </summary>
     public static bool IsDate(this DbFunctions _, string value) => ParsesAsDate(value);
