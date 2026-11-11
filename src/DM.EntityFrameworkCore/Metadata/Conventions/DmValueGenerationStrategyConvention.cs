@@ -23,7 +23,12 @@ internal sealed class DmValueGenerationStrategyConvention : IModelFinalizingConv
     /// <summary>
     /// The types a Dameng identity column accepts.
     /// </summary>
-    private static readonly HashSet<Type> IdentityTypes = [typeof(byte), typeof(sbyte), typeof(short), typeof(int), typeof(long)];
+    /// <remarks>
+    /// Measured on 8.1.4.80: `IDENTITY` on `INT`, `BIGINT`, `INTEGER`, `NUMBER` and `DECIMAL` was accepted,
+    /// while `TINYINT` and `SMALLINT` answered `非法IDENTITY列类型`, so the server's identity column is an
+    /// integer of at least 32 bits.
+    /// </remarks>
+    private static readonly HashSet<Type> IdentityTypes = [typeof(int), typeof(long)];
 
     /// <summary>
     /// The number of values a default hi-lo sequence hands out per round trip.

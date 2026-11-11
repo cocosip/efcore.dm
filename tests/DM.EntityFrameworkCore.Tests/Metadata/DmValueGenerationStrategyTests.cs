@@ -88,6 +88,34 @@ public class DmValueGenerationStrategyTests
         Assert.Equal(DmValueGenerationStrategy.Sequence, Key(context, typeof(IdentityProbe)).GetDmValueGenerationStrategy());
     }
 
+    /// <summary>
+    /// A key whose store type is not an integer cannot be an identity column: measured on 8.1.4.80,
+    /// `IDENTITY` on `TINYINT` and `SMALLINT` answered `非法IDENTITY列类型`, while `INT`, `BIGINT`,
+    /// `INTEGER`, `NUMBER` and `DECIMAL` were accepted.
+    /// </summary>
+    [Fact]
+    public void ShortKey_HasNoStrategy()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Null(Key(context, typeof(ShortKeyProbe)).GetDmValueGenerationStrategy());
+    }
+
+    /// <summary>
+    /// The column type decides, not the CLR type: an integer key converted to a string is a character
+    /// column, and an identity on one answered `非法IDENTITY列类型`, measured on 8.1.4.80 through the store
+    /// generated cases of the specification suite. The model is refused rather than sent to fail.
+    /// </summary>
+    [Fact]
+    public void ConvertedIntegerKey_IsRefused()
+    {
+        using var context = new ConvertedKeyContext();
+
+        var exception = Assert.Throws<InvalidOperationException>(() => context.Model);
+
+        Assert.Contains("NVARCHAR2(64)", exception.Message, StringComparison.Ordinal);
+    }
+
     private static IProperty Key(DbContext context, Type entityType)
         => context.Model.FindEntityType(entityType)!.FindPrimaryKey()!.Properties[0];
 
@@ -100,6 +128,7 @@ public class DmValueGenerationStrategyTests
         {
             modelBuilder.Entity<IdentityProbe>(e => e.Property(p => p.Name).HasMaxLength(50));
             modelBuilder.Entity<GuidKeyProbe>(e => e.Property(p => p.Name).HasMaxLength(50));
+            modelBuilder.Entity<ShortKeyProbe>(e => e.Property(p => p.Name).HasMaxLength(50));
         }
     }
 
@@ -122,6 +151,16 @@ public class DmValueGenerationStrategyTests
         }
     }
 
+    private sealed class ConvertedKeyContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<ConvertedKeyProbe>(
+                e => e.Property(p => p.Id).HasMaxLength(64).HasConversion<string>());
+    }
+
     private sealed class DefaultSqlContext : ProbeContext
     {
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -141,6 +180,20 @@ public class DmValueGenerationStrategyTests
     private sealed class GuidKeyProbe
     {
         public Guid Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class ShortKeyProbe
+    {
+        public short Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+    }
+
+    private sealed class ConvertedKeyProbe
+    {
+        public int Id { get; set; }
 
         public string Name { get; set; } = string.Empty;
     }

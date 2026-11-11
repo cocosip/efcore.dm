@@ -72,7 +72,7 @@ public class DmModelValidatorTests
 
         var exception = Assert.ThrowsAny<Exception>(() => context.Model);
 
-        Assert.Contains("integer column only", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("an INT or BIGINT column only", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]

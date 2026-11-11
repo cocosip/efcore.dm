@@ -23,7 +23,12 @@ internal sealed class DmModelValidator : RelationalModelValidator
     /// <summary>
     /// The types a Dameng identity column accepts.
     /// </summary>
-    private static readonly HashSet<Type> IdentityTypes = [typeof(byte), typeof(sbyte), typeof(short), typeof(int), typeof(long)];
+    /// <remarks>
+    /// Measured on 8.1.4.80: `IDENTITY` on `INT`, `BIGINT`, `INTEGER`, `NUMBER` and `DECIMAL` was accepted,
+    /// while `TINYINT` and `SMALLINT` answered `非法IDENTITY列类型`, so the server's identity column is an
+    /// integer of at least 32 bits.
+    /// </remarks>
+    private static readonly HashSet<Type> IdentityTypes = [typeof(int), typeof(long)];
 
     public DmModelValidator(
         ModelValidatorDependencies dependencies,
@@ -39,6 +44,22 @@ internal sealed class DmModelValidator : RelationalModelValidator
         ValidateIdentityColumns(model);
         ValidateGeneratedConcurrencyTokens(model);
         WarnOnDecimalDefaults(model, logger);
+    }
+
+    /// <summary>
+    /// Whether the column type a property maps to is one an identity accepts.
+    /// </summary>
+    /// <remarks>
+    /// The column type is what the store creates, so it is what the attribute has to fit, and it differs
+    /// from the CLR type when a converter sits between them: an <see cref="int" /> key converted to a string
+    /// is an <c>NVARCHAR2</c> column, and an identity on one answered `非法IDENTITY列类型`, measured on
+    /// 8.1.4.80 through the store generated cases of the specification suite.
+    /// </remarks>
+    private static bool IsIdentityColumnType(IProperty property)
+    {
+        var name = property.GetColumnType().Split('(', 2)[0].Trim();
+
+        return name is "INT" or "INTEGER" or "BIGINT" or "NUMBER" or "DECIMAL";
     }
 
     /// <summary>
@@ -114,12 +135,12 @@ internal sealed class DmModelValidator : RelationalModelValidator
                     continue;
                 }
 
-                if (!IdentityTypes.Contains(Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType))
+                if (!IsIdentityColumnType(property))
                 {
                     throw new InvalidOperationException(
                         $"The property '{property.DeclaringType.DisplayName()}.{property.Name}' is configured as an "
-                        + $"identity column, but its type is {property.ClrType.ShortDisplayName()}. Dameng generates "
-                        + "identity values for an integer column only.");
+                        + $"identity column, but its column is {property.GetColumnType()}. Dameng generates identity "
+                        + "values for an INT or BIGINT column only.");
                 }
 
                 if (property.GetDefaultValueSql() is not null)

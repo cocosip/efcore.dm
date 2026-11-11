@@ -59,7 +59,13 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
                 .Append(operation.Collation);
         }
 
-        if (FindIdentity(schema, table, name, operation, model) is var (seed, increment))
+        // The identity is written only on a column type that accepts one, which is the server's own rule:
+        // measured on 8.1.4.80, `IDENTITY` on `TINYINT` and `SMALLINT` answered `非法IDENTITY列类型` while
+        // `INT`, `BIGINT`, `INTEGER`, `NUMBER` and `DECIMAL` were accepted. A converted key reaches this
+        // point with its store type, so the attribute is what the column can carry rather than what the
+        // CLR type suggested.
+        if (IsIdentityType(columnType)
+            && FindIdentity(schema, table, name, operation, model) is var (seed, increment))
         {
             builder
                 .Append(" IDENTITY(")
@@ -72,6 +78,16 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         builder.Append(operation.IsNullable ? " NULL" : " NOT NULL");
 
         DefaultValue(operation.DefaultValue, operation.DefaultValueSql, columnType, builder);
+    }
+
+    /// <summary>
+    /// Whether a column of this store type can carry <c>IDENTITY</c>.
+    /// </summary>
+    private static bool IsIdentityType(string columnType)
+    {
+        var name = columnType.Split('(', 2)[0].Trim().ToUpperInvariant();
+
+        return name is "INT" or "INTEGER" or "BIGINT" or "NUMBER" or "DECIMAL";
     }
 
     /// <summary>
