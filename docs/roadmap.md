@@ -142,3 +142,5 @@ These are requirements, not open questions. Work that depends on them does not s
 Nothing in P0a requires a database. A missing live environment delays completion of P0b and later phases; it does not delay P0a or the start of P1 construction.
 
 If a prerequisite is unavailable, the affected phase stays open. It is not marked complete.
+
+Recorded 2026-11-11: an instance is reachable — DM 8.1.4.80, in the default and in the Oracle-compatible mode, with credentials that can create and drop tables in a schema of the operator's choosing. That closes the first row for P0b and for the phase exits up to P5. The PostgreSQL-compatible instance, the Linux environment, the feed and the deployment list remain open.

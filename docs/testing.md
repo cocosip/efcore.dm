@@ -65,7 +65,7 @@ tests/
 scripts/
   package-smoke.ps1                     T5: packs, restores in an isolated cache, runs the consumer
 samples/
-  DmProviderValidation/                 live end-to-end acceptance (written, awaiting an instance)
+  DmProviderValidation/                 live end-to-end acceptance
 ```
 
 ## 3. Skip ledger
@@ -112,11 +112,17 @@ A match is not proof of correctness: both implementations can be wrong in the sa
 
 | Dimension | Values |
 |---|---|
-| Dameng server | Versions in production use |
-| Compatibility mode | Default (Oracle-compatible), which is what the dialect targets; PostgreSQL-compatible mode is a dimension of this matrix and does not change the implementation (D4). Neither mode has been exercised against a server yet: the instance in PostgreSQL-compatible mode is a P6 exit criterion |
+| Dameng server | Versions in production use. First reached on 2026-11-11: DM 8.1.4.80 |
+| Compatibility mode | The default instance and the Oracle-compatible one both ran the console on 2026-11-11, as reported by the environment's operator; the dialect does not branch on the mode (D4). PostgreSQL-compatible mode is still a P6 exit criterion and has not been exercised |
 | Operating system | Windows x64, Linux x64 |
 | Target framework | `net8.0` on the EF Core 8/9 branches, `net10.0` on EF Core 10, `net11.0` from EF Core 11 |
 | Driver | The `DM.DmProvider` version the package depends on, which is the floor the provider is compiled against; EF Core 10 consumes its `net9.0` asset |
+
+### What the live runs measured
+
+The first runs, on 2026-11-11 against both compatibility modes, passed all eighteen acceptance steps. They also failed one step before the provider changed: `SELECT EXISTS (SELECT 1 ...)` with no `FROM` clause was rejected with `语法分析出错`, which is what made the boolean projection and pseudo FROM clause rows of the [Capability Matrix](capability-matrix.md) exist. A live run that only confirmed what the tests already said would have found nothing; the value of the run is the shape it rejects.
+
+Still unverified by a live run, and therefore still recorded as unverified in the matrix: paging shapes, the string, date and math translations, the reverse engineering catalog queries, the idempotent script executed as a script, the migrations lock held by two concurrent processes, and retry classification.
 
 ### When no live environment is available
 
