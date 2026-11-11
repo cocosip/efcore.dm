@@ -27,6 +27,7 @@ internal sealed class DmMethodCallTranslatorProvider : RelationalMethodCallTrans
             new DmDateTimeMethodTranslator(dependencies.SqlExpressionFactory, typeMappingSource),
             new DmDateDiffFunctionsTranslator(dependencies.SqlExpressionFactory),
             new DmIsDateFunctionTranslator(dependencies.SqlExpressionFactory),
+            new DmFullTextSearchFunctionsTranslator(dependencies.SqlExpressionFactory),
             new DmTimeOnlyMethodTranslator(dependencies.SqlExpressionFactory, typeMappingSource),
             new DmDateOnlyMethodTranslator(dependencies.SqlExpressionFactory, typeMappingSource)
         ]);

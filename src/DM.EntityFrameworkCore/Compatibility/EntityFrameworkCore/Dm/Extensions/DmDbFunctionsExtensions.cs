@@ -286,8 +286,31 @@ public static class DmDbFunctionsExtensions
     /// </summary>
     public static bool IsDate(this DbFunctions _, string value) => ParsesAsDate(value);
 
+    /// <summary>
+    /// Whether a property is matched by a full-text search condition, which Dameng answers with
+    /// <c>CONTAINS(column, condition)</c>.
+    /// </summary>
+    /// <remarks>
+    /// The predicate is only usable on a column that has a full-text index. Measured on 8.1.4.80: on a
+    /// column without one the server answers <c>列[…]未编制全文索引或全文索引数据错误</c>, and the index is
+    /// created with <c>CREATE CONTEXT INDEX … ON table(column)</c>, which the application does as part of
+    /// its own schema. The provider writes the predicate and leaves the index to the schema.
+    /// <para>
+    /// This overload has no client-side form: outside a query it throws, so a condition the provider cannot
+    /// translate fails where it is written instead of silently matching nothing in memory. For the same
+    /// reason there is no overload taking a language term: Dameng's <c>CONTAINS</c> has no such argument.
+    /// </para>
+    /// </remarks>
+    public static bool Contains(this DbFunctions _, string propertyReference, string searchCondition)
+        => throw new InvalidOperationException(ClientOnly("Contains"));
+
     // The parse lives in its own method because this class names its receiver "_", and a discard in the
     // same scope would bind to that parameter instead.
     private static bool ParsesAsDate(string value)
         => DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+
+    private static string ClientOnly(string method)
+        => $"{nameof(DmDbFunctionsExtensions)}.{method} is translated to a full-text predicate by the Dameng "
+            + "provider and cannot be evaluated in memory. Run it inside a query against a column that has a "
+            + "full-text index.";
 }
