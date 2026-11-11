@@ -110,6 +110,31 @@ Boundaries, from [Provenance](provenance.md): black-box comparison only. The off
 
 A match is not proof of correctness: both implementations can be wrong in the same way. Execution against a live database remains the final standard.
 
+## 4b. Differential comparison with the reference provider
+
+The reference provider, `DM.Microsoft.EntityFrameworkCore` 9.0.0.43760, is decompiled outside this
+repository and is not a build dependency, but the package is a restore away, so its statements can be
+compared with this provider's. Two console projects were built on 2026-11-11 against the same model, one
+on EF Core 9 with the reference package and one on EF Core 10 with this provider, and both printed
+`ToQueryString()` for the same twenty-three queries with no database attached. Twelve differ, and none of
+them is a defect here:
+
+| Query | Reference | This provider | Verdict |
+|---|---|---|---|
+| `StartsWith`, `EndsWith`, `Contains` | `LIKE 'ab%'` | `LIKE 'ab%' ESCAPE '\'` | This provider escapes, which a value holding `%` or `_` needs |
+| `Skip`/`Take`, a date parameter | `:__p_0`, `:__at_0` | `:p`, `:p0`, `:at` and a `DbType` annotation | Parameter naming of EF Core 9 against EF Core 10 |
+| `Contains` over an array | `IN (1, 2, 3)` | `IN (:ids1, :ids2, :ids3)` | EF Core 10 parameterises a collection by default; both are correct and this one reuses the plan |
+| `CreatedAt.AddDays(1)` | `DATEADD(day, CAST(1.0E0 AS INT), …)` | `"CreatedAt" + 1.0` | Both add a day; the addition is what this dialect already documents for a fractional part |
+| `Count()` in a projection | `CAST(COUNT(*) AS INT)` | `COUNT(*)` | `COUNT` is already an `INT` here, and the reading path casts anyway |
+| `Payload.Length` | the whole column | `LENGTHB("Payload")` | The reference leaves it to the client; `LENGTH` would be the length of the hexadecimal form, measured earlier, so `LENGTHB` is the answer |
+| `Span.Hours` | the whole column | `EXTRACT(HOUR FROM "Span")` | The reference leaves it to the client; `EXTRACT` is the member's value |
+
+The other eleven queries — a predicate, a conjunction, `LIKE`, ordering with paging beyond the parameter
+names, a grouping with a sum, a join, a projection, `??`, `HasValue`, a comparison, a subquery with
+`Any`, `Distinct`, an `Average`, an enum comparison and a byte array length — are the same statement in
+both providers. The comparison therefore found no behaviour to change, and its value is the record: a
+future difference is a difference from a known baseline.
+
 ## 5. Live database matrix
 
 | Dimension | Values |
