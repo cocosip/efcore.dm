@@ -19,6 +19,7 @@ internal sealed class DmMethodCallTranslatorProvider : RelationalMethodCallTrans
         => AddTranslators(
         [
             new DmStringMethodTranslator(dependencies.SqlExpressionFactory),
+            new DmByteArrayMethodTranslator(dependencies.SqlExpressionFactory),
             new DmMathMethodTranslator(dependencies.SqlExpressionFactory),
             new DmConvertTranslator(dependencies.SqlExpressionFactory),
             new DmObjectToStringTranslator(dependencies.SqlExpressionFactory),

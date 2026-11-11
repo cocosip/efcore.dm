@@ -128,6 +128,8 @@ The query steps were then added, taking the run to twenty-five, a date differenc
 
 The retry step measured the classification twice in one run: a connection whose server side session was closed reported `6027` and left the driver reporting `Open`, so the strategy closed it, the retried statement answered on a new connection, and a statement against a table that does not exist reported `-2106` and reached the caller on the first attempt. Both halves pass on both compatibility modes.
 
+The query steps also compare a byte array length: `LENGTHB` of a four byte value answered 4 on both modes, and `Length > 0` and `Count()` both reach the server as that function rather than as `LENGTH`, which measured the stored hexadecimal form instead (8 for a `VARBINARY(64)` holding four bytes).
+
 Still unverified by a live run, and therefore still recorded as unverified in the matrix: the `EF.Functions` overloads that take a `TimeSpan`, the idempotent script executed as a script rather than generated, the migrations lock held by two concurrent processes, and the PostgreSQL-compatible mode.
 
 ### What the specification suite measured

@@ -62,6 +62,18 @@ internal static class QuerySteps
             1,
             "Length");
 
+        // A byte array is reached through the collection methods the framework normalizes the member
+        // into, and its length is the byte count rather than the length of the stored hexadecimal form.
+        Equal(
+            await rows.CountAsync(item => item.Payload.Length > 0, cancellationToken),
+            2,
+            "a byte array that is not empty");
+
+        Equal(
+            await rows.CountAsync(item => item.Payload.Count() == 4, cancellationToken),
+            2,
+            "a byte array of four bytes");
+
         // The wildcard the value carries must be matched literally, so this finds the one row that
         // contains "50%" and not a row that merely starts with the same characters.
         Equal(
