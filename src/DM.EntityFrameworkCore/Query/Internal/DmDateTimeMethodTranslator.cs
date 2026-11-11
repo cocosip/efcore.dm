@@ -65,7 +65,11 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
             };
         }
 
+        // Every member translated here takes exactly one argument. A method that takes none — such as
+        // ToUniversalTime or ToLocalTime — reads the zone the stored value does not carry, so it is
+        // left untranslated rather than read as an argument it does not have.
         if (instance is null
+            || arguments.Count != 1
             || (method.DeclaringType != typeof(DateTime) && method.DeclaringType != typeof(DateTimeOffset))
             || (instance.Type != typeof(DateTime) && instance.Type != typeof(DateTimeOffset)))
         {

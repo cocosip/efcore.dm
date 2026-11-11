@@ -74,6 +74,33 @@ public class DmDateTimeMethodTranslationTests
                 .ToQueryString());
     }
 
+    /// <summary>
+    /// A method that reads the zone of a value has no server meaning here, and it takes no argument,
+    /// so the translator must report it as untranslated instead of failing on an argument it does not
+    /// have.
+    /// </summary>
+    [Fact]
+    public void ToUniversalTime_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Probes
+                .Where(p => p.CreatedAt.ToUniversalTime() > p.CreatedAt)
+                .ToQueryString());
+    }
+
+    [Fact]
+    public void DateTimeOffsetToLocalTime_IsNotTranslated()
+    {
+        using var context = new OffsetContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Offsets
+                .Where(p => p.At.ToLocalTime() > p.At)
+                .ToQueryString());
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",
@@ -97,5 +124,20 @@ public class DmDateTimeMethodTranslationTests
         public DateTime CreatedAt { get; set; }
 
         public double Days { get; set; }
+    }
+
+    private sealed class OffsetContext : DbContext
+    {
+        public DbSet<OffsetProbe> Offsets => Set<OffsetProbe>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+    }
+
+    private sealed class OffsetProbe
+    {
+        public int Id { get; set; }
+
+        public DateTimeOffset At { get; set; }
     }
 }
