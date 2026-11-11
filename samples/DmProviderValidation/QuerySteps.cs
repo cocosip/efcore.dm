@@ -19,7 +19,8 @@ internal static class QuerySteps
         ("query: paging and ordering", PagingAsync),
         ("query: grouping and aggregates", GroupingAsync),
         ("query: null semantics", NullSemanticsAsync),
-        ("query: boolean projection", BooleanProjectionAsync)
+        ("query: boolean projection", BooleanProjectionAsync),
+        ("query: json column", JsonColumnAsync)
     ];
 
     private static async Task StringFunctionsAsync(ValidationContext context, CancellationToken cancellationToken)
@@ -447,6 +448,57 @@ internal static class QuerySteps
             await rows.CountAsync(item => item.Flag && item.Number == 42, cancellationToken),
             2,
             "a boolean column beside a comparison");
+    }
+
+    /// <summary>
+    /// A JSON column holds an owned entity. Measured on 8.1.4.80: the server has a `JSON` type, the driver
+    /// moves it as text, `JSON_VALUE` answers a member as text, and the `RETURNING` form that would type it
+    /// is rejected with `返回值的数据类型无效`, so a member that is not text is cast from that text. The
+    /// document itself is the column, so reading the entity back is a plain column read.
+    /// </summary>
+    private static async Task JsonColumnAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        var run = Guid.NewGuid();
+
+        var first = NewRecord(run);
+        first.Document = new Document { Title = "first", Pages = 3, Flag = true };
+
+        var second = NewRecord(run);
+        second.Document = new Document { Title = "second", Pages = 7 };
+
+        context.Records.AddRange(first, second);
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        var rows = context.Records.Where(item => item.RunId == run);
+
+        var documents = await rows
+            .OrderBy(item => item.Document.Pages)
+            .Select(item => new { item.Document.Title, item.Document.Pages })
+            .ToListAsync(cancellationToken);
+
+        Equal($"{documents[0].Title}/{documents[0].Pages}", "first/3", "the first document");
+        Equal($"{documents[1].Title}/{documents[1].Pages}", "second/7", "the second document");
+
+        Equal(await rows.CountAsync(item => item.Document.Title == "second", cancellationToken), 1, "a text member");
+        Equal(await rows.CountAsync(item => item.Document.Pages > 5, cancellationToken), 1, "a number member");
+
+        // A boolean is stored as text, so it is compared with that text rather than cast to BIT.
+        Equal(await rows.CountAsync(item => item.Document.Flag, cancellationToken), 1, "a boolean member");
+
+        // A change inside the document is written back as the whole document, because the column holds
+        // the document rather than the members.
+        var tracked = await rows.SingleAsync(item => item.Document.Title == "first", cancellationToken);
+        tracked.Document.Pages = 9;
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        var pages = await context.Records
+            .Where(item => item.RunId == run && item.Document.Title == "first")
+            .Select(item => item.Document.Pages)
+            .SingleAsync(cancellationToken);
+
+        Equal(pages, 9, "a changed member");
     }
 
     private static async Task<Guid> SeedAsync(

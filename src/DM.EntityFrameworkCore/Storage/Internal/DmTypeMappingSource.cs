@@ -75,6 +75,9 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         [DmStoreTypes.Text] = typeof(string),
         [DmStoreTypes.Clob] = typeof(string),
         [DmStoreTypes.NClob] = typeof(string),
+        // A document is a JSON type on the server and a string in the model, which is what a reverse
+        // engineered column reads as.
+        [DmStoreTypes.Json] = typeof(string),
         [DmStoreTypes.Binary] = typeof(byte[]),
         [DmStoreTypes.VarBinary] = typeof(byte[]),
         [DmStoreTypes.Blob] = typeof(byte[]),
@@ -174,6 +177,13 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         if (clrType == typeof(byte[]))
         {
             return Binary(storeType, size, keyOrIndex);
+        }
+
+        // The framework asks for the column a JSON entity is stored in by this placeholder type, and
+        // refuses the model when the provider answers nothing.
+        if (clrType == typeof(JsonTypePlaceholder))
+        {
+            return new DmJsonTypeMapping(storeType ?? DmStoreTypes.Json);
         }
 
         if (clrType == typeof(DateTime))

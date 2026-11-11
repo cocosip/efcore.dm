@@ -1,4 +1,5 @@
 using System.Linq.Expressions;
+using System.Text;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
@@ -101,6 +102,84 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         }
 
         return projectionExpression;
+    }
+
+    /// <summary>
+    /// Reads a member of a JSON document with <c>JSON_VALUE</c>, measured on 8.1.4.80: it answers a scalar
+    /// as text, and the <c>RETURNING</c> form that would type it is rejected with <c>返回值的数据类型无效</c>,
+    /// so a member that is not text is cast from that text. A boolean is not cast, because the server stores
+    /// it as <c>true</c> and casting that text to <c>BIT</c> answers <c>无效的数字</c>; it is compared with
+    /// that text and answered as the condition shape the provider uses. <c>JSON_QUERY</c> answers an object
+    /// or an array only and returns null for a scalar, so it is not used. The path is a literal, because a
+    /// member of a JSON document is named by the model rather than by a value.
+    /// </summary>
+    protected override Expression VisitJsonScalar(JsonScalarExpression jsonScalarExpression)
+    {
+        // An empty path is the document itself, which is the column: a projection of the entity reads it
+        // that way, and the framework parses the text the column holds.
+        if (jsonScalarExpression.Path.Count == 0)
+        {
+            return Visit(jsonScalarExpression.Json);
+        }
+
+        var storeType = jsonScalarExpression.TypeMapping?.StoreType;
+        var type = Nullable.GetUnderlyingType(jsonScalarExpression.Type) ?? jsonScalarExpression.Type;
+        var path = JsonPath(jsonScalarExpression.Path);
+
+        // A boolean is stored as `true` and answered as that text, so it is not cast: casting it to BIT
+        // answers 无效的数字, measured on 8.1.4.80. The provider answers a condition as 1 or 0, which is
+        // the same shape a projected condition takes.
+        if (type == typeof(bool))
+        {
+            Sql.Append("CASE WHEN JSON_VALUE(");
+            Visit(jsonScalarExpression.Json);
+            Sql.Append(", '").Append(path).Append("') = 'true' THEN 1 ELSE 0 END");
+
+            return jsonScalarExpression;
+        }
+
+        var cast = storeType is not null && type != typeof(string);
+
+        if (cast)
+        {
+            Sql.Append("CAST(");
+        }
+
+        Sql.Append("JSON_VALUE(");
+        Visit(jsonScalarExpression.Json);
+        Sql.Append(", '").Append(path).Append("')");
+
+        if (cast)
+        {
+            Sql.Append(" AS ").Append(storeType!).Append(")");
+        }
+
+        return jsonScalarExpression;
+    }
+
+    private static string JsonPath(IReadOnlyList<PathSegment> path)
+    {
+        var builder = new StringBuilder("$");
+
+        foreach (var segment in path)
+        {
+            if (segment.PropertyName is { } propertyName)
+            {
+                builder.Append('.').Append(propertyName);
+            }
+            else if (segment.ArrayIndex is SqlConstantExpression { Value: int index })
+            {
+                builder.Append('[').Append(index).Append(']');
+            }
+            else
+            {
+                throw new NotSupportedException(
+                    "A JSON path that names an array element by a value other than a constant cannot be "
+                    + "rendered as the literal Dameng requires.");
+            }
+        }
+
+        return builder.ToString().Replace("'", "''", StringComparison.Ordinal);
     }
 
     /// <summary>

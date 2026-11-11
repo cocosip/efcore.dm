@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Tests.Storage;
 
@@ -40,6 +42,27 @@ public class DmTypeMappingTests
         var entity = context.Model.FindEntityType(typeof(Facets))!;
 
         Assert.Equal(expected, entity.FindProperty(property)!.GetColumnType());
+    }
+
+    /// <summary>
+    /// A document column is a <c>JSON</c> type on the server and a string in the model, in both directions:
+    /// a property that names the type keeps it, and a column read from the catalog resolves to a string
+    /// rather than to nothing, which is what reverse engineering asks for.
+    /// </summary>
+    [Fact]
+    public void JsonColumn_RoundTripsThroughAString()
+    {
+        using var context = new FacetsContext();
+
+        var entity = context.Model.FindEntityType(typeof(Facets))!;
+
+        Assert.Equal("JSON", entity.FindProperty(nameof(Facets.Document))!.GetColumnType());
+
+        var mapping = ((IRelationalTypeMappingSource)context.GetService<ITypeMappingSource>()).FindMapping("JSON");
+
+        Assert.NotNull(mapping);
+        Assert.Equal(typeof(string), mapping.ClrType);
+        Assert.Equal("JSON", mapping.StoreType);
     }
 
     /// <summary>
@@ -202,6 +225,7 @@ public class DmTypeMappingTests
                 entity.Property(e => e.ScaledDecimal).HasPrecision(18, 2);
                 entity.Property(e => e.PreciseDateTime).HasPrecision(3);
                 entity.Property(e => e.PreciseTimeOnly).HasPrecision(3);
+                entity.Property(e => e.Document).HasColumnType("JSON");
             });
     }
 
@@ -230,6 +254,8 @@ public class DmTypeMappingTests
         public string FixedString { get; set; } = string.Empty;
 
         public string UnicodeFixedString { get; set; } = string.Empty;
+
+        public string Document { get; set; } = string.Empty;
 
         public byte[] SizedBinary { get; set; } = [];
 

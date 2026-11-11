@@ -30,6 +30,7 @@ internal static class DmStoreTypes
     public const string Text = "TEXT";
     public const string Clob = "CLOB";
     public const string NClob = "NCLOB";
+    public const string Json = "JSON";
 
     public const string Binary = "BINARY";
     public const string VarBinary = "VARBINARY";

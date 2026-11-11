@@ -49,6 +49,7 @@ internal sealed class ValidationContext : DbContext
             entity.Property(record => record.Status).HasMaxLength(32);
             entity.Property(record => record.Optional).HasMaxLength(100);
             entity.Property(record => record.Version).IsConcurrencyToken();
+            entity.OwnsOne(record => record.Document, owned => owned.ToJson());
         });
 
         modelBuilder.Entity<Parent>(entity =>
@@ -111,6 +112,21 @@ internal sealed class Record
     public byte[] Payload { get; set; } = [];
 
     public int Version { get; set; }
+
+    public Document Document { get; set; } = new();
+}
+
+/// <summary>
+/// The entity a JSON column holds. The server has a <c>JSON</c> type, so the document is stored in one
+/// column and read back through it.
+/// </summary>
+internal sealed class Document
+{
+    public string Title { get; set; } = string.Empty;
+
+    public int Pages { get; set; }
+
+    public bool Flag { get; set; }
 }
 
 internal sealed class Parent

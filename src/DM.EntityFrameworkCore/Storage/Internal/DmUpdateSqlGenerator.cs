@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.EntityFrameworkCore.Update;
 
 namespace DM.EntityFrameworkCore.Storage.Internal;
@@ -106,6 +107,43 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
         requiresTransaction = false;
 
         return ResultSetMapping.NoResults;
+    }
+
+    /// <summary>
+    /// Writes a member of a JSON document with <c>JSON_SET</c>, measured on 8.1.4.80: it answers
+    /// <c>{"a":2}</c> for <c>JSON_SET('{"a":1}', '$.a', 2)</c>. The framework reports a change inside a
+    /// document as a value for a path rather than as the whole document, so the base rendering would write
+    /// that value into the column and replace the document with it, which is data loss rather than an
+    /// error. Dameng has no <c>JSON_MODIFY</c> and no <c>JSON_PUT</c>.
+    /// </summary>
+    protected override void AppendUpdateColumnValue(
+        ISqlGenerationHelper updateSqlGeneratorHelper,
+        IColumnModification columnModification,
+        StringBuilder stringBuilder,
+        string name,
+        string? schema)
+    {
+        // The root path is the document itself, and JSON_SET(doc, '$', '{"b":2}') answers the document
+        // as a quoted string rather than as a document, measured on 8.1.4.80, so it is written plainly.
+        if (columnModification.JsonPath is not { } jsonPath || jsonPath == "$")
+        {
+            base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+
+            return;
+        }
+
+        // Only the value is written here: the header writes the assignment. The value itself stays the
+        // base generator's business, so its parameter and its shape are unchanged.
+        stringBuilder
+            .Append("JSON_SET(")
+            .Append(updateSqlGeneratorHelper.DelimitIdentifier(columnModification.ColumnName))
+            .Append(", '")
+            .Append(jsonPath.Replace("'", "''", StringComparison.Ordinal))
+            .Append("', ");
+
+        base.AppendUpdateColumnValue(updateSqlGeneratorHelper, columnModification, stringBuilder, name, schema);
+
+        stringBuilder.Append(')');
     }
 
     /// <summary>
