@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.TestUtilities;
 using DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 
 namespace DM.EntityFrameworkCore.SpecificationTests;
@@ -19,9 +18,7 @@ public class NorthwindJoinQueryDmTest : NorthwindJoinQueryRelationalTestBase<Nor
     {
     }
 
-    public class NorthwindQueryDmFixture : NorthwindQueryRelationalFixture<NoopModelCustomizer>
+    public class NorthwindQueryDmFixture : NorthwindQueryDmFixtureBase
     {
-        protected override ITestStoreFactory TestStoreFactory
-            => DmTestStoreFactory.Instance;
     }
 }

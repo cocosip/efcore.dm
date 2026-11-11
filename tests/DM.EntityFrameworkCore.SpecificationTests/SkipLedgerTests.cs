@@ -48,7 +48,8 @@ public class SkipLedgerTests
                 typeof(NorthwindWhereQueryDmTest),
                 typeof(NorthwindJoinQueryDmTest),
                 typeof(NorthwindSelectQueryDmTest),
-                typeof(NorthwindGroupByQueryDmTest)
+                typeof(NorthwindGroupByQueryDmTest),
+                typeof(NorthwindAggregateOperatorsQueryDmTest)
             }
             .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             .Where(

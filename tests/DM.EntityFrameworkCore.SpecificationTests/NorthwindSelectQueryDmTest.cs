@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.TestUtilities;
 using DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 
 namespace DM.EntityFrameworkCore.SpecificationTests;
@@ -48,11 +47,8 @@ public class NorthwindSelectQueryDmTest : NorthwindSelectQueryRelationalTestBase
             (await Assert.ThrowsAsync<InvalidOperationException>(
                 () => base.Correlated_collection_after_distinct_with_complex_projection_not_containing_original_identifier(async))).Message);
 
-    public class NorthwindQueryDmFixture : NorthwindQueryRelationalFixture<NoopModelCustomizer>
+    public class NorthwindQueryDmFixture : NorthwindQueryDmFixtureBase
     {
-        protected override ITestStoreFactory TestStoreFactory
-            => DmTestStoreFactory.Instance;
-
         // The fixture base throws every warning to catch what a provider raises, and this one is guidance
         // about splitting a query that loads two collections rather than a defect of this provider, so it
         // is logged as the shipped fixtures log the other guidance warnings.

@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore.Query;
-using Microsoft.EntityFrameworkCore.TestUtilities;
 using DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 
 namespace DM.EntityFrameworkCore.SpecificationTests;
@@ -49,9 +48,7 @@ public class NorthwindWhereQueryDmTest : NorthwindWhereQueryRelationalTestBase<N
     public override async Task Where_compare_tuple_create_constructed_multi_value_not_equal(bool async)
         => await AssertTranslationFailed(() => base.Where_compare_tuple_create_constructed_multi_value_not_equal(async));
 
-    public class NorthwindQueryDmFixture : NorthwindQueryRelationalFixture<NoopModelCustomizer>
+    public class NorthwindQueryDmFixture : NorthwindQueryDmFixtureBase
     {
-        protected override ITestStoreFactory TestStoreFactory
-            => DmTestStoreFactory.Instance;
     }
 }
