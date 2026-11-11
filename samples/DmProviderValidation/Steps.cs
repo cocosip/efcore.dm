@@ -30,6 +30,7 @@ internal static class Steps
         ("retrying execution strategy", RetryingExecutionAsync),
         ("identity readback", IdentityAsync),
         ("sequence readback", SequenceAsync),
+        ("computed column readback", ComputedAsync),
         ("execute update", ExecuteUpdateAsync),
         ("execute delete", ExecuteDeleteAsync),
         ("left join", LeftJoinAsync),
@@ -379,6 +380,29 @@ internal static class Steps
         Expect(second.Id > first.Id, "the identity values must increase");
     }
 
+    /// <summary>
+    /// The server derives the column, so the row must come back with the total of its amount after the insert
+    /// and again after the update. A computed column is virtual: measured on 8.1.4.80, `STORED` after the
+    /// clause is a syntax error, which the generator refuses while the script is built.
+    /// </summary>
+    private static async Task ComputedAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        context.ChangeTracker.Clear();
+        var row = new Computed { Amount = 21 };
+
+        context.Computeds.Add(row);
+        await context.SaveChangesAsync(cancellationToken);
+
+        Expect(row.Total == 42, "the server must derive the total of the amount it was given");
+
+        context.ChangeTracker.Clear();
+        var stored = await context.Computeds.SingleAsync(item => item.Id == row.Id, cancellationToken);
+        Expect(stored.Total == 42, "the derived total must be readable in a later query");
+
+        stored.Amount = 5;
+        await context.SaveChangesAsync(cancellationToken);
+        Expect(stored.Total == 10, "the derived total must follow an update of its source column");
+    }
     private static async Task SequenceAsync(ValidationContext context, CancellationToken cancellationToken)
     {
         var first = await NextValueAsync(context, cancellationToken);

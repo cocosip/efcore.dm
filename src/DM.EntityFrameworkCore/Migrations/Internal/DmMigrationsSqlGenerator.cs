@@ -83,6 +83,40 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
 
 
     /// <summary>
+    /// A computed column is a virtual column the server derives from the others.
+    /// </summary>
+    /// <remarks>
+    /// The base class leaves this unwritten, so a model with a computed column could not produce a script at
+    /// all. Measured on 8.1.4.80: `GENERATED ALWAYS AS (expression)` was accepted and answered 42 for a column
+    /// derived from 41, as were the same clause with `VIRTUAL` and the shorter `AS (expression)`, while
+    /// `STORED` was a syntax error (`语法分析出错`), so a stored column is refused rather than miswritten.
+    /// </remarks>
+    protected override void ComputedColumnDefinition(
+        string? schema,
+        string table,
+        string name,
+        ColumnOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        if (operation.IsStored == true)
+        {
+            throw new NotSupportedException(
+                $"The computed column '{name}' on '{table}' is stored, and Dameng has no stored computed column: "
+                + "measured on 8.1.4.80, `GENERATED ALWAYS AS (...) STORED` answered `语法分析出错`. "
+                + "Declare the column as a virtual one.");
+        }
+
+        builder
+            .Append(Helper.DelimitIdentifier(name))
+            .Append(" ")
+            .Append(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model))
+            .Append(" GENERATED ALWAYS AS (")
+            .Append(operation.ComputedColumnSql!)
+            .Append(")");
+    }
+
+    /// <summary>
     /// The identity a column generates, or null. A migration the differ produced carries the attribute
     /// as an annotation, which is what the generated migration code shows and what a replay reads; a
     /// hand written migration carries nothing, so the model decides there.

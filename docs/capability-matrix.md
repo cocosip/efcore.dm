@@ -149,6 +149,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | `INSERT`, `UPDATE`, `DELETE` | `Implemented` | `DmUpdateSqlTests` | P3 | Yes | No `RETURNING` clause, because Dameng accepts it only as `RETURNING ... INTO`, which binds to a variable and not to a result set. An insert that has to read a generated value adds a second statement |
 | Multiple statements per batch | `Deferred` | `DmUpdateSqlTests` | P3 | Yes | One statement per round trip. Measured on 8.1.4.80: a command holding three statements runs all of them, but the driver answers the count of the last statement only — two updates of one row each answered 1, and a batch whose last statement matched no row answered 0 while the earlier ones had changed theirs — so a shared batch cannot attribute a row count to each command. A multi-row `INSERT ... VALUES (...), (...)` does run and answers the number of rows, which is the shape a batch of inserts would need, so the row stays deferred until the readback of generated values can be batched as well |
+| Computed columns | `Implemented` | `DmComputedColumnTests`, `samples/DmProviderValidation` | P4 | Yes | A virtual column the server derives is written as `GENERATED ALWAYS AS (expression)` on a create and on an added column, which measured on 8.1.4.80 answered 42 for a column derived from 41. `STORED` is a syntax error on that server (`语法分析出错`), so a stored column is refused while the script is built rather than written as a statement the server rejects. The acceptance run inserts a row and reads the derived total back after the insert and after an update of its source column |
 | Store-generated value readback | `Implemented` | `DmGeneratedValueTests`, `samples/DmProviderValidation` | P3 | Yes | After an insert or an update, a second statement selects the generated columns. An insert is matched by `sql%ROWCOUNT = 1` and by `scope_identity()` for an identity column or the sequence current value for a sequence default; an update is matched by the same where clause and the same parameters as the statement it follows. A computed column therefore comes back after an update. Executed against a server on 2026-11-11 on both compatibility modes: the identity value reached the entity, and two inserts in one unit of work got increasing values |
 | Concurrency conflict detection | `Implemented` | `DmUpdateSqlTests`, `samples/DmProviderValidation` | P3 | Yes | A statement affecting a row count other than one raises `DbUpdateConcurrencyException`. Observed against a server on 2026-11-11 on both compatibility modes: a second writer holding a stale row was rejected |
 | Modification command factory | `Not applicable` | `DmUpdateSqlTests` | P3 | No | The relational default builds the `ModificationCommand` shape this provider's batch already consumes, so substituting a factory would add a type with no behaviour |
@@ -236,14 +237,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 103 |
+| `Implemented` | 104 |
 | `In progress` | 0 |
 | `Partial` | 4 |
 | `Blocked` | 0 |
 | `Deferred` | 3 |
 | `Not started` | 0 |
 | `Not applicable` | 6 |
-| **Total rows** | **116** |
+| **Total rows** | **117** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

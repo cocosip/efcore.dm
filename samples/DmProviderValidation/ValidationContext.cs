@@ -29,6 +29,8 @@ internal sealed class ValidationContext : DbContext
 
     public DbSet<Child> Children => Set<Child>();
 
+    public DbSet<Computed> Computeds => Set<Computed>();
+
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         => optionsBuilder.UseDm(ConnectionString, _configure);
 
@@ -57,6 +59,15 @@ internal sealed class ValidationContext : DbContext
             entity.ToTable("DM_VALIDATION_PARENT");
             entity.HasKey(parent => parent.Id);
             entity.Property(parent => parent.Name).HasMaxLength(100);
+        });
+
+        // A computed column is a virtual one the server derives, so the acceptance run proves the script and
+        // the read back against the server rather than only the shape of the DDL.
+        modelBuilder.Entity<Computed>(entity =>
+        {
+            entity.ToTable("DM_VALIDATION_COMPUTED");
+            entity.HasKey(row => row.Id);
+            entity.Property(row => row.Total).HasComputedColumnSql("\"Amount\" * 2");
         });
 
         modelBuilder.Entity<Child>(entity =>
@@ -143,4 +154,14 @@ internal sealed class Child
     public int? ParentId { get; set; }
 
     public string Name { get; set; } = string.Empty;
+}
+
+/// <summary>A row whose total the server derives from its amount.</summary>
+internal sealed class Computed
+{
+    public int Id { get; set; }
+
+    public int Amount { get; set; }
+
+    public int Total { get; set; }
 }
