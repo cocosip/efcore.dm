@@ -60,8 +60,8 @@ The test framework version is bound to the EF Core version and is not unified ac
 tests/
   DM.EntityFrameworkCore.Tests/                      T1, T2, branch-specific regressions
   DM.EntityFrameworkCore.PackageConsumer/             T5: restores the packed provider as an application does
-  DM.EntityFrameworkCore.SpecificationTests/         T3: inherits EF Core specification base classes (planned)
-    Fixtures/                           one fixture per test store
+  DM.EntityFrameworkCore.SpecificationTests/         T3: inherits EF Core specification base classes, live only
+    TestUtilities/                      the test store, its factory and the shared fixture
     Skipped.md                          skip ledger
 scripts/
   package-smoke.ps1                     T5: packs, restores in an isolated cache, runs the consumer
@@ -127,6 +127,18 @@ The first runs, on 2026-11-11 against both compatibility modes, passed all eight
 The query steps were then added, taking the run to twenty-five, and a date difference step to twenty-six. They failed one of them on the default-mode instance only: `ADD_MONTHS` answered a timestamp at day precision there, so `AddMonths` returned midnight instead of the time it was given. The same statement kept the time on the Oracle-compatible instance, which is why a single instance would have hidden it. The provider now names `TIMESTAMPADD`, measured on both modes to clamp and to keep the time, and the step pins a month end so neither property can regress silently.
 
 Still unverified by a live run, and therefore still recorded as unverified in the matrix: the `EF.Functions` overloads that take a `TimeSpan`, the idempotent script executed as a script rather than generated, the migrations lock held by two concurrent processes, retry classification, and the PostgreSQL-compatible mode.
+
+### What the specification suite measured
+
+`tests/DM.EntityFrameworkCore.SpecificationTests` was run against the Oracle-compatible instance on 2026-11-11: 31 cases of `BuiltInDataTypesDmTest`, 27 passed, and the four that did not are in the [skip ledger](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with the measurement that decided each. The store creates the tables of its own model and drops only those, because the database is one an application already uses and Dameng has no `CREATE DATABASE` to give the suite a fresh one.
+
+The suite found three defects that no shape test could have found, and each is fixed:
+
+- A byte array used as a key or an index was mapped to `BLOB`, and the server refuses to create an index on a large object column (`试图在BLOB/CLOB/用户自定义数据类型列[Id]上建索引`), so the table could not be created at all. It now takes the bounded `VARBINARY(900)` a key needs, measured to be accepted as a primary key.
+- A byte array literal was written as `X'0414'`, which a bounded binary column accepts and a `BLOB` column rejects with `数据类型不匹配`. It is now `HEXTORAW('0414')`, which every binary type accepts.
+- An insert that carries an explicit identity value was refused with `仅当指定列列表，且SET IDENTITY_INSERT为ON时，才能对自增列赋值`. The statement is now bracketed with `SET IDENTITY_INSERT ... ON` and `OFF` in the same command.
+
+The two remaining provider gaps the suite exposed are the byte length of an ANSI string and a boolean column used directly as a predicate; both are recorded in the ledger with the measurement and the fix each needs.
 
 ### When no live environment is available
 

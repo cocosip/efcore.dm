@@ -224,7 +224,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Documentation consistency guards | `Implemented` | `DocumentationTests` | P0a | No | This project's rule. A relative link has to resolve, every document in `docs/` has to be indexed, a cited decision has to be defined in the architecture record, and a cited phase in the roadmap. Each guard was mutation tested: a broken link, an unindexed document, an undefined decision and an undefined phase each fail the suite |
 | Public surface guard | `Implemented` | `PublicSurfaceTests` | P0a | No | This project's rule. The exported types are pinned as a list, and the date difference overloads are counted, so a type that appears or disappears and an overload that is dropped fail the suite. A consumer compiles against this surface, which makes either a breaking change |
 | T2 SQL shape tests | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Complete statement asserted, expression placed where server execution is required |
-| T3 specification suite | `Not started` | — | P0b | **No** | The reference never had one |
+| T3 specification suite | `Partial` | `tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md` | P0b | **No** | The reference never had one. The specification test project inherits `BuiltInDataTypesTestBase` from the shipped package and ran against DM 8.1.4.80 on 2026-11-11 in the Oracle-compatible mode: 27 of 31 cases passed, and the four that did not are in that ledger with the measurement that decided each. The store owns only the tables of its own model, because the database is one an application already uses. The suite found three defects a shape test cannot find, all fixed: a `BLOB` key that the server refuses to index, a `X'` byte array literal a large object column rejects, and an explicit identity value the server refuses without `SET IDENTITY_INSERT`. One test base is coverage of the model, not of the query, update and migration suites |
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
 | Live validation console | `Implemented` | `samples/DmProviderValidation` | P6 | Yes | The program creates its own prefixed tables, marks its rows with a run identifier, drops only what it created, and returns a non-zero exit code when a step fails. Twenty-six steps are declared: the database steps, and the query steps that compare the server's answer with the value .NET computes. One of them applies a shipped migration, reads a row back through the model and applies the migration again. A dry run compares the shipped snapshot with the model and generates the idempotent script of the migration, failing when either drifts; both were mutation tested. Run on 2026-11-11 against DM 8.1.4.80 in both compatibility modes (`COMPATIBLE_MODE` 2, the Oracle-compatible instance, and 0, the default one): every step passed on each, at eighteen steps and again at twenty-six once the query steps were added. The first run failed one step, which is where the boolean projection and pseudo FROM clause gaps it now covers were measured |
 | Package consumer smoke test | `Implemented` | `scripts/package-smoke.ps1` | P6 | Yes | Packs the provider, restores a project that references it as a package into its own NuGet cache, compares the SHA-256 of the resolved package with the packed one, and runs the consumer, which builds a model and a create script without connecting to a server |
@@ -238,10 +238,10 @@ Rows by status, updated when the matrix changes:
 |---|---|
 | `Implemented` | 93 |
 | `In progress` | 0 |
-| `Partial` | 7 |
+| `Partial` | 8 |
 | `Blocked` | 2 |
 | `Deferred` | 4 |
-| `Not started` | 6 |
+| `Not started` | 5 |
 | `Not applicable` | 4 |
 | **Total rows** | **116** |
 
