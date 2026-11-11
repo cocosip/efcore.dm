@@ -110,7 +110,8 @@ Set-Content (Join-Path $work 'Probe.csproj') @"
 "@
 
 # Note carries an identity key, which the scaffolded model has to keep. Probe carries an identity
-# column that is not the key, which is the only shape where the flag cannot come from a convention.
+# column that is not the key, which is the only shape where the flag cannot come from a convention, and
+# an ANSI column, whose length the catalog reports in two units and whose declaration names which one.
 Set-Content (Join-Path $work 'Model.cs') @'
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -129,6 +130,7 @@ public class Probe
     public int Id { get; set; }
     public int Sequence { get; set; }
     public string Label { get; set; } = "";
+    public string Code { get; set; } = "";
     public int NoteId { get; set; }
     public Note Note { get; set; } = null!;
 }
@@ -143,6 +145,7 @@ public class ProbeContext(DbContextOptions<ProbeContext> options) : DbContext(op
         modelBuilder.Entity<Note>().Property(note => note.Text).HasMaxLength(100);
         modelBuilder.Entity<Probe>().Property(probe => probe.Id).ValueGeneratedNever();
         modelBuilder.Entity<Probe>().Property(probe => probe.Label).HasMaxLength(50);
+        modelBuilder.Entity<Probe>().Property(probe => probe.Code).HasMaxLength(3).IsUnicode(false);
         modelBuilder.Entity<Probe>().Property(probe => probe.Sequence).UseIdentityColumn();
         modelBuilder.Entity<Probe>().HasIndex(probe => probe.Label).IsUnique();
         modelBuilder.Entity<Probe>().HasOne(probe => probe.Note).WithMany(note => note.Probes).HasForeignKey(probe => probe.NoteId);
@@ -250,6 +253,13 @@ try {
 
     if ($scaffoldedContext -notmatch 'HasIndex' -or $scaffoldedContext -notmatch 'HasOne') {
         throw 'the scaffolded model lost an index or a foreign key'
+    }
+
+    # The ANSI column is declared in characters and the catalog reports it in two units, so the unit has
+    # to survive: the scaffolded model has to read the column back as the same declaration.
+    if ($scaffoldedContext -notmatch 'Code[^\n]*VARCHAR2\(3 CHAR\)') {
+        $codeLine = ($scaffoldedContext -split "`n" | Where-Object { $_ -match 'Code' } | Select-Object -First 1)
+        throw "the scaffolded model lost the ANSI character unit: $codeLine"
     }
 
     Write-Host '  ok    the scaffolded model keeps the identity column, the index and the foreign key'

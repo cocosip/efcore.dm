@@ -255,9 +255,12 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 
         if (storeType is null)
         {
+            // A length without a unit counts bytes for the ANSI types, while the length a model declares
+            // counts characters, so the ANSI types name the unit and the unicode ones, which count
+            // characters already, do not.
             storeType = size is null
                 ? storeTypeBase
-                : storeTypeBase + DmTypeSizes.FormatLength(size.Value);
+                : storeTypeBase + DmTypeSizes.FormatLength(size.Value, unicode ? null : "CHAR");
         }
 
         var dbType = (unicode, fixedLength) switch

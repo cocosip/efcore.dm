@@ -71,6 +71,46 @@ public class DmDatabaseModelFactoryTests
         Assert.Equal(["ID"], table.PrimaryKey.Columns.Select(column => column.Name));
     }
 
+    /// <summary>
+    /// A character column is declared in characters, which the catalog reports twice: on the measured
+    /// server a `VARCHAR2(3 CHAR)` column has a length of 6 bytes and a character length of 3. The unit
+    /// belongs to the store type, because the same length without it counts bytes and a value the model
+    /// says fits would overflow.
+    /// </summary>
+    [Fact]
+    public void Create_ReadsTheCharacterUnitOfAnAnsiColumn()
+    {
+        // The catalog query reports the column id and the comment before the character length, so a row
+        // that leaves them out shifts every value after them.
+        string[] columns =
+        [
+            .. ColumnColumns,
+            "COLUMN_ID",
+            "COMMENTS",
+            "CHAR_LENGTH"
+        ];
+
+        var model = Create(
+        [
+            Rows(ObjectColumns, ["APP", "ORDERS"]),
+            Rows(
+                columns,
+                ["APP", "ORDERS", "CODE", "VARCHAR2", 6, null, null, "N", null, "NO", 1, null, 3],
+                ["APP", "ORDERS", "NAME", "NVARCHAR2", 6, null, null, "N", null, "NO", 2, null, 3],
+                ["APP", "ORDERS", "BYTE_LENGTH", "VARCHAR2", 3, null, null, "N", null, "NO", 3, null, 3],
+                ["APP", "ORDERS", "BINARY", "VARBINARY", 16, null, null, "N", null, "NO", 4, null, 16]),
+            Rows(ConstraintColumns),
+            Rows(ConstraintColumnColumns),
+            Rows(IndexColumns),
+            Rows(ForeignKeyColumns),
+            Rows(SequenceColumns)
+        ]);
+
+        Assert.Equal(
+            ["VARCHAR2(3 CHAR)", "NVARCHAR2(3)", "VARCHAR2(3)", "VARBINARY(16)"],
+            model.Tables.Single().Columns.Select(column => column.StoreType));
+    }
+
     [Fact]
     public void Create_ReadsTheForeignKeysUniqueConstraintsAndIndexes()
     {

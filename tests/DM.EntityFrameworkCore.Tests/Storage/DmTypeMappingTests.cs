@@ -16,7 +16,7 @@ public class DmTypeMappingTests
     [InlineData(nameof(Facets.UnicodeLongString), "NCLOB")]
     [InlineData(nameof(Facets.LongestBoundedString), "NVARCHAR2(8188)")]
     [InlineData(nameof(Facets.SizedString), "NVARCHAR2(50)")]
-    [InlineData(nameof(Facets.AnsiSizedString), "VARCHAR2(50)")]
+    [InlineData(nameof(Facets.AnsiSizedString), "VARCHAR2(50 CHAR)")]
     [InlineData(nameof(Facets.UnicodeString), "NVARCHAR2(50)")]
     [InlineData(nameof(Facets.FixedString), "NCHAR(50)")]
     [InlineData(nameof(Facets.UnicodeFixedString), "NCHAR(50)")]
@@ -49,7 +49,8 @@ public class DmTypeMappingTests
     /// </summary>
     [Theory]
     [InlineData("TextKey", "NVARCHAR2(450)")]
-    [InlineData("AnsiKey", "VARCHAR2(900)")]
+    [InlineData("AnsiKey", "VARCHAR2(900 CHAR)")]
+    [InlineData("AnsiFixedKey", "CHAR(1 CHAR)")]
     [InlineData("UnicodeIndexedKey", "NVARCHAR2(450)")]
     [InlineData("IndexedKey", "NVARCHAR2(450)")]
     [InlineData("FixedKey", "NCHAR(1)")]
@@ -133,6 +134,8 @@ public class DmTypeMappingTests
                 entity.Property(entry => entry.IndexedKey);
                 entity.HasIndex(entry => entry.IndexedKey);
                 entity.Property(entry => entry.FixedKey).IsFixedLength();
+                entity.Property(entry => entry.AnsiFixedKey).IsUnicode(false).IsFixedLength();
+                entity.HasIndex(entry => entry.AnsiFixedKey);
             });
     }
 
@@ -147,6 +150,8 @@ public class DmTypeMappingTests
         public string IndexedKey { get; set; } = string.Empty;
 
         public string FixedKey { get; set; } = string.Empty;
+
+        public string AnsiFixedKey { get; set; } = string.Empty;
     }
 
     private sealed class BinaryKeyedContext : DbContext

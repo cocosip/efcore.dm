@@ -35,12 +35,14 @@ public class BuiltInDataTypesDmTest : BuiltInDataTypesTestBase<BuiltInDataTypesD
         // DBMS_LOB.COMPARE rather than with an operator, so the cases that compare one are not applicable.
         public override bool SupportsLargeStringComparisons => false;
 
-        // `IsUnicode(false)` is VARCHAR2, which the provider maps, so the ANSI cases are exercised. Whether
-        // the server converts a Unicode value to ANSI without loss depends on the database encoding, and the
-        // cases that ask it are the ones that answer.
+        // `IsUnicode(false)` is VARCHAR2, which the provider maps, so the ANSI cases are exercised.
         public override bool SupportsAnsi => true;
 
-        public override bool SupportsUnicodeToAnsiConversion => true;
+        // Measured on 8.1.4.80 in a UTF-8 database: a `VARCHAR2(3 CHAR)` column returns a three character
+        // Unicode value unchanged, so the store does not replace what the ANSI type cannot hold. That is a
+        // property of the database encoding, not of the provider: in a gb18030 database the same column
+        // would answer a question mark.
+        public override bool SupportsUnicodeToAnsiConversion => false;
 
         // A byte array maps to BLOB, and Dameng does not allow a large object in a key or an index.
         public override bool SupportsBinaryKeys => false;

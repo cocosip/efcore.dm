@@ -32,16 +32,22 @@ internal static class DmCatalog
     /// identity flag, the default and the comment.
     /// </summary>
     /// <remarks>
+    /// The length is reported twice because the two answer different questions: <c>DATA_LENGTH</c> is the
+    /// width in bytes and <c>CHAR_LENGTH</c> is the width in characters. The ANSI types count bytes unless
+    /// the declaration names the <c>CHAR</c> unit, so a column read without both cannot state which of the
+    /// two it was declared with.
+    /// <para>
     /// <c>ALL_TAB_COLUMNS</c> has no identity column on 8.1.4.80 — naming one fails the whole statement
     /// with <c>无法解析的成员访问表达式</c> — so the flag is read from the catalog the Oracle-compatible views
     /// are built on, where bit 1 of <c>SYS.SYSCOLUMNS.INFO2</c> marks an identity column. A column the
     /// join does not find is not an identity column, which is what the left join and the <c>CASE</c> say.
+    /// </para>
     /// </remarks>
     public const string Columns = """
         SELECT c.OWNER, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, c.DATA_LENGTH, c.DATA_PRECISION,
                c.DATA_SCALE, c.NULLABLE, c.DATA_DEFAULT,
                CASE WHEN BITAND(i.INFO2, 1) = 1 THEN 'YES' ELSE 'NO' END,
-               c.COLUMN_ID, m.COMMENTS
+               c.COLUMN_ID, m.COMMENTS, c.CHAR_LENGTH
         FROM ALL_TAB_COLUMNS c
         LEFT JOIN ALL_COL_COMMENTS m
             ON m.OWNER = c.OWNER AND m.TABLE_NAME = c.TABLE_NAME AND m.COLUMN_NAME = c.COLUMN_NAME

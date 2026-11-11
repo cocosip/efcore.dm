@@ -53,8 +53,16 @@ internal static class DmTypeSizes
     /// <summary>Formats a precision and scale suffix such as <c>(29,4)</c>.</summary>
     public static string FormatDecimal(int precision, int scale) => $"({precision},{scale})";
 
-    /// <summary>Formats a length suffix such as <c>(255)</c>.</summary>
-    public static string FormatLength(int length) => $"({length})";
+    /// <summary>
+    /// Formats a length suffix such as <c>(255)</c>, or <c>(255 CHAR)</c> when the unit matters.
+    /// </summary>
+    /// <remarks>
+    /// A length without a unit counts bytes for the ANSI character types, which is not what the model's
+    /// length means: measured on 8.1.4.80, <c>VARCHAR2(3)</c> holds three ASCII characters and one Chinese
+    /// character, while <c>VARCHAR2(3 CHAR)</c> holds three of either.
+    /// </remarks>
+    public static string FormatLength(int length, string? unit = null)
+        => unit is null ? $"({length})" : $"({length} {unit})";
 
     /// <summary>Formats a precision suffix such as <c>(6)</c>.</summary>
     public static string FormatPrecision(int precision) => $"({precision})";

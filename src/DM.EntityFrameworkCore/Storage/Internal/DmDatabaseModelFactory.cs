@@ -85,7 +85,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         using var command = Command(connection, DmCatalog.Columns);
         using var reader = command.ExecuteReader();
 
-        foreach (var values in ReadRows(reader, 12))
+        foreach (var values in ReadRows(reader, 13))
         {
             var owner = Text(values[0]);
             var objectName = Text(values[1]);
@@ -107,7 +107,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                 new DatabaseColumn
                 {
                     Name = name,
-                    StoreType = StoreType(values[3], values[4], values[5], values[6]),
+                    StoreType = StoreType(values[3], values[4], values[5], values[6], values[12]),
                     Table = table,
                     IsNullable = Text(values[7]) is not "N",
                     DefaultValueSql = Text(values[8]),
@@ -428,7 +428,12 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
     /// precision to the numeric ones: an integer column reports a byte width that is not part of its
     /// type name.
     /// </summary>
-    private static string StoreType(object? type, object? length, object? precision, object? scale)
+    private static string StoreType(
+        object? type,
+        object? length,
+        object? precision,
+        object? scale,
+        object? characterLength)
     {
         var name = Text(type) ?? DmStoreTypes.Text;
 
@@ -441,6 +446,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         var precisionValue = Number(precision);
         var scaleValue = Number(scale);
         var lengthValue = Number(length);
+        var charactersValue = Number(characterLength);
 
         if (IsNumeric(name) && precisionValue is > 0)
         {
@@ -455,7 +461,24 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         }
         else if (HasLength(name) && lengthValue is > 0)
         {
-            builder.Append('(').Append(Literal(lengthValue.Value)).Append(')');
+            // A character column is declared in characters, which the catalog reports as CHAR_LENGTH;
+            // DATA_LENGTH is its width in bytes. The two differ for an ANSI column that names the
+            // character unit, and that unit is part of the store type: the same length without it counts
+            // bytes, which is a different column.
+            var lengthInCharacters = IsCharacter(name) && charactersValue is > 0
+                ? charactersValue.Value
+                : lengthValue.Value;
+
+            builder.Append('(').Append(Literal(lengthInCharacters));
+
+            if (IsAnsiCharacter(name)
+                && charactersValue is > 0
+                && charactersValue != lengthValue)
+            {
+                builder.Append(" CHAR");
+            }
+
+            builder.Append(')');
         }
         else if (name.StartsWith(DmStoreTypes.Timestamp, StringComparison.OrdinalIgnoreCase) && scaleValue is > 0)
         {
@@ -467,6 +490,17 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
 
     private static bool IsNumeric(string name)
         => name is DmStoreTypes.Decimal or "NUMBER";
+
+    private static bool IsCharacter(string name)
+        => name is DmStoreTypes.Char
+            or DmStoreTypes.NChar
+            or DmStoreTypes.VarChar
+            or DmStoreTypes.VarChar2
+            or DmStoreTypes.NVarChar
+            or DmStoreTypes.NVarChar2;
+
+    private static bool IsAnsiCharacter(string name)
+        => name is DmStoreTypes.Char or DmStoreTypes.VarChar or DmStoreTypes.VarChar2;
 
     private static bool HasLength(string name)
         => name is DmStoreTypes.Char
