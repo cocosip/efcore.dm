@@ -74,18 +74,65 @@ public class DmTimeOnlyTranslationTests
     }
 
     /// <summary>
-    /// Adding to a time of day wraps at midnight in .NET, and no arithmetic measured on the server
-    /// reproduces that on <c>TIME</c>, so the call is left untranslated rather than answered with an
-    /// interval addition whose wrap-around is unknown.
+    /// An addition is <c>TIMESTAMPADD</c> of a second count, cast back to a time of day: the count is the
+    /// argument multiplied by the seconds in its unit, because a fractional argument is real and an hour
+    /// count of 1.5 answered one whole hour, measured on 8.1.4.80.
     /// </summary>
     [Fact]
-    public void AddHours_IsNotTranslated()
+    public void AddHours_AddsTheSecondsOfTheHours()
     {
         using var context = new ProbeContext();
 
-        Assert.Throws<InvalidOperationException>(
-            () => context.Probes.Where(p => p.At.AddHours(1) > p.At).ToQueryString());
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."At", "p"."CreatedAt", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE CAST(TIMESTAMPADD(SQL_TSI_SECOND, 1.0 * 3600.0, "p"."At") AS TIME(6)) > "p"."At"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.At.AddHours(1) > p.At)
+                    .ToQueryString()));
     }
+
+    [Fact]
+    public void AddMinutes_AddsTheSecondsOfTheMinutes()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."At", "p"."CreatedAt", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE CAST(TIMESTAMPADD(SQL_TSI_SECOND, 90.0 * 60.0, "p"."At") AS TIME(6)) > "p"."At"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.At.AddMinutes(90) > p.At)
+                    .ToQueryString()));
+    }
+
+    /// <summary>
+    /// The interval an <c>Add</c> is given is expressed in seconds by summing its parts, which is the same
+    /// shape the total members use.
+    /// </summary>
+    [Fact]
+    public void Add_AddsTheSecondsOfTheInterval()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."At", "p"."CreatedAt", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE CAST(TIMESTAMPADD(SQL_TSI_SECOND, ((EXTRACT(DAY FROM INTERVAL '0 00:05:00' DAY TO SECOND) * 86400.0) + (EXTRACT(HOUR FROM INTERVAL '0 00:05:00' DAY TO SECOND) * 3600.0)) + ((EXTRACT(MINUTE FROM INTERVAL '0 00:05:00' DAY TO SECOND) * 60.0) + EXTRACT(SECOND FROM INTERVAL '0 00:05:00' DAY TO SECOND)), "p"."At") AS TIME(6)) > "p"."At"
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.At.Add(TimeSpan.FromMinutes(5)) > p.At)
+                    .ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

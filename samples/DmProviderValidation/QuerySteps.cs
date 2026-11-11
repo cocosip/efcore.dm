@@ -143,6 +143,27 @@ internal static class QuerySteps
         Equal(added.Date, DateOnly.FromDateTime(createdAt), "DateOnly.FromDateTime");
         Equal(Truncated(added.Time), Truncated(TimeOnly.FromDateTime(createdAt)), "TimeOnly.FromDateTime");
 
+        // The members of a date and of a time of day: a day number counts from the epoch the provider
+        // anchors on, and an addition to a time of day wraps past midnight the way .NET does.
+        var members = await context.Records
+            .Where(item => item.RunId == run)
+            .Select(item => new
+            {
+                DayNumber = item.Day.DayNumber,
+                Later = item.Time.AddHours(1.5),
+                Earlier = item.Time.AddMinutes(-30),
+                Interval = item.Time.Add(TimeSpan.FromMinutes(5))
+            })
+            .FirstAsync(cancellationToken);
+
+        var day = new DateOnly(2026, 1, 2);
+        var time = new TimeOnly(3, 4, 5, 123);
+
+        Equal(members.DayNumber, day.DayNumber, "DateOnly.DayNumber");
+        Equal(members.Later, time.AddHours(1.5), "TimeOnly.AddHours");
+        Equal(members.Earlier, time.AddMinutes(-30), "TimeOnly.AddMinutes");
+        Equal(members.Interval, time.Add(TimeSpan.FromMinutes(5)), "TimeOnly.Add");
+
         // The clock members read the server clock, so the assertion is an ordering rather than a value.
         var now = await context.Records
             .Where(item => item.RunId == run)

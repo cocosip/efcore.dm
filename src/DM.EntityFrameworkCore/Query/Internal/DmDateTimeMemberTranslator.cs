@@ -111,13 +111,7 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
     /// </summary>
     private SqlExpression? Total(SqlExpression instance, string memberName)
     {
-        var seconds = _sqlExpressionFactory.Add(
-            _sqlExpressionFactory.Add(
-                Scaled("DAY", instance, 86400.0),
-                Scaled("HOUR", instance, 3600.0)),
-            _sqlExpressionFactory.Add(
-                Scaled("MINUTE", instance, 60.0),
-                ExtractPart("SECOND", instance)));
+        var seconds = DmIntervals.Seconds(_sqlExpressionFactory, instance);
 
         return memberName switch
         {
@@ -132,8 +126,6 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
         };
     }
 
-    private SqlExpression Scaled(string part, SqlExpression instance, double factor)
-        => _sqlExpressionFactory.Multiply(ExtractPart(part, instance), _sqlExpressionFactory.Constant(factor));
 
     /// <summary>
     /// The part is read as a number here, because a total is arithmetic over the parts rather than a

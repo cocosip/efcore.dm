@@ -149,6 +149,29 @@ public class DmDateOnlyTranslationTests
             Statement(query.ToQueryString()));
     }
 
+    /// <summary>
+    /// The day number is a difference from 1970-01-01 plus that day's own number, because the server's
+    /// calendar skips the ten days of the Gregorian reform: a count from 0001-01-01 answered 739619 for
+    /// 2026-01-02 where .NET answers 739617, measured on 8.1.4.80. The anchored count answered the value
+    /// .NET computes.
+    /// </summary>
+    [Fact]
+    public void DayNumber_CountsDaysFromTheEpoch()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."CreatedAt", "p"."Day", "p"."Months"
+            FROM "Probes" AS "p"
+            WHERE (DATEDIFF(DAY, DATE '1970-01-01', "p"."Day") + 719162) > 739000
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.Day.DayNumber > 739000)
+                    .ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",
