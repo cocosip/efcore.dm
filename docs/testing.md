@@ -64,6 +64,7 @@ tests/
     Skipped.md                          skip ledger
 scripts/
   package-smoke.ps1                     T5: packs, restores in an isolated cache, runs the consumer
+  design-time-smoke.ps1                 live tooling: migrations and scaffolding through `dotnet ef`
 samples/
   DmProviderValidation/                 live end-to-end acceptance
 ```
@@ -124,7 +125,7 @@ The first runs, on 2026-11-11 against both compatibility modes, passed all eight
 
 The query steps were then added, taking the run to twenty-five, and a date difference step to twenty-six. They failed one of them on the default-mode instance only: `ADD_MONTHS` answered a timestamp at day precision there, so `AddMonths` returned midnight instead of the time it was given. The same statement kept the time on the Oracle-compatible instance, which is why a single instance would have hidden it. The provider now names `TIMESTAMPADD`, measured on both modes to clamp and to keep the time, and the step pins a month end so neither property can regress silently.
 
-Still unverified by a live run, and therefore still recorded as unverified in the matrix: the `EF.Functions` overloads that take a `TimeSpan`, the reverse engineering catalog queries, the idempotent script executed as a script, the migrations lock held by two concurrent processes, retry classification, and the PostgreSQL-compatible mode.
+Still unverified by a live run, and therefore still recorded as unverified in the matrix: the `EF.Functions` overloads that take a `TimeSpan`, the idempotent script executed as a script rather than generated, the migrations lock held by two concurrent processes, retry classification, and the PostgreSQL-compatible mode.
 
 ### When no live environment is available
 

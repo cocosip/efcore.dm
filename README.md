@@ -60,6 +60,7 @@ Nothing above needs a Dameng instance. The live acceptance run does, and it take
 dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation
 dotnet run --project samples/DmProviderValidation -- --secrets=Dm      # the secret, under a name
 dotnet run --project samples/DmProviderValidation -- --secrets=DmFull  # a second instance
+pwsh -File scripts/design-time-smoke.ps1 -Secrets Dm   # the `dotnet ef` tooling: migrations and scaffolding
 ```
 
 It exits non-zero when any step fails and never prints the connection string. [Testing](docs/testing.md) records what a run covers, what it does not, and what stays marked as awaiting verification until an instance is reachable.
