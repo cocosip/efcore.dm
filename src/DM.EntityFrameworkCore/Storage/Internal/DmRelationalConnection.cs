@@ -14,6 +14,16 @@ internal class DmRelationalConnection : RelationalConnection
     }
 
     /// <summary>
+    /// An ambient <see cref="System.Transactions.Transaction" /> is enlisted when the connection opens,
+    /// which the framework only does for a provider that says it supports ambient transactions; the
+    /// default is no, so a write inside a scope was not rolled back with it. The driver's enlistment does
+    /// work: measured on 8.1.4.80, a connection opened inside a scope and enlisted through
+    /// <see cref="System.Data.Common.DbConnection.EnlistTransaction" /> rolled back with the scope, and
+    /// with this switch on, a write inside a scope that was not completed did not survive.
+    /// </summary>
+    protected override bool SupportsAmbientTransactions => true;
+
+    /// <summary>
     /// The driver's second constructor argument is named <c>forEFCore</c>, so it is the vendor's
     /// own switch for a connection driven by Entity Framework. Leaving it off would run the
     /// provider on the path the driver keeps for other consumers.

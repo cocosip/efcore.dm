@@ -1,4 +1,5 @@
 using System.Data;
+using System.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -22,6 +23,7 @@ internal static class Steps
         ("delete", DeleteAsync),
         ("transaction commit", CommitAsync),
         ("transaction rollback", RollbackAsync),
+    ("transaction scope", ScopeAsync),
         ("savepoint", SavepointAsync),
         ("optimistic concurrency", ConcurrencyAsync),
         ("retrying execution strategy", RetryingExecutionAsync),
@@ -190,6 +192,42 @@ internal static class Steps
         Expect(
             await context.Records.CountAsync(item => item.RunId == run, cancellationToken) == 0,
             "a rolled back row must be gone");
+    }
+
+    /// <summary>
+    /// An ambient transaction: the framework enlists it only for a provider that says it supports them,
+    /// and the base default is no, so the write of a scope that is never completed must not survive.
+    /// </summary>
+    private static async Task ScopeAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        context.ChangeTracker.Clear();
+        var aborted = Guid.NewGuid();
+
+        using (new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+        {
+            context.Records.Add(NewRecord(aborted));
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        context.ChangeTracker.Clear();
+        var committed = Guid.NewGuid();
+
+        using (var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled))
+        {
+            context.Records.Add(NewRecord(committed));
+            await context.SaveChangesAsync(cancellationToken);
+            scope.Complete();
+        }
+
+        context.ChangeTracker.Clear();
+
+        Expect(
+            await context.Records.CountAsync(item => item.RunId == aborted, cancellationToken) == 0,
+            "a row written in a scope that was not completed must be gone");
+
+        Expect(
+            await context.Records.CountAsync(item => item.RunId == committed, cancellationToken) == 1,
+            "a row written in a completed scope must be visible");
     }
 
     private static async Task SavepointAsync(ValidationContext context, CancellationToken cancellationToken)

@@ -1,8 +1,11 @@
 using System.Data;
 using System.Data.Common;
+using System.Reflection;
 using Dm;
 using DM.EntityFrameworkCore.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Tests.Storage;
 
@@ -20,6 +23,26 @@ public class DmConnectionTests
         var connection = Assert.IsType<DmConnection>(context.Database.GetDbConnection());
 
         Assert.True(connection.ForEFCore);
+    }
+
+    /// <summary>
+    /// The framework enlists the transaction of a <see cref="System.Transactions.TransactionScope" /> only
+    /// for a provider that says ambient transactions are supported, and the base default is no: with the
+    /// switch off, a write inside a scope that was never completed survived, measured on 8.1.4.80, and with
+    /// it on the write did not.
+    /// </summary>
+    [Fact]
+    public void AmbientTransactions_AreSupported()
+    {
+        using var context = new ProbeContext("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        var connection = context.GetService<IRelationalConnection>();
+
+        var supported = typeof(RelationalConnection)
+            .GetProperty("SupportsAmbientTransactions", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(connection);
+
+        Assert.True((bool)supported!);
     }
 
     [Fact]
