@@ -75,6 +75,7 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
             {
                 nameof(TimeSpan.Add) => Interval(ExpressionType.Add, instance, arguments[0]),
                 nameof(TimeSpan.Subtract) => Interval(ExpressionType.Subtract, instance, arguments[0]),
+                nameof(TimeSpan.Duration) => Duration(instance),
                 _ => null
             };
         }
@@ -148,6 +149,28 @@ internal sealed class DmDateTimeMethodTranslator : IMethodCallTranslator
                         typeof(double),
                         _doubleMapping),
                     _sqlExpressionFactory.Constant(SecondsPerDay)),
+                _sqlExpressionFactory.Fragment("'SECOND'")
+            ],
+            nullable: true,
+            argumentsPropagateNullability: [true, false],
+            typeof(TimeSpan),
+            _timeSpanMapping);
+
+    /// <summary>
+    /// The magnitude of an interval, built as a new interval from its absolute second count: <c>ABS</c>
+    /// does not accept an interval (参数不兼容), measured on 8.1.4.80.
+    /// </summary>
+    private SqlExpression Duration(SqlExpression instance)
+        => _sqlExpressionFactory.Function(
+            "NUMTODSINTERVAL",
+            [
+                _sqlExpressionFactory.Function(
+                    "ABS",
+                    [DmIntervals.Seconds(_sqlExpressionFactory, instance)],
+                    nullable: true,
+                    argumentsPropagateNullability: [true],
+                    typeof(double),
+                    typeMapping: null),
                 _sqlExpressionFactory.Fragment("'SECOND'")
             ],
             nullable: true,

@@ -93,6 +93,54 @@ public class DmTimeSpanTranslationTests
             Statement(query.ToQueryString()));
     }
 
+    /// <summary>
+    /// The members that are not a part of the interval: the tick count is the interval in seconds scaled,
+    /// the millisecond component is the seconds part scaled and reduced, and the magnitude is a new
+    /// interval built from the absolute second count. Measured on 8.1.4.80, the three answered the values
+    /// .NET answers for a negative and for a positive interval.
+    /// </summary>
+    [Fact]
+    public void Ticks_ScalesTheSeconds()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE CAST((((EXTRACT(DAY FROM "p"."Span") * 86400.0) + (EXTRACT(HOUR FROM "p"."Span") * 3600.0)) + ((EXTRACT(MINUTE FROM "p"."Span") * 60.0) + EXTRACT(SECOND FROM "p"."Span"))) * 10000000.0 AS BIGINT) > 1
+            """,
+            Statement(context.Probes.Where(p => p.Span.Ticks > 1).ToQueryString()));
+    }
+
+    [Fact]
+    public void Milliseconds_ReducesTheScaledSecondPart()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE (CAST(EXTRACT(SECOND FROM "p"."Span") * 1000.0 AS INT) % 1000) > 1
+            """,
+            Statement(context.Probes.Where(p => p.Span.Milliseconds > 1).ToQueryString()));
+    }
+
+    [Fact]
+    public void Duration_BuildsAnIntervalFromTheAbsoluteSeconds()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Span"
+            FROM "Probes" AS "p"
+            WHERE NUMTODSINTERVAL(ABS(((EXTRACT(DAY FROM "p"."Span") * 86400.0) + (EXTRACT(HOUR FROM "p"."Span") * 3600.0)) + ((EXTRACT(MINUTE FROM "p"."Span") * 60.0) + EXTRACT(SECOND FROM "p"."Span"))), 'SECOND') > INTERVAL '0 01:00:00' DAY TO SECOND
+            """,
+            Statement(context.Probes.Where(p => p.Span.Duration() > TimeSpan.FromHours(1)).ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

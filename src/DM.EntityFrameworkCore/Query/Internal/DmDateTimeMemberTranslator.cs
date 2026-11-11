@@ -83,7 +83,7 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
                 return Extract(intervalPart, instance, returnType, member.Name);
             }
 
-            return Total(instance, member.Name);
+            return Total(instance, member.Name) ?? Span(instance, member.Name);
         }
 
         if (member.DeclaringType != typeof(DateTime)
@@ -104,6 +104,41 @@ internal sealed class DmDateTimeMemberTranslator : IMemberTranslator
             ? Clock(member.Name, returnType)
             : Instance(instance, member.Name, returnType);
     }
+
+    /// <summary>
+    /// The members that are not a part of the interval: the tick count, the millisecond component and the
+    /// magnitude.
+    /// </summary>
+    /// <remarks>
+    /// ponytail: the tick count is real arithmetic, so a span beyond about 292 years loses precision; a
+    /// time span that wide has no place in a schema, and an exact count would need an integer path.
+    /// The tick count is the interval in seconds scaled, and the millisecond component is the seconds part
+    /// scaled and reduced, which answered -500 for -5.5 seconds, the value .NET answers; both were measured
+    /// on 8.1.4.80. The magnitude is a method rather than a member, so it is translated there.
+    /// </remarks>
+    private SqlExpression? Span(SqlExpression instance, string memberName)
+        => memberName switch
+        {
+            nameof(TimeSpan.Ticks) => _sqlExpressionFactory.ApplyDefaultTypeMapping(
+                _sqlExpressionFactory.Convert(
+                    _sqlExpressionFactory.Multiply(
+                        DmIntervals.Seconds(_sqlExpressionFactory, instance),
+                        _sqlExpressionFactory.Constant(10000000L)),
+                    typeof(long)))!,
+
+            nameof(TimeSpan.Milliseconds) => _sqlExpressionFactory.ApplyDefaultTypeMapping(
+                _sqlExpressionFactory.Modulo(
+                    _sqlExpressionFactory.Convert(
+                        _sqlExpressionFactory.Multiply(
+                            _sqlExpressionFactory.ApplyDefaultTypeMapping(
+                                DmIntervals.Part(_sqlExpressionFactory, "SECOND", instance))!,
+                            _sqlExpressionFactory.Constant(1000.0)),
+                        typeof(int)),
+                    _sqlExpressionFactory.Constant(1000)))!,
+
+
+            _ => null
+        };
 
     /// <summary>
     /// A total member is the interval expressed in one unit, which is a sum over the parts. The

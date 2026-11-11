@@ -309,6 +309,35 @@ internal static class QuerySteps
             await rows.CountAsync(item => end.Subtract(item.CreatedAt) > TimeSpan.FromHours(1), cancellationToken),
             1,
             "a difference in a predicate");
+
+        // The members of an interval that are not a part of it, read from a seeded row and from one that
+        // runs backwards, because the sign of a negative interval is the part that is easy to lose.
+        var negative = NewRecord(run);
+        negative.Duration = TimeSpan.FromSeconds(-5.5);
+
+        context.Records.Add(negative);
+        await context.SaveChangesAsync(cancellationToken);
+        context.ChangeTracker.Clear();
+
+        var expected = new TimeSpan(1, 2, 3, 4, 5);
+
+        var seeded = await context.Records
+            .Where(item => item.Id == record.Id)
+            .Select(item => new { item.Duration.Ticks, item.Duration.Milliseconds, Magnitude = item.Duration.Duration() })
+            .SingleAsync(cancellationToken);
+
+        Equal(seeded.Ticks, expected.Ticks, "TimeSpan.Ticks");
+        Equal(seeded.Milliseconds, expected.Milliseconds, "TimeSpan.Milliseconds");
+        Equal(seeded.Magnitude, expected.Duration(), "TimeSpan.Duration");
+
+        var backwards = await context.Records
+            .Where(item => item.Id == negative.Id)
+            .Select(item => new { item.Duration.Ticks, item.Duration.Milliseconds, Magnitude = item.Duration.Duration() })
+            .SingleAsync(cancellationToken);
+
+        Equal(backwards.Ticks, TimeSpan.FromSeconds(-5.5).Ticks, "TimeSpan.Ticks of a negative interval");
+        Equal(backwards.Milliseconds, TimeSpan.FromSeconds(-5.5).Milliseconds, "TimeSpan.Milliseconds of a negative interval");
+        Equal(backwards.Magnitude, TimeSpan.FromSeconds(5.5), "TimeSpan.Duration of a negative interval");
     }
 
     private static async Task MathAsync(ValidationContext context, CancellationToken cancellationToken)
