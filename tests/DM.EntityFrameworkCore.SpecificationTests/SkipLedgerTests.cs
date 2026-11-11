@@ -40,7 +40,7 @@ public class SkipLedgerTests
     /// case in any of them can be recorded in the ledger.
     /// </summary>
     private static HashSet<string> CaseNames()
-        => new[] { typeof(BuiltInDataTypesDmTest), typeof(StoreGeneratedDmTest) }
+        => new[] { typeof(BuiltInDataTypesDmTest), typeof(StoreGeneratedDmTest), typeof(NorthwindWhereQueryDmTest) }
             .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
             .Where(method => method.CustomAttributes.Any(attribute => attribute.AttributeType.Name.Contains("Fact")))
             .Select(method => method.Name)

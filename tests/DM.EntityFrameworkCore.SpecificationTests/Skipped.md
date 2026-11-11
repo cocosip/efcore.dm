@@ -14,19 +14,25 @@ failure is below, and it is the whole of the gap this fixture set exposes.
 The store generated fixture set (`StoreGeneratedDmTest`, 211 cases) ran against the same instance on
 2026-11-11 and every case passed, so it adds no entry here.
 
+The `Where` set of the Northwind query suite (`NorthwindWhereQueryDmTest`, 408 cases) ran against the
+same instance on 2026-11-11 and every case passed, so it adds no entry either. Nine of its cases
+compare two constructed values, which the relational pipeline does not translate for any provider; the
+class asserts that failure, as the SQL Server test does, so those cases pass as written (EF Core issue
+#14672).
+
 ## Cases that do not pass
 
 | Case | Cause | Fix |
 |---|---|---|
 | `Can_perform_query_with_max_length` | The case compares a `byte[9000]` with the equality operator, and this server cannot do both ends of that: mapped to `VARBINARY(9000)`, as the reference provider maps it, the value is refused with `记录超长`, because a row cannot hold what the type declares — measured on a one column table, 7500 bytes were stored and 8000 failed; mapped to a `BLOB`, which is what a byte array past that ceiling becomes, the statement is refused with `字符串过长`, because a large object compares with `DBMS_LOB.COMPARE` rather than with an operator | Not a provider defect: a large value must be a large object, and a large object has no equality operator. The case is inapplicable as written. The insert of the same row does pass now, since the oversized byte array is a `BLOB` rather than a column that cannot hold it |
 
-`Case` names are methods of `BuiltInDataTypesDmTest`. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
+`Case` names are methods of the test classes this project owns. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
 fails when a row names a case the suite does not have.
 
 ## Cases that do not run
 
-None. Every case of `BuiltInDataTypesDmTest` ran in the measurement above; the four capability answers in
-the fixture narrow what the model contains rather than skipping a case.
+None. Every case of the three bases ran in the measurements above; the four capability answers in the
+`BuiltInDataTypesDmTest` fixture narrow what the model contains rather than skipping a case.
 
 `SupportsLargeStringComparisons`, `SupportsBinaryKeys`, `SupportsUnicodeToAnsiConversion` and
 `PreservesDateTimeKind` are answered in the fixture rather than here, because they describe the server

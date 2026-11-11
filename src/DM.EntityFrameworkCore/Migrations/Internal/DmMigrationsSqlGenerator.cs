@@ -384,12 +384,98 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
 
         try
         {
-            return base.Generate(operations, model, options);
+            return base.Generate(DeferSelfReferencingForeignKeys(operations), model, options);
         }
         finally
         {
             _idempotent = false;
         }
+    }
+
+    /// <summary>
+    /// A self-referencing foreign key is added after the indexes of the script, because the server
+    /// indexes the referencing columns when the constraint is created and then refuses an index on
+    /// the same columns.
+    /// </summary>
+    /// <remarks>
+    /// Measured on 8.1.4.80: a table created with a foreign key to itself answered `此列列表已索引`
+    /// for a later `CREATE INDEX` on the referencing column, while the same constraint added with
+    /// `ALTER TABLE` after the index was accepted. The constraint keeps its name, the model's index
+    /// keeps its name, and the server keeps the index it made for the constraint.
+    /// </remarks>
+    private static IReadOnlyList<MigrationOperation> DeferSelfReferencingForeignKeys(
+        IReadOnlyList<MigrationOperation> operations)
+    {
+        var deferred = new List<AddForeignKeyOperation>();
+        var reordered = new List<MigrationOperation>(operations.Count);
+
+        foreach (var operation in operations)
+        {
+            if (operation is CreateTableOperation createTable
+                && createTable.ForeignKeys.Any(key => IsSelfReferencing(createTable.Schema, createTable.Name, key)))
+            {
+                var kept = new List<AddForeignKeyOperation>();
+
+                foreach (var key in createTable.ForeignKeys)
+                {
+                    if (IsSelfReferencing(createTable.Schema, createTable.Name, key))
+                    {
+                        deferred.Add(key);
+                    }
+                    else
+                    {
+                        kept.Add(key);
+                    }
+                }
+
+                reordered.Add(WithoutForeignKeys(createTable, kept));
+
+                continue;
+            }
+
+            if (operation is AddForeignKeyOperation addForeignKey
+                && IsSelfReferencing(addForeignKey.Schema, addForeignKey.Table, addForeignKey))
+            {
+                deferred.Add(addForeignKey);
+
+                continue;
+            }
+
+            reordered.Add(operation);
+        }
+
+        reordered.AddRange(deferred);
+
+        return reordered;
+    }
+
+    private static bool IsSelfReferencing(string? schema, string table, AddForeignKeyOperation key)
+        => key.PrincipalTable == table
+            && (key.PrincipalSchema ?? schema) == schema;
+
+    private static CreateTableOperation WithoutForeignKeys(
+        CreateTableOperation operation,
+        List<AddForeignKeyOperation> foreignKeys)
+    {
+        var copy = new CreateTableOperation
+        {
+            Name = operation.Name,
+            Schema = operation.Schema,
+            Comment = operation.Comment,
+            PrimaryKey = operation.PrimaryKey
+        };
+
+        copy.Columns.AddRange(operation.Columns);
+        copy.UniqueConstraints.AddRange(operation.UniqueConstraints);
+        copy.CheckConstraints.AddRange(operation.CheckConstraints);
+        copy.ForeignKeys.AddRange(foreignKeys);
+
+        foreach (var annotation in operation.GetAnnotations())
+        {
+            copy.AddAnnotation(annotation.Name, annotation.Value);
+        }
+
+        return copy;
     }
 
     /// <summary>

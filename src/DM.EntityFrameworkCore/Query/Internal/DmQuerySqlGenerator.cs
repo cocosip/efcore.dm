@@ -46,6 +46,60 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             : base.GetOperator(binaryExpression);
 
     /// <summary>
+    /// Dameng has no boolean type a comparison can hold as an operand: <c>"Flag" = ("Id" &gt; 1)</c> is
+    /// rejected with <c>语法分析出错</c>, while the same condition written as a <c>CASE</c> answering
+    /// <c>1</c> or <c>0</c> is accepted. The predicate rewrite does not reach this shape, because the
+    /// condition is an operand rather than a predicate of the statement.
+    /// </summary>
+    protected override Expression VisitSqlBinary(SqlBinaryExpression sqlBinaryExpression)
+    {
+        if (sqlBinaryExpression.OperatorType
+                is not (ExpressionType.Equal
+                    or ExpressionType.NotEqual
+                    or ExpressionType.LessThan
+                    or ExpressionType.LessThanOrEqual
+                    or ExpressionType.GreaterThan
+                    or ExpressionType.GreaterThanOrEqual)
+            || (!DmSqlConditions.IsCondition(sqlBinaryExpression.Left)
+                && !DmSqlConditions.IsCondition(sqlBinaryExpression.Right)))
+        {
+            return base.VisitSqlBinary(sqlBinaryExpression);
+        }
+
+        WriteOperand(sqlBinaryExpression.Left);
+        Sql.Append(GetOperator(sqlBinaryExpression));
+        WriteOperand(sqlBinaryExpression.Right);
+
+        return sqlBinaryExpression;
+
+        void WriteOperand(SqlExpression operand)
+        {
+            if (DmSqlConditions.IsCondition(operand))
+            {
+                Sql.Append("CASE WHEN ");
+                Visit(operand);
+                Sql.Append(" THEN 1 ELSE 0 END");
+
+                return;
+            }
+
+            var requiresParentheses = RequiresParentheses(sqlBinaryExpression, operand);
+
+            if (requiresParentheses)
+            {
+                Sql.Append("(");
+            }
+
+            Visit(operand);
+
+            if (requiresParentheses)
+            {
+                Sql.Append(")");
+            }
+        }
+    }
+
+    /// <summary>
     /// Rewrites the predicate into the form Dameng accepts: every boolean it contains is compared with
     /// <c>1</c> rather than used as a value, which the server rejects with
     /// <c>查询使用值表达式作为过滤条件</c>. The generator is the place that knows an expression is a

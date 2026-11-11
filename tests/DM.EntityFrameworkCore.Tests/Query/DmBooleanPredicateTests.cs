@@ -70,6 +70,38 @@ public class DmBooleanPredicateTests
             Statement(context.Probes.Where(p => p.Flag).Select(p => p.Name).Distinct().ToQueryString()));
     }
 
+    /// <summary>
+    /// A condition is not a value, so a comparison against one is written as the <c>CASE</c> that answers
+    /// <c>1</c> or <c>0</c>. The server rejects the condition itself as an operand with <c>语法分析出错</c>.
+    /// </summary>
+    [Fact]
+    public void AConditionComparedWithAColumn_BecomesACaseExpression()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Flag", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE "p"."Flag" = CASE WHEN "p"."Id" > 1 THEN 1 ELSE 0 END
+            """,
+            Statement(context.Probes.Where(p => p.Flag == (p.Id > 1)).ToQueryString()));
+    }
+
+    [Fact]
+    public void AConditionComparedWithAnotherCondition_WrapsBoth()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Flag", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE CASE WHEN "p"."Id" > 1 THEN 1 ELSE 0 END = CASE WHEN "p"."Id" > 2 THEN 1 ELSE 0 END
+            """,
+            Statement(context.Probes.Where(p => (p.Id > 1) == (p.Id > 2)).ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

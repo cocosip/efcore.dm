@@ -46,6 +46,29 @@ public class DmMigrationsSqlTests
     }
 
     [Fact]
+    public void CreateScript_AddsASelfReferencingForeignKeyAfterTheIndexItWouldDuplicate()
+    {
+        using var context = new SelfReferencingContext();
+
+        Assert.Equal(
+            """
+            CREATE TABLE "Employees" (
+                "Id" INT NOT NULL,
+                "ReportsTo" INT NULL,
+                CONSTRAINT "PK_Employees" PRIMARY KEY ("Id")
+            );
+            /
+
+            CREATE INDEX "IX_Employees_ReportsTo" ON "Employees" ("ReportsTo");
+            /
+
+            ALTER TABLE "Employees" ADD CONSTRAINT "FK_Employees_Employees_ReportsTo" FOREIGN KEY ("ReportsTo") REFERENCES "Employees" ("Id");
+            /
+            """.Replace("\r\n", "\n", StringComparison.Ordinal),
+            Separators(context.Database.GenerateCreateScript()));
+    }
+
+    [Fact]
     public void AlterColumn_UsesModify()
     {
         AssertSql(
@@ -580,6 +603,29 @@ public class DmMigrationsSqlTests
         Assert.Equal(
             expected,
             string.Join("\n", commands.Select(c => c.CommandText.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n'))));
+    }
+
+    private sealed class SelfReferencingContext : DbContext
+    {
+        public DbSet<Employee> Employees => Set<Employee>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Employee>(entity =>
+            {
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.HasIndex(e => e.ReportsTo);
+                entity.HasOne<Employee>().WithMany().HasForeignKey(e => e.ReportsTo);
+            });
+    }
+
+    private sealed class Employee
+    {
+        public int Id { get; set; }
+
+        public int? ReportsTo { get; set; }
     }
 
     private sealed class ProbeContext : DbContext
