@@ -78,8 +78,11 @@ public class CapabilityMatrixTests
                 }
                 else
                 {
+                    // Evidence can be a project directory, such as the acceptance console, or a file.
+                    var path = Path.Combine([RepositoryRoot.Find(), .. name.Split('/')]);
+
                     Assert.True(
-                        File.Exists(Path.Combine([RepositoryRoot.Find(), .. name.Split('/')])),
+                        File.Exists(path) || Directory.Exists(path),
                         $"{name} does not exist");
                 }
             }

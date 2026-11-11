@@ -75,7 +75,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Max batch size | `Deferred` | — | P3 | Yes | Follows Multiple statements per batch: with one command per batch there is nothing to cap, so the option is accepted and has no effect. Revisit with that row |
 | Open, close, reopen, async | `Implemented` | `DmConnectionTests` | P1 | Yes | Opens are counted, so a nested open needs its own close. Async members are the driver fallbacks, so they run synchronously underneath |
 | Transactions: begin, commit, rollback | `Implemented` | `DmConnectionTests`, `DmTransactionTests` | P1 | Yes | Commit and rollback reach the driver transaction; disposing without committing disposes it; the isolation level the caller asks for reaches it; a unit of work inside a transaction runs on it rather than opening a second one |
-| Savepoints and nested transactions | `Partial` | `DmConnectionTests`, `DmTransactionTests` | P1 | Yes | The relational layer executes `SAVEPOINT x`, `ROLLBACK TO x` and `RELEASE SAVEPOINT x` as statements rather than through the driver transaction, so the driver methods for it are unused; a unit of work inside a transaction is bracketed by one. The three statements are asserted as generated. A second transaction is rejected while one is open. Dameng support for `RELEASE SAVEPOINT` is unverified |
+| Savepoints and nested transactions | `Implemented` | `DmConnectionTests`, `DmTransactionTests`, `samples/DmProviderValidation` | P1 | Yes | The relational layer executes `SAVEPOINT x`, `ROLLBACK TO x` and `RELEASE SAVEPOINT x` as statements rather than through the driver transaction, so the driver methods for it are unused; a unit of work inside a transaction is bracketed by one. The three statements are asserted as generated. Executed against a server on 2026-11-11, on both compatibility modes: a row written inside the savepoint was undone by `ROLLBACK TO` and the row before it kept, and `RELEASE SAVEPOINT` was accepted. A second transaction is rejected while one is open |
 | Ambient transaction enlistment | `Blocked` | — | P1 | Yes | Requires observing driver behaviour |
 | Non-retrying execution strategy | `Implemented` | `DmInheritedBehaviorTests` | P1 | Yes | A unit of work runs once, because a retry would replay a statement whose failure may already have changed the database |
 | Retrying execution strategy | `Not started` | — | P1 | Yes | Needs Dameng error codes |
@@ -114,6 +114,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 |---|---|---|---|---|---|
 | `ToQueryString()` for a simple projection | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Works with no database involved |
 | `Where`, `OrderBy`, `Select` | `Implemented` | `DmQuerySqlGenerationTests` | P2 | Yes | |
+| Boolean expression in a projection (`Any()`, a comparison, `IS NULL`) | `Implemented` | `DmBooleanProjectionTests`, `samples/DmProviderValidation` | P2 | No | Dameng has no boolean type a select list can hold, and it requires a FROM clause, so a condition is rendered `CASE WHEN <condition> THEN 1 ELSE 0 END` and a statement without a table selects from `DUAL`. Both gaps were measured on a server: `SELECT EXISTS (...)` was rejected with `语法分析出错`, which the migrations acceptance step reached through `AnyAsync`. A boolean column, parameter or constant is a value rather than a condition and is selected as it is |
 | `Join`, `GroupBy`, aggregates | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | `INNER JOIN`, `LEFT JOIN`, `RIGHT JOIN` and `UNION`, with `GROUP BY` and `HAVING`, `COUNT`, `SUM`, `MIN` and `MAX`. The joins come from the base visitor, and the `LEFT JOIN` and `RIGHT JOIN` operators are the ones EF Core 10 adds; the statement they compose is pinned by a test |
 | `Include`, split and single queries | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | Collection loading joins and orders by the root key; the split query keeps the root statement separate |
 | Paging (`Skip`, `Take`) | `Implemented` | `DmQueryPipelineTests` | P2 | Yes | `Take` alone emits `FETCH FIRST n ROWS ONLY`, `Skip` alone emits `OFFSET n ROWS`, and together `OFFSET n ROWS FETCH NEXT m ROWS ONLY`, which the DM SQL manual documents as its `ROW_LIMIT` clause in [数据的插入、删除和修改](https://eco.dameng.com/document/dm/zh-cn/pm/insertion-deletion-modification.html). `LIMIT n OFFSET m` is the alternative form and is not used |
@@ -225,7 +226,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | T2 SQL shape tests | `Implemented` | `DmQuerySqlGenerationTests` | P0a | Yes | Complete statement asserted, expression placed where server execution is required |
 | T3 specification suite | `Not started` | — | P0b | **No** | The reference never had one |
 | T4 differential comparison | `Not started` | — | P6 | No | Diagnostic only |
-| Live validation console | `Blocked` | — | P6 | Yes | The program is written and builds, and every step awaits a live instance: it creates its own prefixed tables, marks its rows with a run identifier, drops only what it created, and returns a non-zero exit code when a step fails. Eighteen steps are declared, and one of them applies a shipped migration, reads a row back through the model and applies the migration again, which is the only way this provider's migration path is exercised against a server. A dry run compares the shipped snapshot with the model and generates the idempotent script of the migration, failing when either drifts; both were mutation tested. Running it against an unreachable server reports the driver's refusal and exits non-zero, which is the extent of what can be observed here |
+| Live validation console | `Implemented` | `samples/DmProviderValidation` | P6 | Yes | The program creates its own prefixed tables, marks its rows with a run identifier, drops only what it created, and returns a non-zero exit code when a step fails. Eighteen steps are declared, and one of them applies a shipped migration, reads a row back through the model and applies the migration again. A dry run compares the shipped snapshot with the model and generates the idempotent script of the migration, failing when either drifts; both were mutation tested. Run on 2026-11-11 against DM 8.1.4.80 in both compatibility modes (`COMPATIBLE_MODE` 2, the Oracle-compatible instance, and 0, the default one): all eighteen steps passed on each. The first run failed one step, which is where the boolean projection and pseudo FROM clause gaps it now covers were measured |
 | Package consumer smoke test | `Implemented` | `scripts/package-smoke.ps1` | P6 | Yes | Packs the provider, restores a project that references it as a package into its own NuGet cache, compares the SHA-256 of the resolved package with the packed one, and runs the consumer, which builds a model and a create script without connecting to a server |
 | Package metadata | `Implemented` | `PackagingTests` | P6 | Yes | The id, version, MIT licence, README, author, project URL, repository URL and tags are in the packed nuspec, and the expanded package carries the documentation file beside the assembly, and the LICENSE text at the root, so the terms travel with the copy. A test reads the version the build defines and asserts the assembly reports it, that the EF Core dependency range stays bounded, and that the documentation file is beside the assembly |
 
@@ -235,14 +236,14 @@ Rows by status, updated when the matrix changes:
 
 | Status | Count |
 |---|---|
-| `Implemented` | 88 |
+| `Implemented` | 91 |
 | `In progress` | 0 |
-| `Partial` | 10 |
-| `Blocked` | 3 |
+| `Partial` | 9 |
+| `Blocked` | 2 |
 | `Deferred` | 4 |
 | `Not started` | 6 |
 | `Not applicable` | 4 |
-| **Total rows** | **115** |
+| **Total rows** | **116** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
 

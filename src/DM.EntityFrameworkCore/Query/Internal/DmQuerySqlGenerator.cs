@@ -45,6 +45,62 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             : base.GetOperator(binaryExpression);
 
     /// <summary>
+    /// Dameng has no boolean type a select list can hold: a condition is a <c>CASE</c> answering
+    /// <c>1</c> or <c>0</c>. The base generator renders the condition itself, which the server rejects
+    /// with a syntax error — measured on a server with <c>SELECT EXISTS (...)</c>.
+    /// </summary>
+    /// <remarks>
+    /// A column, a parameter or a constant of type <see cref="bool" /> is a value, not a condition, so
+    /// it is left alone; only the shapes that express a predicate are wrapped.
+    /// </remarks>
+    protected override Expression VisitProjection(ProjectionExpression projectionExpression)
+    {
+        if (!IsCondition(projectionExpression.Expression))
+        {
+            return base.VisitProjection(projectionExpression);
+        }
+
+        Sql.Append("CASE WHEN ");
+        Visit(projectionExpression.Expression);
+        Sql.Append(" THEN 1 ELSE 0 END");
+
+        if (projectionExpression.Alias != string.Empty)
+        {
+            Sql.Append(AliasSeparator)
+                .Append(Dependencies.SqlGenerationHelper.DelimitIdentifier(projectionExpression.Alias));
+        }
+
+        return projectionExpression;
+    }
+
+    /// <summary>
+    /// Dameng requires a FROM clause, so a statement without a table selects from <c>DUAL</c>.
+    /// </summary>
+    protected override void GeneratePseudoFromClause()
+        => Sql.AppendLine().Append("FROM DUAL");
+
+    private static bool IsCondition(SqlExpression expression)
+        => expression.Type == typeof(bool)
+            && expression is ExistsExpression
+                or InExpression
+                or LikeExpression
+                or SqlUnaryExpression
+                {
+                    OperatorType: ExpressionType.Not or ExpressionType.Equal or ExpressionType.NotEqual
+                }
+                or SqlBinaryExpression
+                {
+                    OperatorType: ExpressionType.AndAlso
+                    or ExpressionType.OrElse
+                    or ExpressionType.Equal
+                    or ExpressionType.NotEqual
+                    or ExpressionType.LessThan
+                    or ExpressionType.LessThanOrEqual
+                    or ExpressionType.GreaterThan
+                    or ExpressionType.GreaterThanOrEqual
+                };
+
+    /// <summary>
     /// Renders <c>EXTRACT(PART FROM value)</c> and <c>CAST(value AS type)</c>. The base generator
     /// separates arguments with a comma, which is not valid for either.
     /// </summary>
