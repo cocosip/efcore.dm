@@ -20,8 +20,8 @@ public class DmDateTimeOffsetTranslationTests
     [Theory]
     [InlineData("AddDays", "(\"p\".\"Moment\" + 1.0) > \"p\".\"Moment\"")]
     [InlineData("AddHours", "(\"p\".\"Moment\" + (1.0 / 24.0)) > \"p\".\"Moment\"")]
-    [InlineData("AddMonths", "ADD_MONTHS(\"p\".\"Moment\", 1) > \"p\".\"Moment\"")]
-    [InlineData("AddYears", "ADD_MONTHS(\"p\".\"Moment\", 12) > \"p\".\"Moment\"")]
+    [InlineData("AddMonths", "TIMESTAMPADD(MONTH, 1, \"p\".\"Moment\") > \"p\".\"Moment\"")]
+    [InlineData("AddYears", "TIMESTAMPADD(MONTH, 12, \"p\".\"Moment\") > \"p\".\"Moment\"")]
     [InlineData("UtcDateTime", "SYS_EXTRACT_UTC(\"p\".\"Moment\") > \"p\".\"CreatedAt\"")]
     public void DateTimeOffsetMember_TranslatesToDameng(string name, string predicate)
     {
