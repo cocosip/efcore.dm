@@ -173,7 +173,7 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
 
         if (clrType == typeof(byte[]))
         {
-            return Binary(storeType, size);
+            return Binary(storeType, size, keyOrIndex);
         }
 
         if (clrType == typeof(DateTime))
@@ -290,15 +290,30 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         return new DecimalTypeMapping(storeType, DbType.Decimal, precision, scale);
     }
 
-    private static RelationalTypeMapping Binary(string? storeType, int? size)
-        => storeType is null
-            ? size is null
-                ? new ByteArrayTypeMapping(DmStoreTypes.Blob, DbType.Binary)
-                : new ByteArrayTypeMapping(
-                    DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(size.Value),
-                    DbType.Binary,
-                    size)
-            : new ByteArrayTypeMapping(storeType, DbType.Binary, size);
+    /// <summary>
+    /// A binary column the model leaves unbounded is a large object, which Dameng does not index, so a key
+    /// or an index names the bound the framework's own providers use instead: without it the server refuses
+    /// to create the table at all.
+    /// </summary>
+    private static RelationalTypeMapping Binary(string? storeType, int? size, bool keyOrIndex)
+    {
+        if (storeType is not null)
+        {
+            return new DmByteArrayTypeMapping(storeType, DbType.Binary, size);
+        }
+
+        if (size is null && keyOrIndex)
+        {
+            size = DmTypeSizes.DefaultBinaryKeyLength;
+        }
+
+        return size is null
+            ? new DmByteArrayTypeMapping(DmStoreTypes.Blob, DbType.Binary)
+            : new DmByteArrayTypeMapping(
+                DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(size.Value),
+                DbType.Binary,
+                size);
+    }
 
     private static RelationalTypeMapping TimeOnly(string? storeType, int? precision)
         => storeType is not null

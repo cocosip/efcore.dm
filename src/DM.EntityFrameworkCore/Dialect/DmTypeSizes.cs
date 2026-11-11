@@ -40,6 +40,13 @@ internal static class DmTypeSizes
     /// </summary>
     public const int DefaultAnsiKeyLength = 900;
 
+    /// <summary>
+    /// Length a binary key or index column gets when the model names none, in bytes. Dameng indexes no
+    /// binary large object either, and 900 bytes is the bound the framework's own providers use for a
+    /// binary key, measured to be accepted as a primary key by 8.1.4.80.
+    /// </summary>
+    public const int DefaultBinaryKeyLength = 900;
+
     /// <summary>Length of the binary type used for concurrency tokens.</summary>
     public const int RowVersionLength = 8;
 

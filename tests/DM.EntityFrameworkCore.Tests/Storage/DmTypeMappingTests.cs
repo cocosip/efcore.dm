@@ -62,6 +62,41 @@ public class DmTypeMappingTests
         Assert.Equal(expected, entity.FindProperty(property)!.GetColumnType());
     }
     /// <summary>
+    /// A byte array the model leaves unbounded is a large object, which Dameng does not index, so a key or
+    /// an index names a bounded binary length instead. Without it a table with a binary key could not be
+    /// created at all: the server refuses an index on a large object column.
+    /// </summary>
+    [Theory]
+    [InlineData("BinaryKey", "VARBINARY(900)")]
+    [InlineData("BinaryIndexed", "VARBINARY(900)")]
+    [InlineData("SizedBinary", "VARBINARY(16)")]
+    public void ABinaryUsedAsAKeyOrIndex_NamesABoundedLength(string property, string expected)
+    {
+        using var context = new BinaryKeyedContext();
+
+        var entity = context.Model.FindEntityType(typeof(BinaryKeyed))!;
+
+        Assert.Equal(expected, entity.FindProperty(property)!.GetColumnType());
+    }
+
+    /// <summary>
+    /// A byte array is written as <c>HEXTORAW</c> rather than the base form, because Dameng rejects the
+    /// base form for a large object column with <c>数据类型不匹配</c>.
+    /// </summary>
+    [Fact]
+    public void ByteArray_Literal_IsHexToRaw()
+    {
+        using var context = new BinaryKeyedContext();
+
+        var mapping = context.Model
+            .FindEntityType(typeof(BinaryKeyed))!
+            .FindProperty(nameof(BinaryKeyed.BinaryIndexed))!
+            .GetRelationalTypeMapping();
+
+        Assert.Equal("HEXTORAW('0414')", mapping.GenerateSqlLiteral(new byte[] { 0x04, 0x14 }));
+    }
+
+    /// <summary>
     /// An interval literal names its type, which a bare time string does not, and a negative span
     /// carries the sign in front of the value rather than on a field.
     /// </summary>
@@ -112,6 +147,30 @@ public class DmTypeMappingTests
         public string IndexedKey { get; set; } = string.Empty;
 
         public string FixedKey { get; set; } = string.Empty;
+    }
+
+    private sealed class BinaryKeyedContext : DbContext
+    {
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<BinaryKeyed>(entity =>
+            {
+                entity.HasKey(entry => entry.BinaryKey);
+                entity.HasIndex(entry => entry.BinaryIndexed);
+                entity.Property(entry => entry.SizedBinary).HasMaxLength(16);
+                entity.HasIndex(entry => entry.SizedBinary);
+            });
+    }
+
+    private sealed class BinaryKeyed
+    {
+        public byte[] BinaryKey { get; set; } = [];
+
+        public byte[] BinaryIndexed { get; set; } = [];
+
+        public byte[] SizedBinary { get; set; } = [];
     }
 
     private sealed class FacetsContext : DbContext
