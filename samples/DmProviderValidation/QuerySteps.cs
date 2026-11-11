@@ -422,6 +422,19 @@ internal static class QuerySteps
             .AnyAsync(cancellationToken);
 
         Equal(any, true, "Any over a set");
+
+        // A boolean column takes part in a predicate only when it is compared with 1: the server rejects
+        // the bare column, and the same column under NOT or beside a comparison, with
+        // 查询使用值表达式作为过滤条件. Each of the three shapes is asked here, because each was measured
+        // to fail on its own.
+        var rows = context.Records.Where(item => item.RunId == run);
+
+        Equal(await rows.CountAsync(item => item.Flag, cancellationToken), 2, "a boolean column as a predicate");
+        Equal(await rows.CountAsync(item => !item.Flag, cancellationToken), 0, "a negated boolean column");
+        Equal(
+            await rows.CountAsync(item => item.Flag && item.Number == 42, cancellationToken),
+            2,
+            "a boolean column beside a comparison");
     }
 
     private static async Task<Guid> SeedAsync(

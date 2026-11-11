@@ -130,13 +130,14 @@ Still unverified by a live run, and therefore still recorded as unverified in th
 
 ### What the specification suite measured
 
-`tests/DM.EntityFrameworkCore.SpecificationTests` was run against the Oracle-compatible instance on 2026-11-11: 31 cases of `BuiltInDataTypesDmTest`, 27 passed, and the four that did not are in the [skip ledger](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with the measurement that decided each. The store creates the tables of its own model and drops only those, because the database is one an application already uses and Dameng has no `CREATE DATABASE` to give the suite a fresh one. The project is not part of the solution and its cases do not run in CI; the pipeline builds it and runs the one part that needs no server, the skip ledger guard.
+`tests/DM.EntityFrameworkCore.SpecificationTests` was run against the Oracle-compatible instance on 2026-11-11: 31 cases of `BuiltInDataTypesDmTest`, 28 passed, and the three that did not are in the [skip ledger](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with the measurement that decided each. The store creates the tables of its own model and drops only those, because the database is one an application already uses and Dameng has no `CREATE DATABASE` to give the suite a fresh one. The project is not part of the solution and its cases do not run in CI; the pipeline builds it and runs the one part that needs no server, the skip ledger guard.
 
 The suite found three defects that no shape test could have found, and each is fixed:
 
 - A byte array used as a key or an index was mapped to `BLOB`, and the server refuses to create an index on a large object column (`试图在BLOB/CLOB/用户自定义数据类型列[Id]上建索引`), so the table could not be created at all. It now takes the bounded `VARBINARY(900)` a key needs, measured to be accepted as a primary key.
 - A byte array literal was written as `X'0414'`, which a bounded binary column accepts and a `BLOB` column rejects with `数据类型不匹配`. It is now `HEXTORAW('0414')`, which every binary type accepts.
 - An insert that carries an explicit identity value was refused with `仅当指定列列表，且SET IDENTITY_INSERT为ON时，才能对自增列赋值`. The statement is now bracketed with `SET IDENTITY_INSERT ... ON` and `OFF` in the same command.
+- A boolean column used directly as a predicate was rejected with `查询使用值表达式作为过滤条件`, and so was the same column under `NOT` or beside a comparison. The predicate is now rewritten so that every boolean it contains is compared with `1`, which the same server answered.
 
 The two remaining provider gaps the suite exposed are the byte length of an ANSI string and a boolean column used directly as a predicate; both are recorded in the ledger with the measurement and the fix each needs.
 

@@ -45,6 +45,36 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             : base.GetOperator(binaryExpression);
 
     /// <summary>
+    /// Rewrites the predicate into the form Dameng accepts: every boolean it contains is compared with
+    /// <c>1</c> rather than used as a value, which the server rejects with
+    /// <c>查询使用值表达式作为过滤条件</c>. The generator is the place that knows an expression is a
+    /// predicate, so the rewrite happens here: on the translated tree a predicate and a projected value
+    /// look alike.
+    /// </summary>
+    protected override Expression VisitSelect(SelectExpression selectExpression)
+    {
+        var predicate = selectExpression.Predicate is null
+            ? null
+            : DmSqlConditions.AsPredicate(selectExpression.Predicate);
+        var having = selectExpression.Having is null
+            ? null
+            : DmSqlConditions.AsPredicate(selectExpression.Having);
+
+        return predicate == selectExpression.Predicate && having == selectExpression.Having
+            ? base.VisitSelect(selectExpression)
+            : base.VisitSelect(
+                selectExpression.Update(
+                    selectExpression.Tables,
+                    predicate,
+                    selectExpression.GroupBy,
+                    having,
+                    selectExpression.Projection,
+                    selectExpression.Orderings,
+                    selectExpression.Offset,
+                    selectExpression.Limit));
+    }
+
+    /// <summary>
     /// Dameng has no boolean type a select list can hold: a condition is a <c>CASE</c> answering
     /// <c>1</c> or <c>0</c>. The base generator renders the condition itself, which the server rejects
     /// with a syntax error — measured on a server with <c>SELECT EXISTS (...)</c>.
@@ -55,7 +85,7 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     /// </remarks>
     protected override Expression VisitProjection(ProjectionExpression projectionExpression)
     {
-        if (!IsCondition(projectionExpression.Expression))
+        if (!DmSqlConditions.IsCondition(projectionExpression.Expression))
         {
             return base.VisitProjection(projectionExpression);
         }
@@ -79,26 +109,6 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     protected override void GeneratePseudoFromClause()
         => Sql.AppendLine().Append("FROM DUAL");
 
-    private static bool IsCondition(SqlExpression expression)
-        => expression.Type == typeof(bool)
-            && expression is ExistsExpression
-                or InExpression
-                or LikeExpression
-                or SqlUnaryExpression
-                {
-                    OperatorType: ExpressionType.Not or ExpressionType.Equal or ExpressionType.NotEqual
-                }
-                or SqlBinaryExpression
-                {
-                    OperatorType: ExpressionType.AndAlso
-                    or ExpressionType.OrElse
-                    or ExpressionType.Equal
-                    or ExpressionType.NotEqual
-                    or ExpressionType.LessThan
-                    or ExpressionType.LessThanOrEqual
-                    or ExpressionType.GreaterThan
-                    or ExpressionType.GreaterThanOrEqual
-                };
 
     /// <summary>
     /// Renders <c>EXTRACT(PART FROM value)</c> and <c>CAST(value AS type)</c>. The base generator

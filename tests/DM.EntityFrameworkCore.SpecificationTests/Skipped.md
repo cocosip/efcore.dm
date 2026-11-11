@@ -8,15 +8,14 @@ The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a runn
 store creates the tables of its own model and drops only those tables and sequences, so the database it
 runs against keeps every object an application already has.
 
-Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 31 cases, 27 passed, 4 failed. The
-failures are below; the four are the whole of the gap this fixture set exposed.
+Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 31 cases, 28 passed, 3 failed. The
+failures are below; the three are the whole of the gap this fixture set exposed.
 
 ## Cases that do not pass
 
 | Case | Cause | Fix |
 |---|---|---|
 | `Can_perform_query_with_ansi_strings_test` | `VARCHAR2(n)` counts bytes, while the model's `HasMaxLength(n)` counts characters: a non-ASCII value of `n` characters overflows with `列[StringAnsi3]长度超出定义`. Measured: `VARCHAR2(3)` takes three ASCII characters and one Chinese character, `VARCHAR2(3 CHAR)` takes three Chinese characters | Emit the `CHAR` qualifier for an ANSI string and read it back: the catalog reports such a column as `DATA_LENGTH 2n` and `CHAR_LENGTH n`, so the model factory has to see the qualifier to keep a scaffolded model and a migration diff empty |
-| `Can_query_using_any_nullable_data_type_as_literal` | A boolean column used as a predicate is emitted bare (`WHERE "p"."Flag"`), and Dameng rejects a value expression in that position with `查询使用值表达式作为过滤条件`. Measured: `WHERE "Flag" = 1` and `WHERE "Flag" = 0` work, `WHERE "Flag" = TRUE` fails with `数据类型不匹配` | Wrap a boolean predicate in `= 1` and write the boolean literal as `1`/`0`. `QuerySqlGenerator` has no virtual hook for the predicate, so this needs a translation postprocessor that rewrites the predicate of each `SelectExpression` |
 | `Can_perform_query_with_max_length` | The row of `MaxLengthDataTypes` fills its declared widths and exceeds the record size: `记录超长`. Measured on a table of one column: `VARBINARY(4000)` holding 4000 bytes fails, `NVARCHAR2(2000)` holding 2000 characters passes, `NVARCHAR2(4000)` holding 4000 characters fails | Not a provider defect: the declared types are legal, and a row that large cannot be stored. The case is inapplicable as written and stays listed until the fixture set is reviewed |
 | `Can_insert_and_read_with_max_length_set` | Same record-size limit as the row above | Same |
 
