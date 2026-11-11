@@ -32,7 +32,11 @@ internal sealed class DmObjectToStringTranslator : IMethodCallTranslator
         typeof(DateTime),
         typeof(DateTimeOffset),
         typeof(DateOnly),
-        typeof(TimeOnly)
+        typeof(TimeOnly),
+
+        // A Guid is stored as the 36-character text it formats to, so reading it as a string is a
+        // format of the column rather than a conversion of it.
+        typeof(Guid)
     ];
 
 
@@ -47,10 +51,13 @@ internal sealed class DmObjectToStringTranslator : IMethodCallTranslator
         IReadOnlyList<SqlExpression> arguments,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
+        // The type is read from the instance rather than the method: EF Core reports the parameterless
+        // call on a Guid as object.ToString, so the declaring type does not name the value being
+        // formatted.
         if (instance is null
             || method.Name != nameof(ToString)
             || method.GetParameters().Length != 0
-            || !FormattableTypes.Contains(method.DeclaringType ?? instance.Type))
+            || !FormattableTypes.Contains(instance.Type))
         {
             return null;
         }

@@ -29,6 +29,42 @@ public class DmGuidTranslationTests
                     .ToQueryString()));
     }
 
+    /// <summary>
+    /// A <see cref="Guid" /> is stored as the 36-character text it formats to, so reading it as a
+    /// string is a format of the column rather than a conversion of it, and it needs no declared width.
+    /// </summary>
+    [Fact]
+    public void ToString_FormatsTheStoredText()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Key"
+            FROM "Probes" AS "p"
+            WHERE TO_CHAR("p"."Key") = 'x'
+            """,
+            Statement(
+                context.Probes
+                    .Where(p => p.Key.ToString() == "x")
+                    .ToQueryString()));
+    }
+
+    /// <summary>
+    /// A format string has no Dameng equivalent, so the overload is left untranslated rather than
+    /// answered with the text the column already holds.
+    /// </summary>
+    [Fact]
+    public void ToString_WithAFormat_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Throws<InvalidOperationException>(
+            () => context.Probes
+                .Where(p => p.Key.ToString("N") == "x")
+                .ToQueryString());
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",
