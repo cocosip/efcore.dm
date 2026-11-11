@@ -127,6 +127,7 @@ public class DmDateOnlyTranslationTests
     [InlineData("Year", "EXTRACT(YEAR FROM \"p\".\"Day\") > 2000")]
     [InlineData("Month", "EXTRACT(MONTH FROM \"p\".\"Day\") > 6")]
     [InlineData("Day", "EXTRACT(DAY FROM \"p\".\"Day\") > 15")]
+    [InlineData("DayOfYear", "DATEPART(dayofyear, \"p\".\"Day\") > 15")]
     public void Member_ReadsThePart(string member, string predicate)
     {
         using var context = new ProbeContext();
@@ -135,6 +136,7 @@ public class DmDateOnlyTranslationTests
         {
             "Year" => context.Probes.Where(p => p.Day.Year > 2000),
             "Month" => context.Probes.Where(p => p.Day.Month > 6),
+            "DayOfYear" => context.Probes.Where(p => p.Day.DayOfYear > 15),
             _ => context.Probes.Where(p => p.Day.Day > 15)
         };
 
