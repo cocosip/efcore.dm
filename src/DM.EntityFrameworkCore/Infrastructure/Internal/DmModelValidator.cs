@@ -37,7 +37,37 @@ internal sealed class DmModelValidator : RelationalModelValidator
         base.Validate(model, logger);
 
         ValidateIdentityColumns(model);
+        ValidateGeneratedConcurrencyTokens(model);
         WarnOnDecimalDefaults(model, logger);
+    }
+
+    /// <summary>
+    /// Refuses a version column, which the store cannot fill.
+    /// </summary>
+    /// <remarks>
+    /// Measured on 8.1.4.80: `ROWVERSION` is not a type (<c>非法的基类名[ROWVERSION]</c>), `ORA_ROWSCN` does
+    /// not exist, and `ROWID` does not change when a row is updated. A property the model marks as generated
+    /// on every write therefore describes a token the store never changes: the concurrency check compares a
+    /// value that no write replaced, so it never reports a conflict. A computed column is the one shape that
+    /// is generated, because the model then names the expression the store evaluates.
+    /// </remarks>
+    private static void ValidateGeneratedConcurrencyTokens(IModel model)
+    {
+        foreach (var property in model.GetEntityTypes().SelectMany(entityType => entityType.GetDeclaredProperties()))
+        {
+            if (property.ValueGenerated != ValueGenerated.OnAddOrUpdate
+                || !property.IsConcurrencyToken
+                || property.GetComputedColumnSql() is not null)
+            {
+                continue;
+            }
+
+            throw new InvalidOperationException(
+                $"The property '{property.DeclaringType.DisplayName()}.{property.Name}' is a version column, but "
+                + "Dameng has no column that generates a new value on every write, so the concurrency check would "
+                + "compare a value nothing replaced. Mark a token the application sets as a concurrency token "
+                + "instead, or give the column a computed expression the store can evaluate.");
+        }
     }
 
     /// <summary>

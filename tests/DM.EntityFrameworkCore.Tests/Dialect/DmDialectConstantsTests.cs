@@ -40,6 +40,5 @@ public class DmDialectConstantsTests
     {
         Assert.InRange(DmTypeSizes.DefaultDecimalScale, 0, DmTypeSizes.DefaultDecimalPrecision);
         Assert.True(DmTypeSizes.MaxCharacterLength > 0);
-        Assert.True(DmTypeSizes.RowVersionLength > 0);
     }
 }

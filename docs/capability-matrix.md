@@ -105,7 +105,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | JSON column type | `Not started` | — | P1 | Yes | A store type alone is not enough in EF Core 10: with one in place the model builds, the DDL and the writes are correct, and materialization then fails because the container column also needs a JSON reader/writer, which `JsonTypeMapping` exposes no hook for |
 | Spatial types (NetTopologySuite) | `Deferred` | — | After P6 | No | Not required by the specification suite core cases; revisit after the first release |
 | Store type to CLR reverse lookup | `Implemented` | `DmReverseTypeMappingTests` | P1 | Yes | Recovers the CLR type and the size, precision and scale written in the name. `DATE` maps to `DateTime` because Dameng keeps a time part in it, while the forward direction maps `DateOnly` to `DATE`. `FLOAT` maps to `double`, because it is FLOAT(53) and `REAL` is the single-precision type, which is what the reference provider maps it to as well; reading it as `float` would truncate a column either provider wrote for a double property. `DATETIME` resolves alongside `TIMESTAMP`, and the two zone-aware names to `DateTimeOffset`. A `CHAR(36)` column reads back as a `Guid`, the width this provider writes for one, so a character column of exactly that width that holds text reads back as a Guid too, which the catalog cannot distinguish |
-| Concurrency token (`rowversion`) | `Not started` | — | P3 | Yes | |
+| Concurrency token (`rowversion`) | `Not applicable` | `DmModelValidatorTests`, `samples/DmProviderValidation` | P3 | Yes | Dameng has no column that generates a new value on every write: measured on 8.1.4.80, `ROWVERSION` is not a type (`非法的基类名[ROWVERSION]`), `ORA_ROWSCN` does not exist, and `ROWID` does not change when a row is updated. A model that asks for one is refused while the model is built, rather than run with a token no write replaces and a concurrency check that never reports a conflict. A token the application sets is the supported shape, and it is executed against a server on both compatibility modes: a write over a stale row reports `DbUpdateConcurrencyException` |
 | Type mapping clone semantics | `Not applicable` | — | P1 | Yes | The provider builds a mapping per facet set instead of cloning a base mapping, so no clone override is needed |
 
 ### C. Query
@@ -241,8 +241,8 @@ Rows by status, updated when the matrix changes:
 | `Partial` | 9 |
 | `Blocked` | 1 |
 | `Deferred` | 4 |
-| `Not started` | 3 |
-| `Not applicable` | 4 |
+| `Not started` | 2 |
+| `Not applicable` | 5 |
 | **Total rows** | **116** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).

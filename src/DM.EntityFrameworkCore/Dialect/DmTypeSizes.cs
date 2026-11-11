@@ -47,8 +47,6 @@ internal static class DmTypeSizes
     /// </summary>
     public const int DefaultBinaryKeyLength = 900;
 
-    /// <summary>Length of the binary type used for concurrency tokens.</summary>
-    public const int RowVersionLength = 8;
 
     /// <summary>Formats a precision and scale suffix such as <c>(29,4)</c>.</summary>
     public static string FormatDecimal(int precision, int scale) => $"({precision},{scale})";
