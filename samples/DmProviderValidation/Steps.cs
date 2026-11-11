@@ -2,6 +2,7 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DmProviderValidation;
 
@@ -23,6 +24,7 @@ internal static class Steps
         ("transaction rollback", RollbackAsync),
         ("savepoint", SavepointAsync),
         ("optimistic concurrency", ConcurrencyAsync),
+        ("retrying execution strategy", RetryingExecutionAsync),
         ("identity readback", IdentityAsync),
         ("sequence readback", SequenceAsync),
         ("execute update", ExecuteUpdateAsync),
@@ -248,6 +250,80 @@ internal static class Steps
         Expect(conflicted, "a write over a stale row must raise a concurrency exception");
     }
 
+    /// <summary>
+    /// A transient failure is retried and a permanent one is not. The transient case closes the server side
+    /// session of a context that holds an open connection, which is the measured 6027: the first attempt
+    /// fails, and the retry only answers once a new connection is open, because the driver leaves the dead
+    /// one reporting Open. The permanent case is a table that does not exist, which has to reach the caller
+    /// on the first attempt.
+    /// </summary>
+    private static async Task RetryingExecutionAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        var total = await context.Records.CountAsync(cancellationToken);
+
+        await using var retried = new ValidationContext(
+            context.ConnectionString,
+            builder => builder.EnableRetryOnFailure(3, TimeSpan.FromSeconds(2)));
+
+        await retried.Database.OpenConnectionAsync(cancellationToken);
+
+        string? session;
+
+        await using (var command = ((global::Dm.DmConnection)retried.Database.GetDbConnection()).CreateCommand())
+        {
+            command.CommandText = "SELECT SYS_CONTEXT('USERENV', 'SID') FROM DUAL";
+            session = (await command.ExecuteScalarAsync(cancellationToken))?.ToString();
+        }
+
+        // The id comes from the server, and a call that takes it as a value is not a statement the driver
+        // parameterises, so it is checked before it is embedded.
+        Expect(session is { Length: > 0 } && session.All(char.IsAsciiDigit), "the session id must be a number");
+
+        await using (var killer = new global::Dm.DmConnection(context.ConnectionString))
+        {
+            await killer.OpenAsync(cancellationToken);
+
+            await using var command = killer.CreateCommand();
+            command.CommandText = $"CALL SP_CLOSE_SESSION({session})";
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        var attempts = 0;
+        var strategy = retried.Database.CreateExecutionStrategy();
+
+        var count = await strategy.ExecuteAsync(
+            async () =>
+            {
+                attempts++;
+                return await retried.Records.CountAsync(cancellationToken);
+            });
+
+        Expect(attempts > 1, "a killed connection must be retried");
+        Expect(count == total, "the retried statement must answer the same count");
+
+        var permanentAttempts = 0;
+        global::Dm.DmException? failure = null;
+
+        try
+        {
+            await strategy.ExecuteAsync(
+                async () =>
+                {
+                    permanentAttempts++;
+                    await retried.Database.ExecuteSqlRawAsync(
+                        "DELETE FROM \"DM_VALIDATION_ABSENT\"",
+                        cancellationToken);
+                });
+        }
+        catch (global::Dm.DmException exception)
+        {
+            failure = exception;
+        }
+
+        Expect(failure is not null, "a missing table must be thrown to the caller");
+        Expect(permanentAttempts == 1, "a missing table must not be retried");
+        Expect(failure?.Number == -2106, "a missing table is the measured -2106");
+    }
     private static async Task IdentityAsync(ValidationContext context, CancellationToken cancellationToken)
     {
         context.ChangeTracker.Clear();

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace DmProviderValidation;
 
@@ -12,7 +13,13 @@ namespace DmProviderValidation;
 /// </remarks>
 internal sealed class ValidationContext : DbContext
 {
-    public ValidationContext(string connectionString) => ConnectionString = connectionString;
+    private readonly Action<DmDbContextOptionsBuilder>? _configure;
+
+    public ValidationContext(string connectionString, Action<DmDbContextOptionsBuilder>? configure = null)
+    {
+        ConnectionString = connectionString;
+        _configure = configure;
+    }
 
     public string ConnectionString { get; }
 
@@ -23,7 +30,7 @@ internal sealed class ValidationContext : DbContext
     public DbSet<Child> Children => Set<Child>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseDm(ConnectionString);
+        => optionsBuilder.UseDm(ConnectionString, _configure);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

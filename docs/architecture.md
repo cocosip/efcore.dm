@@ -186,7 +186,7 @@ the top level of the provider that is not listed fails.
 |---|---|
 | Credentials | Connection strings never appear in logs, exception messages, or diagnostic events. Options debug views mask the password. |
 | Cancellation | Every asynchronous command and reader path honours `CancellationToken`. Where the driver does not honour the token itself, the provider supplies an interceptor that binds the token to `DbCommand.Cancel()`. Cancellation is a provider responsibility, not a driver assumption. |
-| Retry | There is no retry classification yet. A unit of work runs once, because a retry would replay a statement whose failure the provider cannot classify, and the Dameng error codes are not recorded. The matrix rows for both strategies record what unblocks it. |
+| Retry | A unit of work runs once unless the consumer asks otherwise, because a retry would replay a statement whose failure may already have changed the database. `EnableRetryOnFailure` installs a strategy that retries the failures the provider classifies as transient, from the recorded Dameng error numbers, and closes a connection the failure broke before the retry. |
 | Logging | Provider event ids occupy their own range and never reuse EF Core's. |
 | Design time | `DesignTimeProviderServices` points to this project's `DmDesignTimeServices`, which is what lets `dotnet ef migrations` build and read a snapshot. Reverse engineering joins the same registration when the model factory exists. |
 | Reverse engineering | `IDatabaseModelFactory` issues the L0 catalog queries. No ad-hoc SQL in the factory. |
