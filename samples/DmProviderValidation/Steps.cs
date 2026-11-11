@@ -1,4 +1,5 @@
 using System.Data;
+using System.Data.Common;
 using System.Transactions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -35,7 +36,8 @@ internal static class Steps
         ("right join", RightJoinAsync),
         .. QuerySteps.All,
         ("cancellation", CancellationAsync),
-        ("migrations: apply, read back and apply again", MigrationsAsync)
+        ("migrations: apply, read back and apply again", MigrationsAsync),
+        ("migrations: idempotent script executed twice", IdempotentScriptAsync)
     ];
 
     private static async Task ConnectionAsync(ValidationContext context, CancellationToken cancellationToken)
@@ -585,6 +587,141 @@ internal static class Steps
 
         Expect(history == migrations, $"the history table must hold {migrations} row(s), not {history}");
     }
+    /// <summary>
+    /// Generates the idempotent script and executes the text of it, which is what a deployment tool does,
+    /// then executes the same text again against a database where every statement has been applied. The
+    /// guards have to turn the second run into a no-op rather than an error, and the history must not gain
+    /// a row it already has.
+    /// </summary>
+    /// <remarks>
+    /// The script is split at the dialect's batch terminator, so each piece is one command of the
+    /// generator, a statement or a guarded block. Running the pieces one at a time is what <c>disql</c>
+    /// does with the same terminator; sending the whole text as one command would test the driver's
+    /// statement splitting rather than the script.
+    /// </remarks>
+    private static async Task IdempotentScriptAsync(ValidationContext context, CancellationToken cancellationToken)
+    {
+        await using var journal = new JournalContext(context.ConnectionString);
+
+        await ExecuteAsync(context, "DROP TABLE \"DM_VALIDATION_JOURNAL\" CASCADE CONSTRAINTS", cancellationToken);
+        await ExecuteAsync(context, "DROP TABLE \"__EFMigrationsHistory\" CASCADE CONSTRAINTS", cancellationToken);
+
+        var script = journal.GetService<IMigrator>()
+            .GenerateScript(null, null, MigrationsSqlGenerationOptions.Idempotent);
+
+        var commands = script
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split("/\n", StringSplitOptions.RemoveEmptyEntries)
+            .Select(command => command.Trim())
+            .Where(command => command.Length > 0)
+            .ToList();
+
+        Expect(commands.Count > 1, $"the script must hold more than one command, and it held {commands.Count}");
+
+        await ExecuteScriptAsync(context, commands, "first", cancellationToken);
+
+        Expect(
+            await ScalarAsync(context, TableExists("DM_VALIDATION_JOURNAL"), cancellationToken) == 1,
+            "the first run of the script must create the table of the migration");
+        Expect(
+            await ScalarAsync(context, HistoryRows, cancellationToken) == 1,
+            "the first run of the script must record the migration in the history");
+
+        await ExecuteScriptAsync(context, commands, "second", cancellationToken);
+
+        Expect(
+            await ScalarAsync(context, HistoryRows, cancellationToken) == 1,
+            "a second run of the script must not record the migration twice");
+
+        // A deployment that failed between the two halves of a run leaves exactly this: the table of the
+        // migration in place and no history row. The guards have to repair the history without trying to
+        // create a table that is already there, which is the state they exist for.
+        await ExecuteAsync(context, "DROP TABLE \"__EFMigrationsHistory\" CASCADE CONSTRAINTS", cancellationToken);
+
+        await ExecuteScriptAsync(context, commands, "repair", cancellationToken);
+
+        Expect(
+            await ScalarAsync(context, TableExists("DM_VALIDATION_JOURNAL"), cancellationToken) == 1,
+            "the repair run must leave the table in place");
+        Expect(
+            await ScalarAsync(context, HistoryRows, cancellationToken) == 1,
+            "the repair run must record the migration when the table is already there");
+
+        await ExecuteAsync(context, "DROP TABLE \"DM_VALIDATION_JOURNAL\" CASCADE CONSTRAINTS", cancellationToken);
+        await ExecuteAsync(context, "DROP TABLE \"__EFMigrationsHistory\" CASCADE CONSTRAINTS", cancellationToken);
+    }
+
+    /// <summary>
+    /// Runs one command of a generated script per statement, which is what a deployment tool does with the
+    /// batch terminator: sending the whole text as one command would test the driver's splitting rather
+    /// than the script.
+    /// </summary>
+    private static async Task ExecuteScriptAsync(
+        ValidationContext context,
+        IReadOnlyList<string> commands,
+        string run,
+        CancellationToken cancellationToken)
+    {
+        foreach (var command in commands)
+        {
+            try
+            {
+                await ExecuteAsync(context, command, cancellationToken);
+            }
+            catch (DbException exception)
+            {
+                throw new InvalidOperationException(
+                    $"the {run} run of the script failed at: {command[..Math.Min(command.Length, 120)]}",
+                    exception);
+            }
+        }
+    }
+
+    private const string HistoryRows = "SELECT COUNT(*) FROM \"__EFMigrationsHistory\"";
+
+    private static string TableExists(string table)
+        => "SELECT COUNT(*) FROM ALL_TABLES WHERE OWNER = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') "
+            + $"AND TABLE_NAME = '{table}'";
+
+    /// <summary>
+    /// Runs a statement on its own connection. Dameng has no <c>DROP TABLE IF EXISTS</c>, so a table that is
+    /// not there answers an error the caller ignores; the run is about to create it again either way.
+    /// </summary>
+    private static async Task ExecuteAsync(
+        ValidationContext context,
+        string statement,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new Dm.DmConnection(context.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = statement;
+
+        try
+        {
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch (DbException) when (statement.StartsWith("DROP TABLE", StringComparison.Ordinal))
+        {
+            // The table was not there, which is what the first run looks like.
+        }
+    }
+
+    private static async Task<long> ScalarAsync(
+        ValidationContext context,
+        string sql,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new Dm.DmConnection(context.ConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+
+        return Convert.ToInt64(await command.ExecuteScalarAsync(cancellationToken));
+    }
+
     private static void Expect(bool condition, string message)
     {
         if (!condition)

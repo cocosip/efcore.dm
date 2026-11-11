@@ -536,15 +536,22 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     }
 
     /// <summary>
-    /// The row count test behind a guarded statement. A migration that names no schema creates the
-    /// object in the current one, so the guard compares the owner with <c>USER</c>.
+    /// The row count test behind a guarded statement. A migration that names no schema creates the object
+    /// in the session's current schema, so the guard compares the owner with that schema.
     /// </summary>
+    /// <remarks>
+    /// <c>USER</c> is the account, not the schema: measured on 8.1.4.80 with a connection string that sets
+    /// <c>schema=</c>, <c>USER</c> answered `SYSDBA` while the object was created under `HIDOS` and
+    /// <c>SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')</c> answered `HIDOS`. A guard comparing the owner with
+    /// `USER` therefore answered `0` for an object that was there, and the block ran its statement again on
+    /// the next run of the script.
+    /// </remarks>
     private static string Exists(string view, string ownerColumn, string nameColumn, string? schema, string name)
         => view
             + " WHERE "
             + ownerColumn
             + " = "
-            + (schema is null ? "USER" : Quote(schema))
+            + (schema is null ? "SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')" : Quote(schema))
             + " AND "
             + nameColumn
             + " = "

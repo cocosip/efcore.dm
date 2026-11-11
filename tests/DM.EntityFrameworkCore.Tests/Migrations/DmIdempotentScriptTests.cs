@@ -35,7 +35,7 @@ public class DmIdempotentScriptTests
             });
 
         Assert.Contains(
-            "SELECT COUNT(*) INTO declared FROM ALL_TABLES WHERE OWNER = USER AND TABLE_NAME = 'Probes';",
+            "SELECT COUNT(*) INTO declared FROM ALL_TABLES WHERE OWNER = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AND TABLE_NAME = 'Probes';",
             sql,
             StringComparison.Ordinal);
 
@@ -66,7 +66,7 @@ public class DmIdempotentScriptTests
             });
 
         Assert.Contains(
-            "SELECT COUNT(*) INTO declared FROM ALL_TAB_COLUMNS WHERE OWNER = USER AND COLUMN_NAME = 'Note' AND TABLE_NAME = 'Probes';",
+            "SELECT COUNT(*) INTO declared FROM ALL_TAB_COLUMNS WHERE OWNER = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AND COLUMN_NAME = 'Note' AND TABLE_NAME = 'Probes';",
             sql,
             StringComparison.Ordinal);
 

@@ -62,7 +62,7 @@ public class DmMigrationScriptTests
             StringComparison.Ordinal);
 
         Assert.Contains(
-            "SELECT COUNT(*) INTO declared FROM ALL_TABLES WHERE OWNER = USER AND TABLE_NAME = 'ScriptItems';",
+            "SELECT COUNT(*) INTO declared FROM ALL_TABLES WHERE OWNER = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AND TABLE_NAME = 'ScriptItems';",
             script,
             StringComparison.Ordinal);
 
