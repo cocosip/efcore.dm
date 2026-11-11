@@ -1,3 +1,4 @@
+using System.Linq.Expressions;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 
@@ -15,6 +16,28 @@ internal sealed class DmSqlTranslatingExpressionVisitor : RelationalSqlTranslati
         : base(dependencies, queryCompilationContext, subqueryVisitor)
     {
     }
+
+    /// <summary>
+    /// The length of a byte array is a byte count, and the framework hands it over as
+    /// <c>ArrayLength</c> rather than as a member a translator sees.
+    /// </summary>
+    /// <remarks>
+    /// <c>LENGTHB</c> rather than <c>LENGTH</c>, measured on 8.1.4.80: <c>LENGTH</c> of a
+    /// <c>VARBINARY(64)</c> holding four bytes answered 8, the length of the hexadecimal form the server
+    /// stores, and the byte count only of a <c>BLOB</c>, while <c>LENGTHB</c> answered 4 for both.
+    /// </remarks>
+    protected override Expression VisitUnary(UnaryExpression unaryExpression)
+        => unaryExpression.NodeType == ExpressionType.ArrayLength
+            && unaryExpression.Operand.Type == typeof(byte[])
+            && Visit(unaryExpression.Operand) is SqlExpression operand
+                ? Dependencies.SqlExpressionFactory.Function(
+                    "LENGTHB",
+                    [operand],
+                    nullable: true,
+                    argumentsPropagateNullability: [true],
+                    typeof(int),
+                    typeMapping: null)
+                : base.VisitUnary(unaryExpression);
 
     /// <summary>
     /// <see cref="Math.Max(int, int)" />, <see cref="Math.Min(int, int)" /> and the <c>EF.Functions</c> equivalents

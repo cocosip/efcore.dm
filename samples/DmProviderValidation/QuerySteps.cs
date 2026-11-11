@@ -76,6 +76,18 @@ internal static class QuerySteps
             2,
             "a byte array of four bytes");
 
+        // The member itself reaches the translator only when it is compared against a count, because the
+        // framework normalizes the other forms into a collection method first.
+        Equal(
+            await rows.CountAsync(item => item.Payload.Length == 4, cancellationToken),
+            2,
+            "the length of a byte array");
+
+        Equal(
+            await rows.CountAsync(item => item.Payload.Length > 2, cancellationToken),
+            2,
+            "a byte array longer than two bytes");
+
         // The wildcard the value carries must be matched literally, so this finds the one row that
         // contains "50%" and not a row that merely starts with the same characters.
         Equal(

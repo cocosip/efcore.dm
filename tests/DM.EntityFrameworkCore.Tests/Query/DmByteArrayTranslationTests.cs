@@ -12,9 +12,8 @@ namespace DM.EntityFrameworkCore.Tests.Query;
 /// and the byte count of a `BLOB` was 4, while `LENGTHB` answered 4 for both.
 /// <para>
 /// `Payload.Length > 0` and `Payload.Any()` reach a translator as `Enumerable.Any`, and
-/// `Payload.Count()` as `Enumerable.Count`; the member itself does not, because the framework normalizes
-/// it first. A `Length` comparison other than `> 0` normalizes to a node no translator sees, which is
-/// why the row in the capability matrix is partial.
+/// `Payload.Count()` as `Enumerable.Count`. A comparison against another count reaches it as
+/// `ArrayLength`, which the translating visitor reads here, so every form of the count translates.
 /// </para>
 /// </remarks>
 public class DmByteArrayTranslationTests
@@ -44,6 +43,33 @@ public class DmByteArrayTranslationTests
             SELECT "p"."Id", "p"."Payload"
             FROM "Probes" AS "p"
             WHERE LENGTHB("p"."Payload") > 0
+            """);
+    }
+
+    [Fact]
+    public void ArrayLengthComparison_GeneratesAByteCountComparison()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Where(p => p.Payload.Length == 4),
+            """
+            SELECT "p"."Id", "p"."Payload"
+            FROM "Probes" AS "p"
+            WHERE LENGTHB("p"."Payload") = 4
+            """);
+    }
+
+    [Fact]
+    public void ArrayLengthInAProjection_GeneratesAByteCount()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Payload.Length),
+            """
+            SELECT LENGTHB("p"."Payload")
+            FROM "Probes" AS "p"
             """);
     }
 
