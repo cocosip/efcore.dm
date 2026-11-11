@@ -158,6 +158,7 @@ The official provider declares its own internals under `Microsoft.EntityFramewor
 ## 8. Repository layout
 
 ```
+.github/workflows/ci.yml                                  build, tests and the acceptance dry run; pack on a tag
 DM.EntityFrameworkCore.slnx
 Directory.Build.props
 Directory.Packages.props
