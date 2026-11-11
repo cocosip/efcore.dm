@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Configuration;
 
 namespace DmProviderValidation;
 
@@ -41,7 +42,8 @@ internal static class Program
         if (connectionString is null)
         {
             Console.Error.WriteLine(
-                "No connection string. Pass it as the first argument, or set ConnectionStrings__Dm.");
+                "No connection string. Pass it as the first argument, set ConnectionStrings__Dm, "
+                + "or set the \"ConnectionStrings:Dm\" user secret.");
 
             return 2;
         }
@@ -289,6 +291,34 @@ internal static class Program
         var fromEnvironment = Environment.GetEnvironmentVariable("ConnectionStrings__Dm")
             ?? Environment.GetEnvironmentVariable("DM_CONNECTION_STRING");
 
-        return string.IsNullOrWhiteSpace(fromEnvironment) ? null : fromEnvironment;
+        if (!string.IsNullOrWhiteSpace(fromEnvironment))
+        {
+            return fromEnvironment;
+        }
+
+        // Credentials for a live instance are kept in user secrets, which stay on the machine that set
+        // them and never enter the repository:
+        //   dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation
+        // A second instance is named with --secrets=<key> and read from "ConnectionStrings:<key>".
+        var key = Option(args, "secrets") ?? "Dm";
+        var fromSecrets = new ConfigurationBuilder()
+            .AddUserSecrets(typeof(Program).Assembly)
+            .Build()[$"ConnectionStrings:{key}"];
+
+        return string.IsNullOrWhiteSpace(fromSecrets) ? null : fromSecrets;
+    }
+
+    /// <summary>
+    /// Reads a <c>--name=value</c> option, so a named connection string is not mistaken for the
+    /// positional one.
+    /// </summary>
+    private static string? Option(string[] args, string name)
+    {
+        var prefix = "--" + name + "=";
+
+        return args
+            .Where(argument => argument.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(argument => argument[prefix.Length..])
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
     }
 }

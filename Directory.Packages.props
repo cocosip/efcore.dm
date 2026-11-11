@@ -16,6 +16,12 @@
       packages that NuGet audit reports as vulnerable.
     -->
     <EfCoreDesignVersion>10.0.14</EfCoreDesignVersion>
+
+    <!--
+      The acceptance console reads a live instance's connection string from user secrets, which keeps
+      credentials out of the repository. It is the only project that takes this package.
+    -->
+    <UserSecretsVersion>10.0.14</UserSecretsVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,5 +34,6 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="$(UserSecretsVersion)" />
   </ItemGroup>
 </Project>

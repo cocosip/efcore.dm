@@ -54,10 +54,12 @@ dotnet run --project samples/DmProviderValidation -- --dry-run   # the acceptanc
 pwsh -File scripts/package-smoke.ps1                     # packs, restores in an isolated cache and runs a consumer
 ```
 
-Nothing above needs a Dameng instance. The live acceptance run does, and it takes the connection string as its argument or from `ConnectionStrings__Dm`:
+Nothing above needs a Dameng instance. The live acceptance run does, and it takes the connection string from user secrets, the `ConnectionStrings__Dm` environment variable, or its first argument — in that order of specificity — so no credential has to sit in the repository:
 
 ```pwsh
-dotnet run --project samples/DmProviderValidation -- "Server=localhost;Port=5236;User Id=SYSDBA;Password=SYSDBA"
+dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation
+dotnet run --project samples/DmProviderValidation -- --secrets=Dm      # the secret, under a name
+dotnet run --project samples/DmProviderValidation -- --secrets=DmFull  # a second instance
 ```
 
 It exits non-zero when any step fails and never prints the connection string. [Testing](docs/testing.md) records what a run covers, what it does not, and what stays marked as awaiting verification until an instance is reachable.
