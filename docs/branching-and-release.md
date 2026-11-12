@@ -108,6 +108,20 @@ efcore/10.0 -> merge -> dev
 that lists only the produced feed, compares the SHA-256 of the package the consumer resolved against
 the packed one, and runs the consumer, which builds a model and a create script without connecting.
 
+The pipeline in `.github/workflows/ci.yml` follows the same convention as the Locus repository:
+
+- A push to `master`, a push to a version branch (`efcore/8.0`, `efcore/9.0`, `efcore/10.0`), or a
+  pull request to `master` builds and tests only. Nothing runs on `dev`, which is the integration line.
+- A push of a version tag (`v10.0.1` or `10.0.1`) runs the same gate, packs the provider, runs the
+  package smoke test, and publishes. Only a tag publishes.
+- The tag has to name the version in `Directory.Build.props` (`<DmVersion>`) and has to point at the
+  tagged commit's HEAD; the pipeline fails before building when either is not true.
+- NuGet publishing uses **trusted publishing**, not a stored API key: `NuGet/login@v1` exchanges the
+  workflow's GitHub OIDC token for a one-hour key, which is passed to `dotnet nuget push`. The
+  nuget.org trusted publishing policy must name this repository and `.github/workflows/ci.yml`, and
+  the public nuget.org profile name is read from the repository variable `NUGET_USER` (`Cocosip`
+  when it is not set). There is no `NUGET_API_KEY` secret to rotate or leak.
+
 Rules:
 
 - The consumer smoke test restores into an isolated NuGet package cache and compares the SHA-256 of the produced `.nupkg` against the package the consumer resolved. A package cache shared with the build output can silently validate an older package.

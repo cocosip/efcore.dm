@@ -1,19 +1,25 @@
-name: CI
+name: CI/CD
 
-# The offline rows of the matrix in docs/branching-and-release.md: nothing here needs a Dameng
-# instance. The live rows are not wired until one is reachable, and a release decision records
-# what live verification did not cover.
+# Mirrors the Locus pipeline:
+#   push to master / a version branch (efcore/8.0, 9.0, 10.0) / PR to master -> build + tests
+#   push of a version tag (v10.0.1) -> build + tests + package + publish to NuGet
+# Nothing runs on dev, and only a tag publishes.
+#
+# The version has one source, <DmVersion> in Directory.Build.props, and a tag must match it, so
+# the package version and the tag cannot drift.
 
 on:
   push:
     branches:
-      - dev
       - master
       - 'efcore/**'
-      - hotfix/**
     tags:
-      - v*
+      - 'v*.*.*'
+      - '*.*.*'
   pull_request:
+    branches:
+      - master
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -22,19 +28,57 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CI: true
+  CONFIGURATION: Release
+  NUGET_PACKAGES: ${{ github.workspace }}/.nuget/packages
+
 jobs:
   verify:
     name: Build, tests and acceptance dry run
-    # Windows is the platform every command in the README was verified on. A Linux job joins with
-    # the live matrix, where its result can be read, rather than turning an unverified native asset
-    # into a red build here.
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      release: ${{ steps.version.outputs.release }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NUGET_PACKAGES }}
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          $props = [xml](Get-Content Directory.Build.props)
+          $version = ($props.Project.PropertyGroup.DmVersion | Where-Object { $_ } | Select-Object -First 1)
+          if (-not $version) { throw 'Directory.Build.props does not define <DmVersion>.' }
+
+          if ($env:GITHUB_REF -like 'refs/tags/*') {
+            $tag = $env:GITHUB_REF_NAME -replace '^v', ''
+            if ($tag -ne $version) {
+              throw "Tag '$env:GITHUB_REF_NAME' must match Directory.Build.props DmVersion '$version'."
+            }
+            if ((git rev-parse "refs/tags/$env:GITHUB_REF_NAME^{commit}") -ne (git rev-parse HEAD)) {
+              throw "Tag '$env:GITHUB_REF_NAME' must point to HEAD."
+            }
+            "release=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            "release=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       # A warning is a failed build, so no continuation flag is needed here.
       - name: Build
@@ -55,8 +99,8 @@ jobs:
         run: dotnet run --project samples/DmProviderValidation -c Release --no-build -- --dry-run
 
   pack:
-    name: Package smoke test
-    if: startsWith(github.ref, 'refs/tags/v')
+    name: Package and smoke test
+    if: startsWith(github.ref, 'refs/tags/')
     needs: verify
     runs-on: windows-latest
     steps:
@@ -69,3 +113,79 @@ jobs:
       - name: Pack, restore in an isolated cache and run the consumer
         shell: pwsh
         run: ./scripts/package-smoke.ps1
+
+      - name: Collect the verified package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path ./packages -Force | Out-Null
+          Copy-Item artifacts/packages/*.nupkg ./packages/
+          if (Test-Path artifacts/packages/*.snupkg) {
+            Copy-Item artifacts/packages/*.snupkg ./packages/
+          }
+          Get-ChildItem ./packages
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./packages/
+          if-no-files-found: error
+          retention-days: 30
+
+  # Publishing consumes the verified artifact only: no checkout, restore or build.
+  # NuGet trusted publishing exchanges this workflow's GitHub OIDC token for a one-hour API key,
+  # so no long-lived NuGet API key is stored in the repository. The nuget.org trusted publishing
+  # policy must name this repository and this workflow file.
+  publish:
+    name: Publish NuGet
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [verify, pack]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: nuget-packages
+          path: ./packages
+
+      - name: NuGet login (OIDC -> temporary API key)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          # The nuget.org profile name, which is public; set NUGET_USER in the repository
+          # variables. 'Cocosip' is the package prefix's owner.
+          user: ${{ vars.NUGET_USER || 'Cocosip' }}
+
+      - name: Publish packages to NuGet.org
+        shell: bash
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: |
+          for package in ./packages/*.nupkg; do
+            test -s "$package"
+            dotnet nuget push "$package" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          flags=()
+          if [[ "$VERSION" == *-* ]]; then
+            flags+=(--prerelease --latest=false)
+          fi
+          gh release create "$GITHUB_REF_NAME" --verify-tag \
+            --title "DM.EntityFrameworkCore $VERSION" \
+            --generate-notes \
+            "${flags[@]}" ./packages/*.nupkg ./packages/*.snupkg
