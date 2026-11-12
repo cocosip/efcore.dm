@@ -205,6 +205,25 @@ Migrations are part of it as far as one migration can be applied and applied aga
 
 It reads the connection string from its first argument, from `ConnectionStrings__Dm`, or from user secrets (`dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation`), in that order of specificity, so no credential has to sit in the repository; `--secrets=<key>` reads `ConnectionStrings:<key>` for a second instance. It never prints the string. It creates its own prefixed tables through the relational database creator rather than through `EnsureCreated`, because a Dameng database is made with the `dminit` tool before a connection can reach it and the catalog may already hold tables the run does not own. Each run marks its rows with an identifier, isolates them from another run, drops only the tables it created, and returns a non-zero exit code when any step fails. `--keep` leaves the tables behind for inspection. `--dry-run` builds the model and generates the schema script without a database, prints the declared steps, and returns a non-zero exit code when the model no longer produces the tables and the sequence a run needs. It also compares the shipped migration snapshot with the model and generates the idempotent script of that migration, failing when the snapshot no longer matches or the script has lost its guards or gained a statement Dameng does not define; that is the check a build machine can run, and it is why the sample does not rot between the runs that have an instance.
 
+### Feature probe
+
+`samples/DmProviderFeatureProbe` is the second live program, run by hand and never by the pipeline: the solution builds it, so it cannot rot, but no workflow invokes it. It asks about the EF Core modelling and query surface rather than the server's quirks: entity definitions and annotations, identity, Guid, string and composite keys, hi-lo, indexes, defaults, computed columns, shadow properties, concurrency tokens, query filters, TPH/TPT/TPC, owned same-table and JSON types, complex types, value converters, primitive collections, every mapped CLR type in its nullable and non-nullable form, all four relationship shapes with their loading and delete behaviour, projections, filtered includes, grouping, `FromSql`, raw commands, transactions, `ExecuteUpdate`/`ExecuteDelete`, no-tracking and compiled queries.
+
+It creates 32 prefixed tables and a sequence through the relational database creator, reports each of its 44 steps separately, and drops them unless `--keep`; `--dry-run` needs no database and checks that the model still produces every declared table and the sequence, and that step names are unique. It resolves the connection string the same way the acceptance console does and shares its user-secrets id, so one `dotnet user-secrets set` serves both.
+
+Two steps are in the probe's ledger with their measured answers rather than as passing behaviour: containment on a primitive collection is not translated, and a query filter's boolean reaches the `ExecuteUpdate` pipeline unrewritten, where the server answers `查询使用值表达式作为过滤条件`. This ledger is separate from `Skipped.md`: it records steps of this program, and an entry carries the server's message.
+
+```pwsh
+dotnet run --project samples/DmProviderFeatureProbe -- "<connection string>"
+dotnet run --project samples/DmProviderFeatureProbe -- --dry-run
+dotnet run --project samples/DmProviderFeatureProbe -- --list
+dotnet run --project samples/DmProviderFeatureProbe -- --filter=relationship
+```
+
+It is written at the EF Core 8 API floor and has no migration, so an `efcore/8.0` or `efcore/9.0` branch receives the folder with only the target framework changed.
+
+The connection string must set `convertToTz=True`. The model carries `DateTimeOffset` columns, and without that option the driver reads a `DATETIME WITH TIME ZONE` column as `DateTime`, which the materializer cannot cast; the probe refuses such a connection string with exit code 2 instead of reporting six misleading `InvalidCastException` failures.
+
 ## 6. Definition of done
 
 A dialect capability or pipeline feature is complete only when all five hold:

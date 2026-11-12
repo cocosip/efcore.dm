@@ -68,6 +68,9 @@ pwsh -File scripts/design-time-smoke.ps1 -Secrets Dm   # the `dotnet ef` tooling
 ```
 
 It exits non-zero when any step fails and never prints the connection string. [Testing](docs/testing.md) records what a run covers, what it does not, and what stays marked as awaiting verification until an instance is reachable.
+
+The functional probe is the second live program and is not part of CI: `dotnet run --project samples/DmProviderFeatureProbe -- "<connection string>"` exercises the EF Core feature surface — types, keys, relationships, inheritance, owned and complex types, raw SQL and the update pipeline — and reports each step separately.
+
 ## Design principles
 
 - **Dialect separated from version.** Dameng dialect knowledge lives in an EF Core-free `Dialect/` layer that is shared across branches. Pipeline classes that inherit EF Core base types are implemented per version, with no cross-version abstraction.
