@@ -113,10 +113,6 @@ public class MigrationsDmTest : MigrationsTestBase<MigrationsDmTest.MigrationsDm
     public override Task SqlOperation()
         => Task.CompletedTask;
 
-    [ConditionalFact(Skip = "Scaffolding: ALL_SEQUENCES has no start value")]
-    public override Task Create_sequence_all_settings()
-        => Task.CompletedTask;
-
     [ConditionalFact(Skip = "Server limitation: Dameng has no statement that restarts a sequence")]
     public override Task Alter_sequence_restart_with()
         => Task.CompletedTask;

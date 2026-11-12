@@ -114,13 +114,23 @@ internal static class DmCatalog
         """;
 
     /// <summary>
-    /// Sequences, which a hi-lo property reads its blocks from.
+    /// Sequences, which a hi-lo property reads its blocks from, with the declared start value.
     /// </summary>
+    /// <remarks>
+    /// <c>ALL_SEQUENCES</c> has no start value: <c>LAST_NUMBER</c> is where the sequence is now. The
+    /// declared value is <c>INFO3</c> of the sequence object, measured on 8.1.4.80: a sequence created
+    /// with <c>START WITH 7</c> reported 7 there while <c>LAST_NUMBER</c> reported 7 as well, and after
+    /// the sequence advanced the two differed.
+    /// </remarks>
     public const string Sequences = """
-        SELECT SEQUENCE_OWNER, SEQUENCE_NAME, MIN_VALUE, MAX_VALUE, INCREMENT_BY,
-               CYCLE_FLAG, ORDER_FLAG, CACHE_SIZE, LAST_NUMBER
-        FROM ALL_SEQUENCES
-        WHERE SEQUENCE_OWNER NOT IN ('SYS', 'SYSAUDITOR', 'SYSDBA', 'SYSSSO', 'CTISYS')
-        ORDER BY SEQUENCE_OWNER, SEQUENCE_NAME
+        SELECT s.SEQUENCE_OWNER, s.SEQUENCE_NAME, s.MIN_VALUE, s.MAX_VALUE, s.INCREMENT_BY,
+               s.CYCLE_FLAG, s.ORDER_FLAG, s.CACHE_SIZE, s.LAST_NUMBER, o.INFO3
+        FROM ALL_SEQUENCES s
+        LEFT JOIN SYS.SYSOBJECTS o
+            ON o.SUBTYPE$ = 'SEQ' AND o.NAME = s.SEQUENCE_NAME
+        LEFT JOIN SYS.SYSOBJECTS sc
+            ON sc.ID = o.SCHID AND sc.NAME = s.SEQUENCE_OWNER
+        WHERE s.SEQUENCE_OWNER NOT IN ('SYS', 'SYSAUDITOR', 'SYSDBA', 'SYSSSO', 'CTISYS')
+        ORDER BY s.SEQUENCE_OWNER, s.SEQUENCE_NAME
         """;
 }

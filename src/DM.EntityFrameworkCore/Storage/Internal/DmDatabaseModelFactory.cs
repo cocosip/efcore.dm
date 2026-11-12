@@ -368,7 +368,7 @@ internal class DmDatabaseModelFactory : IDatabaseModelFactory
         using var command = Command(connection, DmCatalog.Sequences);
         using var reader = command.ExecuteReader();
 
-        foreach (var values in ReadRows(reader, 9))
+        foreach (var values in ReadRows(reader, 10))
         {
             var name = Text(values[1]);
             var schema = Text(values[0]);
@@ -387,10 +387,8 @@ internal class DmDatabaseModelFactory : IDatabaseModelFactory
                     MinValue = Whole(values[2]),
                     MaxValue = Whole(values[3]),
                     IncrementBy = (int?)Whole(values[4]),
-                    IsCyclic = Text(values[5]) is "Y"
-
-                    // StartValue stays unset: LAST_NUMBER is where the sequence is now, not where it
-                    // started, and using it would scaffold a sequence that restarts on a used database.
+                    IsCyclic = Text(values[5]) is "Y",
+                    StartValue = Whole(values[9])
                 });
         }
     }

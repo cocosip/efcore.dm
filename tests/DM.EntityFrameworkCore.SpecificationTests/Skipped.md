@@ -111,7 +111,7 @@ rather than the suite. Each answer is a measured fact and the reason is beside t
 ## Migrations cases that do not run
 
 The migrations suite (`MigrationsDmTest`, 134 cases) builds a model, generates the migration and applies it
-to the live store. Measured on 2026-11-12 against DM 8.1.4.80: 114 passed, 20 skipped, and the cases below
+to the live store. Measured on 2026-11-12 against DM 8.1.4.80: 115 passed, 19 skipped, and the cases below
 either do not run or run without their assertion. The migrations store owns `DM_SPEC_MIGRATIONS` and the
 named schemas below, so the rest of the shared database is untouched.
 
@@ -131,7 +131,6 @@ named schemas below, so the rest of the shared database is untouched.
 | `Create_index_with_filter` | The case creates a filtered index, and the server has none: measured, `CREATE INDEX ... WHERE` answered `语法分析出错`. The provider refuses the operation with a message that names the measurement | Server limitation |
 | `Create_unique_index_with_filter` | The same filtered index limitation | Same |
 | `SqlOperation` | The case runs a migration whose SQL is only a comment (`-- I <3 DDL`), which the server rejects with `语法分析出错` | Server limitation |
-| `Create_sequence_all_settings` | The case asserts the declared start value, and `ALL_SEQUENCES` has no start value: it reports `MIN_VALUE`, `MAX_VALUE`, `INCREMENT_BY`, `CYCLE_FLAG` and `LAST_NUMBER`, which is where the sequence is now. The factory deliberately leaves `StartValue` unset rather than scaffold a sequence that restarts on a used database | Server limitation: the catalog does not report the start value |
 | `Alter_sequence_restart_with` | The case restarts a sequence, and the server has no statement for it: measured, `ALTER SEQUENCE ... RESTART` and `... RESTART WITH n` answered `未指定 ALTER SEQUENCE 的选项` | Server limitation |
 | `Alter_sequence_all_settings` | The same restart limitation, together with the start value gap above | Server limitation |
 | `Add_primary_key_int` | The case turns an existing column into an identity column, which the server refuses (`试图修改自增列`); the provider refuses the operation in place with a message that names the measurement | Server limitation |
