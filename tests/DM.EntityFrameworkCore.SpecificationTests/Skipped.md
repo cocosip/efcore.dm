@@ -5,7 +5,7 @@ measurement that decided it. A row leaves this file when the suite passes the ca
 intends to fix it.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
-store creates the tables of its own model and drops only those tables and sequences, so the database it
+store creates the tables of its own model and drops only those tables, the sequences and the views, so the database it
 runs against keeps every object an application already has.
 
 Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 32 cases, 31 passed, 1 failed. The
@@ -58,6 +58,22 @@ reference provider does, and the one that read a keyless set exposed a gap in th
 rather than in the provider: the shipped store is created from a script that fills the keyless tables,
 while this store is created from the model, so the fixture now projects those rows from the keyed ones.
 
+The `Include` set of the Northwind query suite (`NorthwindIncludeQueryDmTest`, 236 cases) ran against the
+same instance on 2026-11-12 and every case passed. Its first run failed eighteen cases, all from
+`MultipleCollectionIncludeWarning`: the shared fixture base throws every warning, and this one is
+guidance about splitting a query that loads two collections rather than a provider defect. The warning is
+now logged by the shared fixture, as the shipped fixtures log the other guidance warnings, so it adds no
+entry here.
+
+The `Updates` set (`UpdatesDmTest`, 36 cases) ran against the same instance on 2026-11-12: 35 ran and
+passed, and one does not run because it needs a filtered unique index the server cannot create. It is
+under "Cases that do not run". The run found and fixed three defects: the identifier limit was not
+declared, so a model with a generated name past 128 characters failed while its tables were created; a
+byte array concurrency token the model leaves unbounded was mapped to a `BLOB`, which the server cannot
+compare in a statement's predicate, so updates and deletes were rejected with a data type error; and the
+provider's own concurrency message left out the framework's explanatory link. The fixture also maps the
+abstract product base the shared foreign key case needs, the way the SQL Server fixture does.
+
 ## Cases that do not pass
 
 | Case | Cause | Fix |
@@ -79,9 +95,15 @@ fails when a row names a case the suite does not have.
 ## Cases that do not run
 
 The four cases of the `Join` set and the four of the `GroupBy` set are skipped by the shipped base
-itself (`#30677`, `#35028` and `#27130`), not by this project. Every other case of the seven bases ran
+itself (`#30677`, `#35028` and `#27130`), not by this project. Every other case of the nine bases ran
 in the measurements above; the four capability answers in the `BuiltInDataTypesDmTest` fixture narrow
 what the model contains rather than skipping a case.
+
+`Swap_filtered_unique_index_values` does not run. The case swaps two values under a filtered unique
+index, and this server has no filtered index: measured on 8.1.4.80, `CREATE INDEX ... WHERE` is rejected
+with `语法分析出错`. The shared model's plain unique index on `(Name, Price)` cannot swap the two values
+in one save, so the case is inapplicable as written (`Server limitation`). The provider refuses a model
+that carries a filter, so a migration cannot silently create an index with different semantics.
 
 `SupportsLargeStringComparisons`, `SupportsBinaryKeys`, `SupportsUnicodeToAnsiConversion` and
 `PreservesDateTimeKind` are answered in the fixture rather than here, because they describe the server

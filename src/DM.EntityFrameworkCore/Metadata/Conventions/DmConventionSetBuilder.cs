@@ -21,6 +21,11 @@ internal sealed class DmConventionSetBuilder : RelationalConventionSetBuilder
     {
         var conventionSet = base.CreateConventionSet();
 
+        // Dameng limits an identifier to 128 characters; the convention records the limit so the
+        // framework truncates a generated table, column, key or index name that would exceed it.
+        conventionSet.ModelInitializedConventions.Add(
+            new RelationalMaxIdentifierLengthConvention(128, Dependencies, RelationalDependencies));
+
         conventionSet.ModelFinalizingConventions.Add(new DmValueGenerationStrategyConvention(Dependencies.TypeMappingSource));
 
         return conventionSet;

@@ -99,8 +99,7 @@ internal sealed class DmModificationCommandBatch : AffectedCountModificationComm
         }
 
         throw new DbUpdateConcurrencyException(
-            $"The database operation was expected to affect 1 row(s), but actually affected {rowsAffected} row(s); "
-            + "data may have been modified or deleted since entities were loaded.",
+            RelationalStrings.UpdateConcurrencyException(1, rowsAffected),
             ModificationCommands.SelectMany(c => c.Entries).ToList());
     }
 }

@@ -37,7 +37,34 @@ internal sealed class DmModelValidator : RelationalModelValidator
 
         ValidateIdentityColumns(model);
         ValidateGeneratedConcurrencyTokens(model);
+        ValidateIndexFilters(model);
         WarnOnDecimalDefaults(model, logger);
+    }
+
+    /// <summary>
+    /// Refuses a filtered index, which the server cannot create.
+    /// </summary>
+    /// <remarks>
+    /// Measured on 8.1.4.80: `CREATE INDEX ... WHERE` is rejected with `语法分析出错`. The framework leaves
+    /// the filter in the model and the migrations generator has no clause to write it, so a model that
+    /// carries one would silently create an index with different semantics. Refusing it while the model is
+    /// built reports the problem where it can still be corrected.
+    /// </remarks>
+    private static void ValidateIndexFilters(IModel model)
+    {
+        foreach (var entityType in model.GetEntityTypes())
+        {
+            foreach (var index in entityType.GetDeclaredIndexes())
+            {
+                if (index.GetFilter() is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"The index '{index.GetDatabaseName() ?? index.Name}' on '{entityType.DisplayName()}' has a "
+                        + "filter, but Dameng has no filtered index: measured on 8.1.4.80, CREATE INDEX ... WHERE is "
+                        + "rejected with 语法分析出错. Remove the filter, or model the condition another way.");
+                }
+            }
+        }
     }
 
 

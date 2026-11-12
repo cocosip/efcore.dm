@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
 using Microsoft.EntityFrameworkCore.TestUtilities;
@@ -19,6 +20,14 @@ public abstract class NorthwindQueryDmFixtureBase : NorthwindQueryRelationalFixt
 {
     protected override ITestStoreFactory TestStoreFactory
         => DmTestStoreFactory.Instance;
+
+    // The fixture base throws every warning to catch what a provider raises, and this one is guidance
+    // about splitting a query that loads two collections rather than a defect of this provider, so it
+    // is logged as the shipped fixtures log the other guidance warnings. It belongs here because every
+    // set that includes more than one collection would otherwise have to repeat the override.
+    public override DbContextOptionsBuilder AddOptions(DbContextOptionsBuilder builder)
+        => base.AddOptions(builder)
+            .ConfigureWarnings(c => c.Log(RelationalEventId.MultipleCollectionIncludeWarning));
 
     protected override async Task SeedAsync(NorthwindContext context)
     {

@@ -1,5 +1,7 @@
 using System.Data;
 using DM.EntityFrameworkCore.Dialect;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Storage.Internal;
@@ -95,6 +97,29 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
         RelationalTypeMappingSourceDependencies relationalDependencies)
         : base(dependencies, relationalDependencies)
     {
+    }
+
+    /// <summary>
+    /// A byte array used as a concurrency token is compared in the statement's predicate, and Dameng
+    /// has no equality operator for a large object, so a token the model leaves unbounded takes the
+    /// bounded binary type a key or an index takes. Without it the update is rejected with a data type
+    /// error before the concurrency check can run.
+    /// </summary>
+    public override RelationalTypeMapping? FindMapping(IProperty property)
+    {
+        if (property.ClrType == typeof(byte[])
+            && property.IsConcurrencyToken
+            && property.GetValueConverter() is null
+            && property.FindAnnotation(RelationalAnnotationNames.ColumnType) is null
+            && property.GetMaxLength() is null)
+        {
+            return new DmByteArrayTypeMapping(
+                DmStoreTypes.VarBinary + DmTypeSizes.FormatLength(DmTypeSizes.DefaultBinaryKeyLength),
+                DbType.Binary,
+                DmTypeSizes.DefaultBinaryKeyLength);
+        }
+
+        return base.FindMapping(property) as RelationalTypeMapping;
     }
 
     protected override RelationalTypeMapping? FindMapping(in RelationalTypeMappingInfo mappingInfo)

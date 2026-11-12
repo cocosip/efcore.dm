@@ -181,6 +181,33 @@ public class DmModelValidatorTests
             => modelBuilder.Entity<TokenProbe>(e => e.Property(p => p.Version).IsConcurrencyToken());
     }
 
+    /// <summary>
+    /// Measured on 8.1.4.80: `CREATE INDEX ... WHERE` is rejected with `语法分析出错`; a filter that is
+    /// ignored would create an index with different semantics, so the model is refused.
+    /// </summary>
+    [Fact]
+    public void FilteredIndex_IsRejected()
+    {
+        using var context = new FilteredIndexContext(new FakeDmConnection { RowsAffected = 1 });
+
+        var exception = Assert.ThrowsAny<Exception>(() => context.Model);
+
+        Assert.Contains("no filtered index", exception.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class FilteredIndexContext : ProbeContext
+    {
+        public FilteredIndexContext(FakeDmConnection connection)
+            : base(connection)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<TypedProbe>()
+                .HasIndex(e => e.Other)
+                .HasFilter("\"Other\" > 0");
+    }
+
     private sealed class VersionedProbe
     {
         public int Id { get; set; }

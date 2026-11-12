@@ -11,7 +11,7 @@ namespace DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 /// </summary>
 /// <remarks>
 /// Dameng creates a database with the <c>dminit</c> tool before a connection can reach it, so this store
-/// cannot create one and does not try. What it owns is the schema: the tables and sequences of the model
+/// cannot create one and does not try. What it owns is the schema: the tables, sequences and views of the model
 /// it is handed, dropped with their constraints and created again for every fixture, which is what a
 /// specification test expects of a store it shares.
 /// <para>
@@ -63,6 +63,7 @@ public sealed class DmTestStore : RelationalTestStore
         {
             await connection.OpenAsync();
 
+            await DropViewsAsync(connection, context);
             await DropSequencesAsync(connection, context);
             await DropTablesAsync(connection, context);
         }
@@ -73,6 +74,22 @@ public sealed class DmTestStore : RelationalTestStore
         var creator = context.GetService<IRelationalDatabaseCreator>();
 
         await creator.CreateTablesAsync();
+    }
+
+    private static async Task DropViewsAsync(DmConnection connection, DbContext context)
+    {
+        // A view outlives a table the model maps, and the suite creates the view of its model itself, so
+        // the second run against the same database would fail with 对象[ProductView]已存在 without this.
+        var views = context.Model
+            .GetEntityTypes()
+            .Select(entityType => entityType.GetViewName())
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var view in views)
+        {
+            await TryExecuteAsync(connection, $"DROP VIEW \"{view}\"");
+        }
     }
 
     private static async Task DropTablesAsync(DmConnection connection, DbContext context)
