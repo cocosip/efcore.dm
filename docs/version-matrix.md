@@ -38,7 +38,7 @@ In `release/8.0` none of these members exist.
 | Lock members | absent | must implement both | same contract |
 | `LockReleaseBehavior` | not applicable | `Transaction` | `Transaction` |
 
-The provider implements locking with a lock table (D7). The implementation is written once for EF Core 9 and reused on 10. It does not exist on the EF Core 8 branch.
+The provider implements locking with a `DBMS_LOCK` named lock (D7). The implementation is written once for EF Core 9 and reused on 10. It does not exist on the EF Core 8 branch.
 
 ### Other provider-relevant changes
 

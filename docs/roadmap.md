@@ -52,7 +52,7 @@ Largest phase, roughly 35–40% of the total effort.
 
 | Item | Detail |
 |---|---|
-| Delivers | Migrations SQL generator, history repository with custom table and schema support, migrations lock over a lock table, schema and user operations, database model factory driven by `Dialect/` catalog queries, design-time services, annotation code generator, code generator |
+| Delivers | Migrations SQL generator, history repository with custom table and schema support, migrations lock over a `DBMS_LOCK` named lock, schema and user operations, database model factory driven by `Dialect/` catalog queries, design-time services, annotation code generator, code generator |
 | Exit criteria | `dotnet ef migrations add`, `update` and `remove` work; `dotnet ef dbcontext scaffold` produces a model that compiles and passes its smoke test; concurrent migrators serialize correctly on a live database |
 
 ### P5 — Value generation
