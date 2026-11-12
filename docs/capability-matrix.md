@@ -104,7 +104,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | `Guid` | `Implemented` | `DmTypeMappingTests`, `DmReverseTypeMappingTests`, `samples/DmProviderValidation` | P1 | Yes | Stored as the 36-character text a `Guid` formats to, declared `CHAR(36)`, which is the shape the reference provider writes in its own migrations. A `CHAR(36)` column read from the catalog resolves back to a `Guid`, so a round trip does not turn the property into a string. Round trip executed against a server on 2026-11-11 on both compatibility modes. Whether the driver writes the 36-character form for the declared type is no longer open: it does |
 | `char`, `enum` | `Implemented` | `DmParameterBindingTests` | P1 | Yes | A character is stored as `NVARCHAR2(1)` and bound as a one character string; an enum is stored as `INT` and bound as its underlying integer, including the nullable form |
 | JSON column type | `Implemented` | `DmJsonColumnTests`, `DmJsonUpdateSqlTests`, `DmTypeMappingTests`, `samples/DmProviderValidation` | P1 | Yes | Measured on 8.1.4.80: `JSON` is a type a table accepts, the driver moves it as text, and the server normalizes the document it stores. The container column maps through a `JsonTypeMapping` whose reader path is the string one turned into the UTF-8 stream the framework parses, so materialization works; a document in a projection is the column itself rather than `JSON_VALUE(doc, '$')`. A change inside a document is written with `JSON_SET`, measured to answer `{"a":2}` for `JSON_SET('{"a":1}', '$.a', 2)`, while the root path is written plainly because `JSON_SET(doc, '$', '{"b":2}')` answers the document as a quoted string |
-| Spatial types (NetTopologySuite) | `Deferred` | — | After P6 | No | Not required by the specification suite core cases; revisit after the first release |
+| Spatial types (NetTopologySuite) | `Not applicable` | `samples/DmProviderValidation` probe | After P6 | No | Measured on 8.1.4.80: the server has no spatial base type. `CREATE TABLE (g GEOMETRY)`, `(g SDO_GEOMETRY)`, `(g ST_GEOMETRY)` and `(g POINT)` each answered `非法的基类名[…]`, no column of such a type exists, and `SF_GEOMETRY` does not resolve. A satellite package mapping NetTopologySuite values would have no column to map to; revisit if a Dameng version provides a geometry type |
 | Store type to CLR reverse lookup | `Implemented` | `DmReverseTypeMappingTests` | P1 | Yes | Recovers the CLR type and the size, precision and scale written in the name. `DATE` maps to `DateTime` because Dameng keeps a time part in it, while the forward direction maps `DateOnly` to `DATE`. `FLOAT` maps to `double`, because it is FLOAT(53) and `REAL` is the single-precision type, which is what the reference provider maps it to as well; reading it as `float` would truncate a column either provider wrote for a double property. `DATETIME` resolves alongside `TIMESTAMP`, and the two zone-aware names to `DateTimeOffset`. A `CHAR(36)` column reads back as a `Guid`, the width this provider writes for one, so a character column of exactly that width that holds text reads back as a Guid too, which the catalog cannot distinguish |
 | Concurrency token (`rowversion`) | `Not applicable` | `DmModelValidatorTests`, `samples/DmProviderValidation` | P3 | Yes | Dameng has no column that generates a new value on every write: measured on 8.1.4.80, `ROWVERSION` is not a type (`非法的基类名[ROWVERSION]`), `ORA_ROWSCN` does not exist, and `ROWID` does not change when a row is updated. A model that asks for one is refused while the model is built, rather than run with a token no write replaces and a concurrency check that never reports a conflict. A token the application sets is the supported shape, and it is executed against a server on both compatibility modes: a write over a stale row reports `DbUpdateConcurrencyException` |
 | Type mapping clone semantics | `Not applicable` | — | P1 | Yes | The provider builds a mapping per facet set instead of cloning a base mapping, so no clone override is needed |
@@ -249,9 +249,9 @@ Rows by status, updated when the matrix changes:
 | `In progress` | 0 |
 | `Partial` | 6 |
 | `Blocked` | 0 |
-| `Deferred` | 3 |
+| `Deferred` | 2 |
 | `Not started` | 0 |
-| `Not applicable` | 9 |
+| `Not applicable` | 10 |
 | **Total rows** | **125** |
 
 The count is a rough indicator of distance, not a progress bar. The progress bar is the [skip ledger](testing.md).
@@ -263,6 +263,7 @@ The count is a rough indicator of distance, not a progress bar. The progress bar
 3. Add rows when a new EF Core contract surface is discovered. Record the discovery in the row's Note.
 4. Recompute the counts in section 6. `CapabilityMatrixTests` fails when the summary and the rows disagree, when the rows do not add up to the declared total, or when an implemented row names no test, so the step is enforced rather than remembered.
 5. When a capability is judged unnecessary, mark it `Not applicable` and state the reason. Do not delete the row.
+
 
 
 

@@ -285,6 +285,7 @@ share are these, so a later reader does not mistake them for work left undone:
 | Turning an existing column into an identity column | the server refuses the alteration in place | the operation is refused rather than silently doing nothing |
 | Making a column `NOT NULL` while it holds nulls | the server refuses the alteration | the migration fails on the server, as it does for SQL Server |
 | Changing a string column to JSON | `数据类型的变更无效` | the case is in the ledger; the provider does not hide the error |
+| A spatial column (`GEOMETRY`, `SDO_GEOMETRY`, `ST_GEOMETRY`, `POINT`) | `非法的基类名[…]` for each; `SF_GEOMETRY` does not resolve | spatial support is `Not applicable` until a server version provides a geometry type |
 | `FREETEXT`, a `CONTAINS` language term, a `NANOSECOND` part | the names do not resolve on 8.1.4.80 (`语法分析出错` or `无法解析的成员访问表达式`) | the methods exist for parity with the reference provider and are covered by shape tests |
 | A flag that says a column is virtual, or its collation | `DATA_DEFAULT` is the same for a virtual column and a default; no collation column | scaffolding keeps a default as a default and leaves the computed expression and collation unrecoverable |
 | Cancelling a running command | the driver's `Cancel` is the only hook | the provider registers `Cancel` on the token, as the reference provider does |
@@ -336,6 +337,7 @@ New T2 tests are written only when:
 - the code under test is a pure function in `Dialect/`.
 
 There is no coverage threshold and no test is written to raise coverage.
+
 
 
 
