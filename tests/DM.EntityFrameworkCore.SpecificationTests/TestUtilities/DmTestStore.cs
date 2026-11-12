@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Dm;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -18,19 +19,48 @@ namespace DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 /// A table the store drops is one the model declares. It never drops a table by name from the catalog, so
 /// a database that holds objects the suite does not own keeps them.
 /// </para>
+/// <para>
+/// The migrations suite is the exception: it creates the tables of the migration it applies rather than
+/// the tables of the context model, so the store is handed a schema of its own
+/// (<see cref="MigrationsSchema" />) and drops every object in that schema. Nothing outside it is touched.
+/// </para>
 /// </remarks>
 public sealed class DmTestStore : RelationalTestStore
 {
     public const int CommandTimeout = 300;
 
-    private DmTestStore(string name, bool shared)
-        : base(name, shared, new DmConnection(DmTestConnection.ConnectionString))
-    {
-    }
+    public const string MigrationsSchema = "DM_SPEC_MIGRATIONS";
+
+    /// <summary>
+    /// The schemas the migrations suite owns: its own, the default one, and the named ones the cases
+    /// create tables in.
+    /// </summary>
+    internal static readonly string[] MigrationsSchemas =
+        [MigrationsSchema, "dbo2", "SomeOtherSchema", "TestTableSchema"];
+
+    private readonly bool _ownsWholeSchema;
+
+    private DmTestStore(string name, bool shared, string? connectionString = null, bool ownsWholeSchema = false)
+        : base(name, shared, new DmConnection(connectionString ?? DmTestConnection.ConnectionString))
+        => _ownsWholeSchema = ownsWholeSchema;
 
     public static DmTestStore Create(string name) => new(name, shared: false);
 
     public static DmTestStore GetOrCreate(string name) => new(name, shared: true);
+
+    public static DmTestStore CreateForMigrations(string name)
+        => new(
+            name,
+            shared: false,
+            WithSchema(DmTestConnection.ConnectionString, MigrationsSchema),
+            ownsWholeSchema: true);
+
+    private static string WithSchema(string connectionString, string schema)
+        => Regex.Replace(
+            connectionString,
+            @"(^|;)\s*schema\s*=[^;]*",
+            $"$1schema={schema}",
+            RegexOptions.IgnoreCase);
 
     public override DbContextOptionsBuilder AddProviderOptions(DbContextOptionsBuilder builder)
         => builder.UseDm(Connection);
@@ -57,10 +87,15 @@ public sealed class DmTestStore : RelationalTestStore
 
     public override async Task CleanAsync(DbContext context)
     {
-        // The drops run on a connection of their own: the context manages the state of the one it was
-        // built with, and a command issued on it while it is closed fails.
-        await using (var connection = new DmConnection(ConnectionString))
+        if (_ownsWholeSchema)
         {
+            await CleanOwnSchemaAsync();
+        }
+        else
+        {
+            // The drops run on a connection of their own: the context manages the state of the one it was
+            // built with, and a command issued on it while it is closed fails.
+            await using var connection = new DmConnection(ConnectionString);
             await connection.OpenAsync();
 
             await DropViewsAsync(connection, context);
@@ -74,6 +109,74 @@ public sealed class DmTestStore : RelationalTestStore
         var creator = context.GetService<IRelationalDatabaseCreator>();
 
         await creator.CreateTablesAsync();
+    }
+
+    /// <summary>
+    /// Empties the migrations schema: the suite creates the tables of the migration it applies rather than
+    /// the tables of the context model, so the model cannot name what has to go.
+    /// </summary>
+    private async Task CleanOwnSchemaAsync()
+    {
+        await EnsureMigrationsSchemaAsync();
+
+        await using var connection = new DmConnection(ConnectionString);
+        await connection.OpenAsync();
+
+        foreach (var schema in MigrationsSchemas)
+        {
+            foreach (var view in await NamesAsync(
+                         connection,
+                         $"SELECT VIEW_NAME FROM ALL_VIEWS WHERE OWNER = '{schema}'"))
+            {
+                await TryExecuteAsync(connection, $"DROP VIEW \"{schema}\".\"{view}\"");
+            }
+
+            foreach (var sequence in await NamesAsync(
+                         connection,
+                         $"SELECT SEQUENCE_NAME FROM ALL_SEQUENCES WHERE SEQUENCE_OWNER = '{schema}'"))
+            {
+                await TryExecuteAsync(connection, $"DROP SEQUENCE \"{schema}\".\"{sequence}\"");
+            }
+
+            foreach (var table in await NamesAsync(
+                         connection,
+                         $"SELECT TABLE_NAME FROM ALL_TABLES WHERE OWNER = '{schema}'"))
+            {
+                await TryExecuteAsync(connection, $"DROP TABLE \"{schema}\".\"{table}\" CASCADE CONSTRAINTS");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates the schemas of the migrations suite with a connection that does not name one, because a
+    /// connection cannot open on a schema that does not exist yet.
+    /// </summary>
+    private static async Task EnsureMigrationsSchemaAsync()
+    {
+        await using var connection = new DmConnection(DmTestConnection.ConnectionString);
+        await connection.OpenAsync();
+
+        foreach (var schema in MigrationsSchemas)
+        {
+            await TryExecuteAsync(connection, $"CREATE SCHEMA \"{schema}\"");
+        }
+    }
+
+    private static async Task<List<string>> NamesAsync(DmConnection connection, string sql)
+    {
+        var names = new List<string>();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        command.CommandTimeout = CommandTimeout;
+
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            names.Add(reader.GetString(0));
+        }
+
+        return names;
     }
 
     private static async Task DropViewsAsync(DmConnection connection, DbContext context)
@@ -132,3 +235,6 @@ public sealed class DmTestStore : RelationalTestStore
         }
     }
 }
+
+
+

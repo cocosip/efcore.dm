@@ -264,10 +264,11 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             };
         }
 
-        // A string the model gives no length, or one longer than a bounded character column holds, is a
-        // character large object. Naming a bounded type without a length is not a type the server accepts
-        // in a table definition, and a length past the page size is rejected when the table is created.
-        if (storeType is null && (size is null || size > DmTypeSizes.MaxCharacterLength))
+        // A string the model gives no length, an unbounded one (a negative length), or one longer than a
+        // bounded character column holds, is a character large object. Naming a bounded type without a
+        // length is not a type the server accepts in a table definition, and a length past the page size
+        // is rejected when the table is created.
+        if (storeType is null && (size is null || size < 0 || size > DmTypeSizes.MaxCharacterLength))
         {
             return new StringTypeMapping(
                 unicode ? DmStoreTypes.NClob : DmStoreTypes.Clob,

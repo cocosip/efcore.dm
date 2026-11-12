@@ -57,7 +57,7 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         {
             builder
                 .Append(" COLLATE ")
-                .Append(operation.Collation);
+                .Append(Helper.DelimitIdentifier(operation.Collation));
         }
 
         // The identity is written only on a column type that accepts one, which is the server's own rule:
@@ -107,10 +107,10 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
                 + "Declare the column as a virtual one.");
         }
 
+        // The server refuses a data type on a virtual column: measured on 8.1.4.80, the definition with
+        // one answered `不支持为虚拟列指定的数据类型`, while the definition without it was accepted.
         builder
             .Append(Helper.DelimitIdentifier(name))
-            .Append(" ")
-            .Append(operation.ColumnType ?? GetColumnType(schema, table, name, operation, model))
             .Append(" GENERATED ALWAYS AS (")
             .Append(operation.ComputedColumnSql!)
             .Append(")");
@@ -165,6 +165,14 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(builder);
 
+        // A comment is a statement of its own on this server, and the wrapper emits it after this method.
+        // Repeating the whole column definition for a comment would fail on an identity column, which the
+        // server refuses to modify at all.
+        if (OnlyCommentChanged(operation))
+        {
+            return;
+        }
+
         DropIdentityIfLost(operation, model, builder);
 
         builder
@@ -218,6 +226,15 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(builder);
+
+        if (!string.Equals(operation.Schema, operation.NewSchema, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new NotSupportedException(
+                $"The table '{operation.Name}' is moved to the schema '{operation.NewSchema}', and Dameng has no "
+                + "statement for it: measured on 8.1.4.80, `ALTER TABLE ... RENAME TO schema.name`, "
+                + "`SET SCHEMA` and `MOVE SCHEMA` all answered `语法分析出错`. Drop and create the table in the new "
+                + "schema instead.");
+        }
 
         builder
             .Append("ALTER TABLE ")
@@ -301,6 +318,63 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         AppendSequenceOptions(operation, builder);
 
         EndStatement(builder);
+    }
+
+    /// <summary>
+    /// Dameng renames a sequence inside its own schema; a move to another schema is not a form the server has.
+    /// </summary>
+    /// <remarks>
+    /// Measured on 8.1.4.80: `ALTER SEQUENCE s RENAME TO t` was accepted, while the same statement with a
+    /// schema-qualified new name was rejected with `语法分析出错`.
+    /// </remarks>
+    protected override void Generate(
+        RenameSequenceOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+    {
+        if (!string.Equals(operation.Schema, operation.NewSchema, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new NotSupportedException(
+                $"The sequence '{operation.Name}' is moved to the schema '{operation.NewSchema}', and Dameng "
+                + "renames a sequence only inside its own schema: measured on 8.1.4.80, "
+                + "`ALTER SEQUENCE ... RENAME TO schema.name` answered `语法分析出错`. Drop and create the "
+                + "sequence in the new schema instead.");
+        }
+
+        builder.Append("ALTER SEQUENCE ");
+        AppendName(builder, operation.Schema, operation.Name);
+        builder.Append(" RENAME TO ")
+            .Append(Helper.DelimitIdentifier(operation.NewName ?? operation.Name));
+
+        EndStatement(builder);
+    }
+
+    /// <summary>
+    /// Dameng has no statement that sets the current value of a sequence.
+    /// </summary>
+    /// <remarks>
+    /// Measured on 8.1.4.80: both `ALTER SEQUENCE ... RESTART` and `ALTER SEQUENCE ... RESTART WITH n`
+    /// answered `未指定 ALTER SEQUENCE 的选项`.
+    /// </remarks>
+    protected override void Generate(
+        RestartSequenceOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder)
+        => throw new NotSupportedException(
+            $"The sequence '{operation.Name}' is restarted, and Dameng has no statement for it: measured on "
+            + "8.1.4.80, `ALTER SEQUENCE ... RESTART [WITH n]` answered `未指定 ALTER SEQUENCE 的选项`. "
+            + "Drop and create the sequence instead.");
+
+    private void AppendName(MigrationCommandListBuilder builder, string? schema, string name)
+    {
+        if (!string.IsNullOrEmpty(schema))
+        {
+            builder
+                .Append(Helper.DelimitIdentifier(schema))
+                .Append(".");
+        }
+
+        builder.Append(Helper.DelimitIdentifier(name));
     }
 
     /// <summary>
@@ -512,6 +586,13 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(builder);
+
+        if (operation.Filter is not null)
+        {
+            throw new NotSupportedException(
+                $"The index '{operation.Name}' carries a filter, but Dameng has no filtered index: measured on "
+                + "8.1.4.80, `CREATE INDEX ... WHERE` answered `语法分析出错`. Remove the filter from the migration.");
+        }
 
         if (!_idempotent)
         {
@@ -729,6 +810,32 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
     }
 
     /// <summary>
+    /// A comment change is the only change when every other attribute of the column is the same, in which
+    /// case the statement that rewrites the column is not written at all.
+    /// </summary>
+    private static bool OnlyCommentChanged(AlterColumnOperation operation)
+    {
+        var old = operation.OldColumn;
+
+        return old is not null
+            && operation.Comment != old.Comment
+            && operation.ColumnType == old.ColumnType
+            && operation.IsNullable == old.IsNullable
+            && operation.ClrType == old.ClrType
+            && Equals(operation.DefaultValue, old.DefaultValue)
+            && operation.DefaultValueSql == old.DefaultValueSql
+            && operation.ComputedColumnSql == old.ComputedColumnSql
+            && operation.IsStored == old.IsStored
+            && operation.Collation == old.Collation
+            && operation.IsRowVersion == old.IsRowVersion
+            && operation.IsUnicode == old.IsUnicode
+            && operation.MaxLength == old.MaxLength
+            && operation.Precision == old.Precision
+            && operation.Scale == old.Scale
+            && operation.IsFixedLength == old.IsFixedLength;
+    }
+
+    /// <summary>
     /// Dameng keeps a table or column comment in a statement of its own, so a migration that carries no
     /// comment statement loses it. A comment is written next to the object it describes, after the
     /// statement that creates or alters it.
@@ -756,6 +863,10 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
             case AlterColumnOperation column when column.Comment != column.OldColumn.Comment:
                 // An empty string is how Dameng removes a comment.
                 Comment("COLUMN", ColumnOf(column.Table, column.Schema, column.Name), column.Comment ?? string.Empty, builder);
+                break;
+
+            case AlterTableOperation table when table.Comment != table.OldTable.Comment:
+                Comment("TABLE", Helper.DelimitIdentifier(table.Name, table.Schema), table.Comment ?? string.Empty, builder);
                 break;
         }
     }

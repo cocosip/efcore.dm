@@ -17,7 +17,7 @@ public class DmComputedColumnTests
         using var context = new ComputedContext();
 
         Assert.Contains(
-            "\"Total\" INT GENERATED ALWAYS AS (\"Amount\" * 2)",
+            "\"Total\" GENERATED ALWAYS AS (\"Amount\" * 2)",
             context.Database.GenerateCreateScript(),
             StringComparison.Ordinal);
     }
@@ -46,7 +46,7 @@ public class DmComputedColumnTests
 
         Assert.Equal(
             """
-            ALTER TABLE "Probes" ADD "Total" INT GENERATED ALWAYS AS ("Amount" * 2);
+            ALTER TABLE "Probes" ADD "Total" GENERATED ALWAYS AS ("Amount" * 2);
             """,
             commands.Single().CommandText.ReplaceLineEndings("\n").TrimEnd());
     }
@@ -109,3 +109,4 @@ public class DmComputedColumnTests
         public int Total { get; set; }
     }
 }
+

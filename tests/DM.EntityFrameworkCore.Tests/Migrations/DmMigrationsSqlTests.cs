@@ -353,7 +353,6 @@ public class DmMigrationsSqlTests
             OnDelete = ReferentialAction.Cascade
         },
         ["DropForeignKey"] = new DropForeignKeyOperation { Table = "Lines", Name = "FK_Lines_Probes" },
-        ["RestartSequence"] = new RestartSequenceOperation { Name = "ProbeSeq", StartValue = 100L },
         ["DropSequence"] = new DropSequenceOperation { Name = "ProbeSeq" },
         ["DropSchema"] = new DropSchemaOperation { Name = "REPORTING" },
         ["Sql"] = new SqlOperation { Sql = "SELECT 1 FROM DUAL" },
@@ -390,9 +389,6 @@ public class DmMigrationsSqlTests
         ALTER TABLE "Lines" ADD CONSTRAINT "FK_Lines_Probes" FOREIGN KEY ("ProbeId") REFERENCES "Probes" ("Id") ON DELETE CASCADE;
         """)]
     [InlineData("DropForeignKey", """ALTER TABLE "Lines" DROP CONSTRAINT "FK_Lines_Probes";""")]
-    // The sequence restart is the shape the row limiting clause uses; whether the server accepts it on
-    // every supported version is unverified.
-    [InlineData("RestartSequence", """ALTER SEQUENCE "ProbeSeq" RESTART WITH 100;""")]
     [InlineData("DropSequence", """DROP SEQUENCE "ProbeSeq";""")]
     [InlineData("DropSchema", """DROP SCHEMA "REPORTING";""")]
     [InlineData("Sql", """SELECT 1 FROM DUAL""")]
@@ -412,6 +408,24 @@ public class DmMigrationsSqlTests
         """)]
     public void Operation_GeneratesTheStatement(string name, string expected)
         => AssertSql(Operations[name], expected);
+
+    /// <summary>
+    /// The server has no statement that restarts a sequence: measured on 8.1.4.80, both
+    /// `ALTER SEQUENCE ... RESTART` and `... RESTART WITH n` answered `未指定 ALTER SEQUENCE 的选项`,
+    /// so the operation is refused rather than written as a statement the server rejects.
+    /// </summary>
+    [Fact]
+    public void RestartSequence_IsRefused()
+    {
+        using var context = new ProbeContext();
+
+        var exception = Assert.Throws<NotSupportedException>(
+            () => context.GetService<IMigrationsSqlGenerator>().Generate(
+                [new RestartSequenceOperation { Name = "ProbeSeq", StartValue = 100L }],
+                context.Model));
+
+        Assert.Contains("未指定 ALTER SEQUENCE 的选项", exception.Message);
+    }
 
     /// <summary>
     /// A column that stops generating its value has to lose the attribute before the type is modified,
@@ -666,3 +680,4 @@ public class DmMigrationsSqlTests
         public int ProbeId { get; set; }
     }
 }
+

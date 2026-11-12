@@ -108,3 +108,34 @@ that carries a filter, so a migration cannot silently create an index with diffe
 `SupportsLargeStringComparisons`, `SupportsBinaryKeys`, `SupportsUnicodeToAnsiConversion` and
 `PreservesDateTimeKind` are answered in the fixture rather than here, because they describe the server
 rather than the suite. Each answer is a measured fact and the reason is beside the property.
+## Migrations cases that do not run
+
+The migrations suite (`MigrationsDmTest`, 134 cases) builds a model, generates the migration and applies it
+to the live store. Measured on 2026-11-12 against DM 8.1.4.80: 114 passed, 20 skipped, and the cases below
+either do not run or run without their assertion. The migrations store owns `DM_SPEC_MIGRATIONS` and the
+named schemas below, so the rest of the shared database is untouched.
+
+| Case | Cause | Fix |
+|---|---|---|
+| `Add_column_with_computedSql` | The case adds a virtual computed column and scaffolds it back. The server writes the virtual expression into the same catalog field as a default (`(A * 2)` and a default `(1 + 2)` are both `DATA_DEFAULT`), so a scaffolded model cannot name it as computed; a stored computed column is refused by the server (`GENERATED ALWAYS AS (...) STORED` answered `语法分析出错`) | Not a provider defect: the catalog does not distinguish a virtual column from a defaulted one. The DDL itself is verified by the cases that create the column |
+| `Alter_column_make_computed` | The same catalog gap as `Add_column_with_computedSql`: the altered column cannot be read back as computed | Same |
+| `Add_column_computed_with_collation` | The same catalog gap, plus the column collation gap below | Same |
+| `Create_table_with_computed_column` | The `stored: true` row asserts the refusal and passes; the `false`/`null` rows cannot read the virtual expression back, for the reason above | Same |
+| `Alter_column_change_computed` | The expression is changed in place; the scaffolded column still reads as a default | Same |
+| `Alter_column_change_computed_type` | The type of a virtual column is changed instead of the expression; the scaffolded column still reads as a default | Same |
+| `Alter_column_change_computed_recreates_indexes` | The column carries a function index, and the server refuses to modify it (`在要修改的列上已定义函数索引`) | Server limitation |
+| `Add_column_with_collation` | The column is created with `COLLATE "BINARY"`, which the server accepts, but `ALL_TAB_COLUMNS` has no collation column, so a scaffolded model cannot name the collation | Server limitation: the catalog does not report a column collation |
+| `Alter_column_set_collation` | The same catalog gap when the collation is altered | Same |
+| `Move_sequence` | The case moves a sequence to another schema, and the server renames a sequence only inside its own schema: measured, `ALTER SEQUENCE ... RENAME TO schema.name` answered `语法分析出错`, while the same statement without a schema answered | Server limitation |
+| `Move_table` | The case moves a table to another schema, and the server has no statement for it: measured, `RENAME TO schema.name`, `SET SCHEMA` and `MOVE SCHEMA` all answered `语法分析出错` | Server limitation |
+| `Create_index_with_filter` | The case creates a filtered index, and the server has none: measured, `CREATE INDEX ... WHERE` answered `语法分析出错`. The provider refuses the operation with a message that names the measurement | Server limitation |
+| `Create_unique_index_with_filter` | The same filtered index limitation | Same |
+| `SqlOperation` | The case runs a migration whose SQL is only a comment (`-- I <3 DDL`), which the server rejects with `语法分析出错` | Server limitation |
+| `Create_sequence_all_settings` | The case asserts the declared start value, and `ALL_SEQUENCES` has no start value: it reports `MIN_VALUE`, `MAX_VALUE`, `INCREMENT_BY`, `CYCLE_FLAG` and `LAST_NUMBER`, which is where the sequence is now. The factory deliberately leaves `StartValue` unset rather than scaffold a sequence that restarts on a used database | Server limitation: the catalog does not report the start value |
+| `Alter_sequence_restart_with` | The case restarts a sequence, and the server has no statement for it: measured, `ALTER SEQUENCE ... RESTART` and `... RESTART WITH n` answered `未指定 ALTER SEQUENCE 的选项` | Server limitation |
+| `Alter_sequence_all_settings` | The same restart limitation, together with the start value gap above | Server limitation |
+| `Add_primary_key_int` | The case turns an existing column into an identity column, which the server refuses (`试图修改自增列`); the provider refuses the operation in place with a message that names the measurement | Server limitation |
+| `Alter_column_make_required_with_null_data` | The table holds a null in the column that becomes `NOT NULL`, and the server rejects the alteration (`违反列 ... 非空约束`) rather than updating the row | Server limitation |
+| `Convert_string_column_to_a_json_column_containing_reference` | The case alters a string column to the JSON type, and the server answers `数据类型的变更无效` | Server limitation |
+| `Convert_string_column_to_a_json_column_containing_collection` | The same JSON alteration limitation | Same |
+| `Convert_string_column_to_a_json_column_containing_required_reference` | The same JSON alteration limitation | Same |

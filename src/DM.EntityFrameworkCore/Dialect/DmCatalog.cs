@@ -19,10 +19,10 @@ internal static class DmCatalog
     /// User tables, excluding the schemas Dameng itself owns, with the comment a table carries.
     /// </summary>
     public const string Tables = """
-        SELECT t.OWNER, t.TABLE_NAME, c.COMMENTS
+        SELECT t.OWNER, t.TABLE_NAME, c.COMMENT$
         FROM ALL_TABLES t
-        LEFT JOIN ALL_TAB_COMMENTS c
-            ON c.OWNER = t.OWNER AND c.TABLE_NAME = t.TABLE_NAME
+        LEFT JOIN SYS.SYSTABLECOMMENTS c
+            ON c.SCHNAME = t.OWNER AND c.TVNAME = t.TABLE_NAME
         WHERE t.OWNER NOT IN ('SYS', 'SYSAUDITOR', 'SYSDBA', 'SYSSSO', 'CTISYS')
         ORDER BY t.OWNER, t.TABLE_NAME
         """;
@@ -47,10 +47,10 @@ internal static class DmCatalog
         SELECT c.OWNER, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, c.DATA_LENGTH, c.DATA_PRECISION,
                c.DATA_SCALE, c.NULLABLE, c.DATA_DEFAULT,
                CASE WHEN BITAND(i.INFO2, 1) = 1 THEN 'YES' ELSE 'NO' END,
-               c.COLUMN_ID, m.COMMENTS, c.CHAR_LENGTH
+               c.COLUMN_ID, m.COMMENT$, c.CHAR_LENGTH
         FROM ALL_TAB_COLUMNS c
-        LEFT JOIN ALL_COL_COMMENTS m
-            ON m.OWNER = c.OWNER AND m.TABLE_NAME = c.TABLE_NAME AND m.COLUMN_NAME = c.COLUMN_NAME
+        LEFT JOIN SYS.SYSCOLUMNCOMMENTS m
+            ON m.SCHNAME = c.OWNER AND m.TVNAME = c.TABLE_NAME AND m.COLNAME = c.COLUMN_NAME
         LEFT JOIN (
             SELECT s.INFO2, o.NAME AS TABLE_NAME, sc.NAME AS OWNER, s.COLID + 1 AS COLUMN_ID
             FROM SYS.SYSCOLUMNS s
@@ -86,7 +86,7 @@ internal static class DmCatalog
     /// is read as a constraint, so the two are not reported twice.
     /// </summary>
     public const string Indexes = """
-        SELECT i.OWNER, i.TABLE_NAME, i.INDEX_NAME, i.UNIQUENESS, ic.COLUMN_NAME, ic.COLUMN_POSITION
+        SELECT i.OWNER, i.TABLE_NAME, i.INDEX_NAME, i.UNIQUENESS, ic.COLUMN_NAME, ic.COLUMN_POSITION, ic.DESCEND
         FROM ALL_INDEXES i
         INNER JOIN ALL_IND_COLUMNS ic
             ON ic.INDEX_OWNER = i.OWNER AND ic.INDEX_NAME = i.INDEX_NAME
@@ -100,7 +100,7 @@ internal static class DmCatalog
     public const string ForeignKeys = """
         SELECT fk.OWNER, fk.TABLE_NAME, fk.CONSTRAINT_NAME,
                fk_column.COLUMN_NAME, fk_column.POSITION,
-               pk.OWNER, pk.TABLE_NAME, pk_column.COLUMN_NAME
+               pk.OWNER, pk.TABLE_NAME, pk_column.COLUMN_NAME, fk.DELETE_RULE
         FROM ALL_CONSTRAINTS fk
         INNER JOIN ALL_CONS_COLUMNS fk_column
             ON fk_column.OWNER = fk.OWNER AND fk_column.CONSTRAINT_NAME = fk.CONSTRAINT_NAME

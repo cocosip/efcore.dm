@@ -32,6 +32,11 @@
     <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
       <_Parameter1>DM.EntityFrameworkCore.Tests</_Parameter1>
     </AssemblyAttribute>
+    <!-- The migrations suite registers the reverse engineering factory in its fixture, which the
+         runtime services do not carry; the factory stays internal. -->
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+      <_Parameter1>DM.EntityFrameworkCore.SpecificationTests</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 
 </Project>

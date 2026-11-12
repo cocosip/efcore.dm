@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 using DM.EntityFrameworkCore.Dialect;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Scaffolding;
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 
@@ -14,10 +15,10 @@ namespace DM.EntityFrameworkCore.Storage.Internal;
 /// <remarks>
 /// The queries come from <see cref="DmCatalog" />. Their columns are read by position, and a view that
 /// reports fewer columns than the query names yields nulls rather than failing, so a catalog that
-/// differs from the expected shape still produces a model. The catalog queries themselves are not
-/// verified against a server; the capability matrix records that.
+/// differs from the expected shape still produces a model. The migrations specification suite exercises
+/// them against 8.1.4.80, which confirmed the system tables a comment is read from.
 /// </remarks>
-internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
+internal class DmDatabaseModelFactory : IDatabaseModelFactory
 {
     public DatabaseModel Create(string connectionString, DatabaseModelFactoryOptions options)
     {
@@ -30,7 +31,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         return Create(connection, options);
     }
 
-    public DatabaseModel Create(DbConnection connection, DatabaseModelFactoryOptions options)
+    public virtual DatabaseModel Create(DbConnection connection, DatabaseModelFactoryOptions options)
     {
         ArgumentNullException.ThrowIfNull(connection);
         ArgumentNullException.ThrowIfNull(options);
@@ -70,7 +71,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
             {
                 Name = name,
                 Schema = schema,
-                Comment = Text(values[2]),
+                Comment = CommentText(values[2]),
                 Database = model
             };
             model.Tables.Add(table);
@@ -111,7 +112,7 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                     Table = table,
                     IsNullable = Text(values[7]) is not "N",
                     DefaultValueSql = Text(values[8]),
-                    Comment = Text(values[11]),
+                    Comment = CommentText(values[11]),
                     ValueGenerated = Text(values[9]) is "YES" or "Y" ? ValueGenerated.OnAdd : ValueGenerated.Never
                 });
         }
@@ -198,14 +199,32 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         }
     }
 
+    private static bool IsSystemIndex(string name)
+        => name.StartsWith("INDEX", StringComparison.OrdinalIgnoreCase)
+            && name.Length > 5
+            && ContainsOnlyDigits(name.AsSpan(5));
+
+    private static bool ContainsOnlyDigits(ReadOnlySpan<char> value)
+    {
+        foreach (var character in value)
+        {
+            if (!char.IsAsciiDigit(character))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     private static void ReadIndexes(DbConnection connection, List<DatabaseTable> tables)
     {
-        var declared = new List<(string? Schema, string Table, string Name, bool IsUnique, string Column)>();
+        var declared = new List<(string? Schema, string Table, string Name, bool IsUnique, string Column, bool Descending)>();
 
         using (var command = Command(connection, DmCatalog.Indexes))
         using (var reader = command.ExecuteReader())
         {
-            foreach (var values in ReadRows(reader, 6))
+            foreach (var values in ReadRows(reader, 7))
             {
                 if (Text(values[2]) is not { } name
                     || Text(values[1]) is not { } tableName
@@ -214,7 +233,15 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                     continue;
                 }
 
-                declared.Add((Text(values[0]), tableName, name, Text(values[3]) is "UNIQUE", column));
+                // Dameng creates an index of its own for a primary key or a unique constraint and names it
+                // INDEX<digits>. EF models those through the key, so scaffolding them as indexes would put
+                // objects in the model that the model does not create.
+                if (IsSystemIndex(name))
+                {
+                    continue;
+                }
+
+                declared.Add((Text(values[0]), tableName, name, Text(values[3]) is "UNIQUE", column, Text(values[6]) is "DESC"));
             }
         }
 
@@ -242,6 +269,14 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                 index.Columns.Add(column);
             }
 
+            // Null means every column ascends, which is what the model writes when no direction is given.
+            var descending = group.Select(item => item.Descending).ToArray();
+
+            if (descending.Any(item => item))
+            {
+                index.IsDescending = descending;
+            }
+
             table.Indexes.Add(index);
         }
     }
@@ -255,12 +290,13 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
             string Column,
             string? PrincipalSchema,
             string? PrincipalTable,
-            string PrincipalColumn)>();
+            string PrincipalColumn,
+            string? DeleteRule)>();
 
         using (var command = Command(connection, DmCatalog.ForeignKeys))
         using (var reader = command.ExecuteReader())
         {
-            foreach (var values in ReadRows(reader, 8))
+            foreach (var values in ReadRows(reader, 9))
             {
                 if (Text(values[2]) is not { } name
                     || Text(values[1]) is not { } tableName
@@ -270,7 +306,15 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                     continue;
                 }
 
-                declared.Add((Text(values[0]), tableName, name, column, Text(values[5]), Text(values[6]), principalColumn));
+                declared.Add((
+                    Text(values[0]),
+                    tableName,
+                    name,
+                    column,
+                    Text(values[5]),
+                    Text(values[6]),
+                    principalColumn,
+                    Text(values[8])));
             }
         }
 
@@ -294,7 +338,13 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
                 continue;
             }
 
-            var foreignKey = new DatabaseForeignKey { Name = first.Name, Table = table, PrincipalTable = principal };
+            var foreignKey = new DatabaseForeignKey
+            {
+                Name = first.Name,
+                Table = table,
+                PrincipalTable = principal,
+                OnDelete = OnDelete(first.DeleteRule)
+            };
 
             foreach (var column in dependent)
             {
@@ -399,6 +449,19 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
             _ => Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim()
         };
 
+    private static ReferentialAction OnDelete(string? rule)
+        => rule?.ToUpperInvariant() switch
+        {
+            "CASCADE" => ReferentialAction.Cascade,
+            "SET NULL" => ReferentialAction.SetNull,
+            "SET DEFAULT" => ReferentialAction.SetDefault,
+            "RESTRICT" => ReferentialAction.Restrict,
+            _ => ReferentialAction.NoAction
+        };
+
+    private static string? CommentText(object? value)
+        => Text(value) is { Length: > 0 } text ? text : null;
+
     private static long? Whole(object? value)
         => value switch
         {
@@ -436,6 +499,13 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
         object? characterLength)
     {
         var name = Text(type) ?? DmStoreTypes.Text;
+
+        // The server records a national character large object as TEXT, while the provider names that
+        // type NCLOB, so a model read back compares equal to the one the migration wrote.
+        if (Same(name, DmStoreTypes.Text))
+        {
+            name = DmStoreTypes.NClob;
+        }
 
         if (name.Contains('('))
         {
@@ -515,3 +585,6 @@ internal sealed class DmDatabaseModelFactory : IDatabaseModelFactory
 
     private static string Literal(decimal value) => value.ToString(CultureInfo.InvariantCulture);
 }
+
+
+

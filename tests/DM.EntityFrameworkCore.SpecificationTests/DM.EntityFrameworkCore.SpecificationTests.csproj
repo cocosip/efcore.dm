@@ -11,6 +11,8 @@
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <!-- The specification base classes are internal APIs, as they are for every provider. -->
     <NoWarn>$(NoWarn);EF1001</NoWarn>
+    <!-- The migrations cases compile a snapshot in memory and need the runtime reference set. -->
+    <PreserveCompilationContext>true</PreserveCompilationContext>
   </PropertyGroup>
 
   <ItemGroup>

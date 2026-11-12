@@ -49,15 +49,23 @@ public class SkipLedgerTests
                 typeof(NorthwindJoinQueryDmTest),
                 typeof(NorthwindSelectQueryDmTest),
                 typeof(NorthwindGroupByQueryDmTest),
-                typeof(NorthwindAggregateOperatorsQueryDmTest)
+                typeof(NorthwindAggregateOperatorsQueryDmTest),
+                typeof(MigrationsDmTest)
             }
             .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))
-            .Where(
-                method => method.CustomAttributes.Any(
-                    attribute => attribute.AttributeType.Name.Contains("Fact")
-                        || attribute.AttributeType.Name.Contains("Theory")))
+            .Where(IsCase)
             .Select(method => method.Name)
             .ToHashSet(StringComparer.Ordinal);
+
+    /// <summary>
+    /// A case declared by a fixture base keeps its fact or theory attribute there, while the class this
+    /// project owns overrides the method without repeating the attribute, so the base declaration is read.
+    /// </summary>
+    private static bool IsCase(MethodInfo method)
+        => method.CustomAttributes
+            .Concat(method.GetBaseDefinition().CustomAttributes)
+            .Any(attribute => attribute.AttributeType.Name.Contains("Fact")
+                || attribute.AttributeType.Name.Contains("Theory"));
     private static string LedgerPath
         => Path.Combine(AppContext.BaseDirectory, "Skipped.md");
 }
