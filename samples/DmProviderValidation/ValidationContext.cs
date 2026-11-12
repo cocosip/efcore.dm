@@ -32,7 +32,15 @@ internal sealed class ValidationContext : DbContext
     public DbSet<Computed> Computeds => Set<Computed>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseDm(ConnectionString, _configure);
+        => optionsBuilder.UseDm(
+            ConnectionString,
+            options =>
+            {
+                // The acceptance instance is shared, so a step allows more than the provider default
+                // before it calls a slow statement a failure.
+                options.CommandTimeout(180);
+                _configure?.Invoke(options);
+            });
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
