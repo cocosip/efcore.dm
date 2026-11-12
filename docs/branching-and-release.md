@@ -119,7 +119,7 @@ The pipeline in `.github/workflows/ci.yml` follows the same convention as the Lo
 - NuGet publishing uses **trusted publishing**, not a stored API key: `NuGet/login@v1` exchanges the
   workflow's GitHub OIDC token for a one-hour key, which is passed to `dotnet nuget push`. The
   nuget.org trusted publishing policy must name this repository and `.github/workflows/ci.yml`, and
-  the public nuget.org profile name is read from the repository variable `NUGET_USER` (`Cocosip`
+  the public nuget.org profile name is read from the repository variable `NUGET_USER` (`cocosip`
   when it is not set). There is no `NUGET_API_KEY` secret to rotate or leak.
 
 Rules:
@@ -169,3 +169,4 @@ Format: `type(scope): summary`, where type is one of `feat`, `fix`, `refactor`, 
 Scope is the layer or area touched: `query`, `storage`, `update`, `migrations`, `scaffolding`, `value-generation`, `dialect`, `docs`, `ci`.
 
 A commit that adds a skip-ledger entry includes it in the same commit as the code, so it is visible in review.
+

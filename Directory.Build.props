@@ -10,7 +10,7 @@
       its own identity, so a satellite package needs no change here and changing the prefix
       renames all of them at once.
     -->
-    <DmPackagePrefix Condition="'$(DmPackagePrefix)' == ''">Cocosip</DmPackagePrefix>
+    <DmPackagePrefix Condition="'$(DmPackagePrefix)' == ''">Sharp</DmPackagePrefix>
     <DmProductName Condition="'$(DmProductName)' == ''">DM.EntityFrameworkCore</DmProductName>
     <DmPackageIdBase Condition="'$(DmPackageIdBase)' == ''">$(DmPackagePrefix).$(DmProductName)</DmPackageIdBase>
 
@@ -19,7 +19,7 @@
       package id, and the URL is the repository the source lives at, so a consumer reaches the source
       from the package listing. Both are defaults: a satellite package can override either.
     -->
-    <DmAuthors Condition="'$(DmAuthors)' == ''">$(DmPackagePrefix)</DmAuthors>
+    <DmAuthors Condition="'$(DmAuthors)' == ''">cocosip</DmAuthors>
     <DmRepositoryUrl Condition="'$(DmRepositoryUrl)' == ''">https://github.com/cocosip/efcore.dm</DmRepositoryUrl>
     <Authors>$(DmAuthors)</Authors>
     <RepositoryUrl>$(DmRepositoryUrl)</RepositoryUrl>
@@ -37,3 +37,4 @@
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 </Project>
+

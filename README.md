@@ -1,4 +1,4 @@
-# Cocosip.DM.EntityFrameworkCore
+# Sharp.DM.EntityFrameworkCore
 
 [![CI/CD](https://github.com/cocosip/efcore.dm/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cocosip/efcore.dm/actions/workflows/ci.yml)
 
@@ -45,7 +45,7 @@ The consumer-facing types keep the namespaces the previous provider declares —
 
 The previous provider also put its internals under `Microsoft.EntityFrameworkCore.Dm`. Those are not part of the public surface and this provider keeps its internals under `DM.EntityFrameworkCore`. The one public type a consumer calls from that tree is `DmDbFunctionsExtensions` (`EF.Functions`), which this provider ships under `Microsoft.EntityFrameworkCore.Dm.Extensions`: it carries the date difference members and `IsDate`, and the [Capability Matrix](docs/capability-matrix.md) records what each one translates to.
 
-The assembly is `DM.EntityFrameworkCore`, the same identity the EF Core providers use, and the package id is `Cocosip.DM.EntityFrameworkCore`: the publisher prefix plus that identity. The package is not binary compatible with the previous provider, so consumers recompile, which a package change requires anyway. Consumers using a compiled model (`dotnet ef dbcontext optimize`) regenerate it.
+The assembly is `DM.EntityFrameworkCore`, the same identity the EF Core providers use, and the package id is `Sharp.DM.EntityFrameworkCore`: the publisher prefix plus that identity. The package is not binary compatible with the previous provider, so consumers recompile, which a package change requires anyway. Consumers using a compiled model (`dotnet ef dbcontext optimize`) regenerate it.
 
 ## Building and verifying
 
@@ -88,4 +88,5 @@ It exits non-zero when any step fails and never prints the connection string. [T
 ## Licence
 
 [MIT](LICENSE). MIT covers original code in this repository only. Third-party fragments are registered separately in [Provenance](docs/provenance.md).
+
 

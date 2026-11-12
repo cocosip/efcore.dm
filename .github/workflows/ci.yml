@@ -158,8 +158,8 @@ jobs:
         uses: NuGet/login@v1
         with:
           # The nuget.org profile name, which is public; set NUGET_USER in the repository
-          # variables. 'Cocosip' is the package prefix's owner.
-          user: ${{ vars.NUGET_USER || 'Cocosip' }}
+          # variables. The fallback is the repository owner's nuget.org profile; the package prefix is Sharp.
+          user: ${{ vars.NUGET_USER || 'cocosip' }}
 
       - name: Publish packages to NuGet.org
         shell: bash
@@ -189,3 +189,5 @@ jobs:
             --title "DM.EntityFrameworkCore $VERSION" \
             --generate-notes \
             "${flags[@]}" ./packages/*.nupkg ./packages/*.snupkg
+
+
