@@ -1,5 +1,7 @@
 # Cocosip.DM.EntityFrameworkCore
 
+[![CI/CD](https://github.com/cocosip/efcore.dm/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cocosip/efcore.dm/actions/workflows/ci.yml)
+
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
 Status: implementation in progress. Work proceeds per the [Roadmap](docs/roadmap.md) and what is implemented is recorded in the [Capability Matrix](docs/capability-matrix.md).
@@ -86,3 +88,4 @@ It exits non-zero when any step fails and never prints the connection string. [T
 ## Licence
 
 [MIT](LICENSE). MIT covers original code in this repository only. Third-party fragments are registered separately in [Provenance](docs/provenance.md).
+
