@@ -358,10 +358,6 @@ internal static class ModelSteps
         Assert.Equal("alpha,beta", string.Join(",", read.Tags), "the primitive collection round-trips");
     }
 
-    /// <summary>
-    /// Kept as a step although the provider cannot answer it: the ledger entry carries the measured
-    /// error, so the day a translation appears the entry is removed and the step runs.
-    /// </summary>
     private static async Task PrimitiveCollectionPredicateAsync(FeatureContext context, CancellationToken cancellationToken)
     {
         context.Add(new Tagged { Name = "tagged", Tags = ["alpha", "beta"] });

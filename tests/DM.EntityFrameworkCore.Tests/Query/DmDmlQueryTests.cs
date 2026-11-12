@@ -89,6 +89,41 @@ public class DmDmlQueryTests
             Sql(Assert.Single(connection.Commands)));
     }
 
+    [Fact]
+    public void ExecuteUpdate_RewritesTheQueryFilterBoolean()
+    {
+        var connection = new FakeDmConnection { RowsAffected = 1 };
+        using var context = new ProbeContext(connection);
+
+        var affected = context.Filtereds.ExecuteUpdate(setters => setters.SetProperty(f => f.Name, "y"));
+
+        Assert.Equal(1, affected);
+        Assert.Equal(
+            """
+            UPDATE "Filtereds" AS "f"
+            SET "Name" = :p
+            WHERE NOT ("f"."IsDeleted" = 1)
+            """,
+            Sql(Assert.Single(connection.Commands)));
+    }
+
+    [Fact]
+    public void ExecuteDelete_RewritesTheQueryFilterBoolean()
+    {
+        var connection = new FakeDmConnection { RowsAffected = 1 };
+        using var context = new ProbeContext(connection);
+
+        var affected = context.Filtereds.ExecuteDelete();
+
+        Assert.Equal(1, affected);
+        Assert.Equal(
+            """
+            DELETE FROM "Filtereds" AS "f"
+            WHERE NOT ("f"."IsDeleted" = 1)
+            """,
+            Sql(Assert.Single(connection.Commands)));
+    }
+
     private static string Sql(string sql)
         => sql.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
 
@@ -100,15 +135,35 @@ public class DmDmlQueryTests
 
         public DbSet<Blog> Blogs => Set<Blog>();
 
+        public DbSet<Filtered> Filtereds => Set<Filtered>();
+
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder.UseDm(_connection);
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
-            => modelBuilder.Entity<Blog>(entity =>
+        {
+            modelBuilder.Entity<Blog>(entity =>
             {
                 entity.Property(b => b.Id).ValueGeneratedNever();
                 entity.Property(b => b.Name).HasMaxLength(50);
             });
+
+            modelBuilder.Entity<Filtered>(entity =>
+            {
+                entity.Property(f => f.Id).ValueGeneratedNever();
+                entity.Property(f => f.Name).HasMaxLength(50);
+                entity.HasQueryFilter(f => !f.IsDeleted);
+            });
+        }
+    }
+
+    private sealed class Filtered
+    {
+        public int Id { get; set; }
+
+        public string Name { get; set; } = string.Empty;
+
+        public bool IsDeleted { get; set; }
     }
 
     private sealed class Blog

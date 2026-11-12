@@ -19,6 +19,8 @@ do not pass and why. This file records what changed, once per release, instead o
   including the declared sequence start value.
 - The specification suite bases: built-in data types, store generated values, `Where`, `Join`, `Select`,
   `GroupBy`, `AggregateOperators`, `Include`, `Updates` and `Migrations`.
+- Query translation for `Contains` over a mapped primitive collection, expanded through the server's
+  `JSON_TABLE` table function by the provider's own subquery visitor.
 - EF Core 10 SQL compatibility surface for existing Dameng consumers.
 
 ### Fixed
@@ -43,6 +45,9 @@ do not pass and why. This file records what changed, once per release, instead o
   keyword propagating nullability were corrected.
 - A collection join is written as a subquery the server parses, and a tautological join predicate is not
   written as a bare `1`.
+- `ExecuteUpdate` and `ExecuteDelete` rewrite a boolean predicate, including a query filter's, the way the
+  select pipeline does; the update commands are built outside `VisitSelect`, so the filter used to reach the
+  server as a value expression (`查询使用值表达式作为过滤条件`).
 
 ### Changed
 

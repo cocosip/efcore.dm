@@ -211,7 +211,7 @@ It reads the connection string from its first argument, from `ConnectionStrings_
 
 It creates 32 prefixed tables and a sequence through the relational database creator, reports each of its 44 steps separately, and drops them unless `--keep`; `--dry-run` needs no database and checks that the model still produces every declared table and the sequence, and that step names are unique. It resolves the connection string the same way the acceptance console does and shares its user-secrets id, so one `dotnet user-secrets set` serves both.
 
-Two steps are in the probe's ledger with their measured answers rather than as passing behaviour: containment on a primitive collection is not translated, and a query filter's boolean reaches the `ExecuteUpdate` pipeline unrewritten, where the server answers `查询使用值表达式作为过滤条件`. This ledger is separate from `Skipped.md`: it records steps of this program, and an entry carries the server's message.
+No step is in the probe's ledger any more. Two gaps the first run measured were fixed in the provider rather than recorded: containment on a primitive collection now expands through `TranslatePrimitiveCollection` into the server's `JSON_TABLE` row source, and the boolean rewrite of the query pipeline now also reaches the `ExecuteUpdate` and `ExecuteDelete` predicates, whose commands are built outside `VisitSelect`. `DmPrimitiveCollectionTests` and `DmDmlQueryTests` pin both shapes, so neither depends on a live run. The ledger stays separate from `Skipped.md`: it records steps of this program, and an entry carries the server's message.
 
 ```pwsh
 dotnet run --project samples/DmProviderFeatureProbe -- "<connection string>"

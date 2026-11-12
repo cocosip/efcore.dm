@@ -262,6 +262,60 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     }
 
     /// <summary>
+    /// The update pipeline builds its own command from the select it was translated to, and its
+    /// predicate is written directly rather than through <see cref="VisitSelect" />. A query filter's
+    /// boolean would therefore reach the server as a value expression, which it rejects with
+    /// <c>查询使用值表达式作为过滤条件</c>; the predicate is rewritten here for the same reason it is
+    /// rewritten there.
+    /// </summary>
+    /// <remarks>
+    /// ponytail: a multi-table update lifts its join predicates beside this one, and those are left as
+    /// they are; a boolean used as a join predicate is not a shape the probe measures.
+    /// </remarks>
+    protected override Expression VisitUpdate(UpdateExpression updateExpression)
+    {
+        var select = updateExpression.SelectExpression;
+        var predicate = select.Predicate is null ? null : DmSqlConditions.AsPredicate(select.Predicate);
+
+        return ReferenceEquals(predicate, select.Predicate)
+            ? base.VisitUpdate(updateExpression)
+            : base.VisitUpdate(
+                updateExpression.Update(
+                    select.Update(
+                        select.Tables,
+                        predicate,
+                        select.GroupBy,
+                        select.Having,
+                        select.Projection,
+                        select.Orderings,
+                        select.Offset,
+                        select.Limit),
+                    updateExpression.ColumnValueSetters));
+    }
+
+    /// <summary>The delete pipeline, for the same reason as <see cref="VisitUpdate" />.</summary>
+    protected override Expression VisitDelete(DeleteExpression deleteExpression)
+    {
+        var select = deleteExpression.SelectExpression;
+        var predicate = select.Predicate is null ? null : DmSqlConditions.AsPredicate(select.Predicate);
+
+        return ReferenceEquals(predicate, select.Predicate)
+            ? base.VisitDelete(deleteExpression)
+            : base.VisitDelete(
+                deleteExpression.Update(
+                    deleteExpression.Table,
+                    select.Update(
+                        select.Tables,
+                        predicate,
+                        select.GroupBy,
+                        select.Having,
+                        select.Projection,
+                        select.Orderings,
+                        select.Offset,
+                        select.Limit)));
+    }
+
+    /// <summary>
     /// Dameng has no boolean type a select list can hold: a condition is a <c>CASE</c> answering
     /// <c>1</c> or <c>0</c>. The base generator renders the condition itself, which the server rejects
     /// with a syntax error — measured on a server with <c>SELECT EXISTS (...)</c>.

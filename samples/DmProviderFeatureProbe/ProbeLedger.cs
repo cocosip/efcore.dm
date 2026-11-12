@@ -9,23 +9,7 @@ internal sealed record LedgerEntry(string Step, string Category, string Reason, 
 
 internal static class ProbeLedger
 {
-    private static readonly LedgerEntry[] Entries =
-    [
-        new(
-            "model: primitive collection predicate",
-            "Not implemented",
-            "Containment on a primitive collection is not translated: the provider answers "
-            + "'could not be translated' for DbSet<Tagged>().Count(row => row.Tags.Contains(\"alpha\")).",
-            "probe measurement 2026-11-12 against DM 8.1.4.80; capability matrix row and issue pending"),
-        new(
-            "update: query filter under ExecuteUpdate",
-            "Known defect",
-            "The filter predicate reaches the update pipeline unrewritten: the server answers "
-            + "'查询使用值表达式作为过滤条件' (a value expression used as a filter condition) for the "
-            + "boolean the query filter emits.",
-            "probe measurement 2026-11-12 against DM 8.1.4.80; the query pipeline rewrites the same "
-            + "boolean, the update pipeline does not; issue pending"),
-    ];
+    private static readonly LedgerEntry[] Entries = [];
 
     public static bool IsSkipped(string step, out string reason)
     {
