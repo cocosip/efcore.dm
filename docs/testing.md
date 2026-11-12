@@ -100,98 +100,17 @@ Rules:
 
 ## 4. Differential comparison
 
-When the correct Dameng translation is unclear, the official provider is used as a black-box reference.
+When a translation is unclear, the reference provider is used as a black-box: the same model and query,
+SQL printed by both, parameters and whitespace normalized, differences justified. A match is not proof of
+correctness; a live run is the final standard. The reference is not a build dependency and its decompiled
+source is never copied (see [Provenance](provenance.md)).
 
-1. Same entity model, same LINQ query.
-2. Generate SQL with this provider and with the official `DM.Microsoft.EntityFrameworkCore`, via `ToQueryString()`.
-3. Normalize parameter names and whitespace, then compare. Any remaining difference must be intentional.
-
-Boundaries, from [Provenance](provenance.md): black-box comparison only. The official provider's decompiled source is never read or copied. Differences that are intentional are documented in [Version Matrix](version-matrix.md) or in the dialect notes.
-
-A match is not proof of correctness: both implementations can be wrong in the same way. Execution against a live database remains the final standard.
-
-## 4b. Differential comparison with the reference provider
-
-The reference provider, `DM.Microsoft.EntityFrameworkCore` 9.0.0.43760, is decompiled outside this
-repository and is not a build dependency, but the package is a restore away, so its statements can be
-compared with this provider's. Two console projects were built on 2026-11-11 against the same model, one
-on EF Core 9 with the reference package and one on EF Core 10 with this provider, and both printed
-`ToQueryString()` for the same twenty-three queries with no database attached. Twelve differ, and none of
-them is a defect here:
-
-| Query | Reference | This provider | Verdict |
-|---|---|---|---|
-| `StartsWith`, `EndsWith`, `Contains` | `LIKE 'ab%'` | `LIKE 'ab%' ESCAPE '\'` | This provider escapes, which a value holding `%` or `_` needs |
-| `Skip`/`Take`, a date parameter | `:__p_0`, `:__at_0` | `:p`, `:p0`, `:at` and a `DbType` annotation | Parameter naming of EF Core 9 against EF Core 10 |
-| `Contains` over an array | `IN (1, 2, 3)` | `IN (:ids1, :ids2, :ids3)` | EF Core 10 parameterises a collection by default; both are correct and this one reuses the plan |
-| `CreatedAt.AddDays(1)` | `DATEADD(day, CAST(1.0E0 AS INT), …)` | `"CreatedAt" + 1.0` | Both add a day; the addition is what this dialect already documents for a fractional part |
-| `Count()` in a projection | `CAST(COUNT(*) AS INT)` | `COUNT(*)` | `COUNT` is already an `INT` here, and the reading path casts anyway |
-| `Payload.Length` | the whole column | `LENGTHB("Payload")` | The reference leaves it to the client; `LENGTH` would be the length of the hexadecimal form, measured earlier, so `LENGTHB` is the answer |
-| `Span.Hours` | the whole column | `EXTRACT(HOUR FROM "Span")` | The reference leaves it to the client; `EXTRACT` is the member's value |
-
-The other eleven queries — a predicate, a conjunction, `LIKE`, ordering with paging beyond the parameter
-names, a grouping with a sum, a join, a projection, `??`, `HasValue`, a comparison, a subquery with
-`Any`, `Distinct`, an `Average`, an enum comparison and a byte array length — are the same statement in
-both providers. The comparison therefore found no behaviour to change, and its value is the record: a
-future difference is a difference from a known baseline.
-
-### 4c. Differential comparison, executed against the server
-
-The same two projects were then pointed at the Oracle-compatible instance and made to run their queries, not
-just print them: each created its own two tables, seeded three rows with a known string, a decimal, a
-timestamp, a positive and a negative interval and one null payload, and printed the answer of seventy-six
-queries, ordered so that the two runs line up. A hundred and eight answers are identical, including every string
-function, the rounding and the sign, every date and interval part, the casts, the grouping with six
-aggregates, the set operations, the correlated subqueries, the two bulk operations and every `DateDiff` unit
-between two timestamps. Eight differ:
-
-| Check | Reference | This provider | Verdict |
-|---|---|---|---|
-| `CreatedAt.Date` | the timestamp unchanged, `2020-01-02 03:04:05` | midnight, `2020-01-02 00:00:00` | The reference's statement does not truncate a timestamp, so its answer is the column. `TRUNC` is what the member means and what this provider emits |
-| `Math.Truncate` | the server refuses the statement: `无法解析的成员访问表达式["TRUNCATE"]` | `TRUNC(...)` | The reference names a function this server does not have |
-| `Name.StartsWith(…, OrdinalIgnoreCase)` | reported as untranslatable | matches `abc` and `Abc ` | Translated through `UPPER`, the shape `DmStringTranslationTests` pins |
-| `Payload.Length` in a predicate | reported as untranslatable | `LENGTHB("Payload") > 1` | Translated, as `DmByteArrayTranslationTests` records, because `LENGTH` answers the length of the hexadecimal form of a binary value on this server |
-| `CreatedAt.TimeOfDay` in a projection | the server refuses the statement: `无法转换的数据类型` | the column, with the member applied while the row is materialised | Neither provider translates the member: this one fetches the timestamp and answers the span of its day, which a query cannot then use in a predicate |
-| `CreatedAt.Date == new DateTime(...)` in a predicate | answered no row | answered the row | The reference compares the column with the timestamp without truncating it, so a date the column holds never equals it in that comparison. This provider truncates, which is what the member means |
-| `DateTimeOffset.AddHours` | `InvalidCastException: Invalid cast from 'System.DateTime' to 'System.DateTimeOffset'` | the shifted offset | The reference reads a datetimeless value from a column that carries a zone and cannot materialise it back || `Payload!.Length` on a row whose payload is null | `NullReferenceException` | `InvalidOperationException: Nullable object must have a value` | Both refuse the row, because the model says the value is there; the query is only valid for a non-null payload, and neither answer is a translation of it |
-
-Six of the eight are therefore places where this provider answers a query the reference cannot, one is a
-member the reference mistranslates, and one is a row both refuse. The tables the two runs created were
-dropped again afterwards, and no view, foreign key or stored object referred to them.
-
-### 4d. `DbFunctions`, executed
-
-The `DateDiff` units were executed against the Oracle-compatible instance on 2026-11-11, from the same seed of
-three rows and against the reference provider in the same run: `DateDiffDay` answered 1, 33 and 730 days from
-2020-01-01, `DateDiffHour` 27, 796 and 17543, `DateDiffMinute` 1624, 47765 and 1052639, `DateDiffSecond` 97445,
-2865906 and 63158399, `DateDiffMonth` 0, 1 and 23, and `DateDiffYear` 0, 0 and 1, which are the boundaries
-crossed rather than whole units. The same pairs reversed answered the negated counts, which is what the in-memory
-form does. `DateDiffMillisecond` answered 1000 for a one-second pair, and `DateDiffMicrosecond` answered 1000000
-for the same pair when both arguments are timestamps. Both units were also refused, with `数据溢出`, for pairs
-separated by more than the `int` the method returns can hold — about 24.8 days of milliseconds and about 35.8
-minutes of microseconds — and the microsecond form was refused for a pair whose second argument is the column
-plus a fraction of a day, which is the shape `AddSeconds` leaves behind, because the sum is then a number of days
-rather than a timestamp. The reference provider refused the same two shapes, so neither refusal is a divergence.
-
-### 4e. Inheritance, executed
-
-The three strategies were executed against the Oracle-compatible instance on 2026-11-11, each on its own tables
-which the run created and dropped: a hierarchy mapped to one table answered its rows through the base set and
-through `OfType`, an update changed the derived column and a delete removed the row; a hierarchy mapped per type
-did the same, with the key generated in the base table and written into the derived one; and a hierarchy mapped
-per concrete type did the same from a sequence the model named.
-
-The per-type run found a defect that the shape tests had not reached: the insert of the derived row was wrapped
-in `SET IDENTITY_INSERT … ON`, which the server refuses for a table that declares no identity
-(`表[DM_LAYER_TPT_CATS]不存在IDENTITY列`), because the provider decided the flag from the property's strategy
-alone rather than from the column the statement writes. The flag now follows the same rule the DDL follows — the
-column of the table being written has to be the one that generates — and both cases are pinned by a test: the
-derived insert carries no flag, and an assigned key carries it on the base table only.
-
-A hierarchy mapped per concrete type needs a key generator that is unique across the tables; the run used a
-sequence named by the model, which is the shape EF documents. A per-table identity answers 1 in every table, so
-the two derived rows collide on the key before any statement runs, which is the model's job rather than the
-provider's.
+The comparison ran twice, on 2026-11-11. On SQL only, 23 queries produced 12 differences, none a defect
+here (escaping, EF Core 10 parameter names and collection parameterisation, `LENGTHB` for byte arrays,
+`EXTRACT` for interval parts). Executed against the server, 108 answers matched and 8 differed: six were
+queries this provider answers and the reference cannot, one was a member the reference mistranslates
+(`Date` without truncation), and one was a row both refuse. The record is kept so a future difference is a
+difference from a known baseline; no behaviour changed because of it.
 
 ## 5. Live database matrix
 
@@ -205,72 +124,42 @@ provider's.
 
 ### What the live runs measured
 
-The first runs, on 2026-11-11 against both compatibility modes, passed all eighteen acceptance steps. They also failed one step before the provider changed: `SELECT EXISTS (SELECT 1 ...)` with no `FROM` clause was rejected with `语法分析出错`, which is what made the boolean projection and pseudo FROM clause rows of the [Capability Matrix](capability-matrix.md) exist. A live run that only confirmed what the tests already said would have found nothing; the value of the run is the shape it rejects.
+The acceptance console has 34 steps and passed on DM 8.1.4.80 in both compatibility modes on 2026-11-12.
+It covers the query surface, the retry and cancellation behaviour, JSON, intervals, computed columns,
+ambient transactions and the migrations steps, including four migrations started at once. The steps do
+not only re-run what the unit tests already say: they are where the server's shape is observed, and each
+step pins the measurement that decided a translation. The console leaves no table, sequence or history
+row behind, and `scripts/design-time-smoke.ps1` covers `dotnet ef` end to end against a live instance.
 
-Recorded 2026-11-11: the console now declares thirty-four steps, and all thirty-four passed against DM 8.1.4.80 in both compatibility modes — `--secrets=Dm` on the Oracle-compatible instance (`COMPATIBLE_MODE` 2) and `--secrets=DmFull` on the default one. That run covers the steps added after the eighteen-step one: the interval between two timestamps and the date difference of two intervals, the computed column read back after an update, cancellation, and the three migration steps, one of which starts four migrations at once. The run left no table, sequence or history behind. `scripts/design-time-smoke.ps1` passed against the Oracle-compatible instance in the same session: the tooling added a migration, generated its script, applied it twice, listed it, scaffolded the schema back into a model that builds, and removed the migration.
-
-The query steps were then added, taking the run to twenty-five, a date difference step to twenty-six, a retry step to twenty-seven, and a JSON column step to twenty-eight. They failed one of them on the default-mode instance only: `ADD_MONTHS` answered a timestamp at day precision there, so `AddMonths` returned midnight instead of the time it was given. The same statement kept the time on the Oracle-compatible instance, which is why a single instance would have hidden it. The provider now names `TIMESTAMPADD`, measured on both modes to clamp and to keep the time, and the step pins a month end so neither property can regress silently.
-
-The retry step measured the classification twice in one run: a connection whose server side session was closed reported `6027` and left the driver reporting `Open`, so the strategy closed it, the retried statement answered on a new connection, and a statement against a table that does not exist reported `-2106` and reached the caller on the first attempt. Both halves pass on both compatibility modes.
-
-The query steps also compare a byte array length: `LENGTHB` of a four byte value answered 4 on both modes, and `Length > 0` and `Count()` both reach the server as that function rather than as `LENGTH`, which measured the stored hexadecimal form instead (8 for a `VARBINARY(64)` holding four bytes).
-
-The JSON column step measured what the server does with a document. `JSON` is a type a table accepts, the driver reads and writes it as text, and the server normalizes the document it stores, so a document written with spaces is read back without them. `JSON_VALUE` answers a member as text; the `RETURNING` form that would type it is rejected with `返回值的数据类型无效`, which is why a member that is not text is cast from that text. A boolean is the exception: the server stores it as `true`, and casting that text to `BIT` answers `无效的数字`, so it is compared with the text and answered as the condition shape the provider uses. A `TIMESTAMP` and a `DECIMAL` member both cast from their text, measured on the same run. `JSON_QUERY` answers an object or an array only and returns null for a scalar, and `ISJSON`, `JSON_TABLE` and the `doc.member` form are not defined at all, so the generator uses none of them. A comparison against a whole `JSON` column is a syntax error. For a change inside a document the framework reports a value for a path rather than the document, and `JSON_SET` is the function that writes it, measured to answer `{"a":2}` for `JSON_SET('{"a":1}', '$.a', 2)`; `JSON_MODIFY`, `JSON_PUT` and `JSON_MERGE` do not exist. `JSON_SET(doc, '$', '{"b":2}')` answers `"{\"b\":2}"`, the document as a quoted string, so the root path is written as the column value instead. An array element is named by `[n]` in the path, measured to answer `a` for `'$.Items[0].Sku'`. The step writes two documents, reads them back, filters on a text member and on a number member, changes one member and reads it back; it passed on both compatibility modes.
-
-An ambient transaction was measured in the same runs, and the measurement changed the code: a write inside a `TransactionScope` that was never completed **survived**, because the framework only enlists the scope's transaction for a provider that says ambient transactions are supported, and the base default is no. The driver's own enlistment works — a connection enlisted through `EnlistTransaction` rolled back with the scope — so the provider now turns the switch on, after which the write did not survive, a completed scope kept its row, and an explicit transaction begun inside a scope is rejected with the framework's conflict error.
-
-The decompiled reference provider is available for comparison at
-`D:\Code\dotnet\efcore.dm-backup\artifacts\decompiled` (`DM.Microsoft.EntityFrameworkCore` 9.0.0.43760), outside this repository. It confirmed one decision and showed a better shape for another: it also turns on `SupportsAmbientTransactions`, and it reads a generated identity back with the server's `INSERT … RETURN <columns>` clause instead of a second statement guarded by `sql%ROWCOUNT`.
-
-The migration lock was exercised with four migrations started at once from a database none had run against, and that is where its design changed. The provider held an exclusive table lock on the history table, which sounded right and guarded nothing: measured on 8.1.4.80, the lock was released by the first `CREATE TABLE` of the migration, because the server commits around DDL, and a lock taken without a transaction was released immediately — a second session took it in 2 milliseconds. The second session of the four therefore ran the migration body too and failed with `对象[DM_VALIDATION_JOURNAL]已存在`. `DBMS_LOCK` is the primitive that fits: `DBMS_LOCK.REQUEST(id, 6, wait, FALSE)` answered `0` to the first session, `1` to a second one asking to wait, and still `1` after the holder ran DDL, which is the property a migration lock needs; `DBMS_LOCK.RELEASE(id)` answered `0`. Two limits were measured with it: the id has to stay below 2^30, where the package answers `3`, its parameter error, and `DBMS_LOCK.ALLOCATE_UNIQUE` does not exist, so the id comes from a hash of the database name that is the same in every process. The history table's create was made tolerant of the same race, because it happens before the lock is taken.
-
-The idempotent script was executed as a script, which is what a generation-only check leaves out. Split at the dialect's batch terminator, which is one command of the generator per piece, it ran three times against 8.1.4.80: from an empty database it created the table, its index and the history row; run again it changed nothing and left one history row; and from the state a deployment that failed halfway leaves, the table present and the history table gone, it recorded the migration without touching the table. The last run is the one that found a defect in the guards: they compared the catalog's owner column with `USER`, which is the account and not the schema, so with a connection string that sets `schema=` the guard answered `0` for a table that was there and the block ran `CREATE TABLE` against it. `SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')` answers the schema the session writes to, measured to be `HIDOS` where `USER` answered `SYSDBA`, and the guards compare against it now.
-
-The full-text functions were measured before the translation was written. `FREETEXT` does not resolve on the server (`无法解析的成员访问表达式[FREETEXT]`), so `FreeText` and the language term of `Contains` are published for parity with the reference provider and covered by shape tests; the language term was measured in both spellings and the server answered `语法分析出错` for each. `CONTAINS` does, but only on a column that has a full-text index: without one the server answers `列[…]未编制全文索引或全文索引数据错误`, and against an expression rather than a column it answers `无效的CONTAINS列表达式`, which is why the translation requires a column and refuses anything else. The index exists as an object the schema owns, `CREATE CONTEXT INDEX "name" ON "table" ("column")` succeeded, but `CONTAINS` still answered zero for a row that matched in three arrangements — index after the insert, index before the insert, and index after a commit — and no entry point to populate it resolves on the server: `CTX_DDL.SYNC_INDEX`, `SP_REFRESH_TEXT_INDEX` and `CALL` forms of both failed, and the dictionary exposes `SYSCONTEXTINDEXES` as a table rather than a package. The provider therefore translates the predicate, which was executed against 8.1.4.80 as `WHERE CONTAINS("d"."Text", :term) = 1` and returned no rows without an error, and leaves the index and its population to the application.
-
-The refusals of a parallel transaction that the second specification base produced were traced to the driver and then to the framework, and the driver is not the cause. A failing single statement, a failing two-statement command of the shape this provider uses to read a generated value back, and a successful two-statement command whose reader is dropped after one row were each run inside a transaction and rolled back; a new transaction could be started afterwards every time. A case of the base passes on its own where it fails in the class, so the refusals are state carried from one case to the next, and the connection the suite hands in is one it owns, so nothing closes it between cases.
-
-A second specification base was tried in the same runs, `StoreGeneratedTestBase`, and it paid for itself before it was accepted: its model creates a table with a key whose column is a string, and the statement generator wrote an identity on that column, which the server rejected with `非法IDENTITY列类型`; the same measurement showed `TINYINT` and `SMALLINT` are not identity types either, while `INT`, `BIGINT`, `INTEGER`, `NUMBER` and `DECIMAL` are. A `short` key therefore has no strategy, a converted key whose column is a character type is refused while the model is built, and the generator writes `IDENTITY` only on a column type that accepts one. Of its 211 cases 98 passed; the failing groups are the store's refusal of a parallel transaction, a `NOT NULL` column the fixture expects the store to fill, and the read-only property rules, so those had to be settled before the base could join. It joined the project on 2026-11-11, where all 211 cases passed.
-
-The microsecond part of a value was measured too: `DATEPART(microsecond, ...)` answers the count within the second, so a value of `.123456` answered 123456 while .NET keeps 456 as the member within the millisecond, and the provider reduces that part modulo a thousand. `EXTRACT(MICROSECOND ...)` is rejected there (`[EXTRACT]中的参数数据非法`), and `DATEPART(nanosecond, ...)` is a syntax error, so no nanosecond member is translated. The `out`-parameter overloads of `Add` and `AddHours` are left untranslated, because the framework cannot express an out parameter.
-
-Batching was measured as well, which is why the two rows about it stay deferred: a command holding three statements runs all of them, but the driver answers the count of the last statement only — two updates of one row each answered 1, and a batch whose last statement matched no row answered 0 while the earlier ones had changed their rows — so a shared batch cannot attribute a row count to each command. A multi-row `INSERT ... VALUES (...), (...)` does run and answers the number of rows inserted.
-
-The finer parts of `DATEDIFF` were measured in the same runs, and the measurement changed the surface. `MICROSECOND` is a part the server names — a pair two microseconds apart answered 2 — so `DateDiffMicrosecond` is published, with a ceiling: it answers `数据溢出` as soon as the two values differ in their hour part, because the hours are multiplied into an int of microseconds, so even two minutes from 03:59 to 04:01 overflowed while two seconds inside one hour did not, and within one hour the value overflows past about thirty-five minutes. `NANOSECOND` is a syntax error there; the form is published for parity with the reference provider and covered by a shape test, and it needs a server that names the part. `DATEDIFF` also refuses an interval where it takes a date (`参数不兼容`, measured for every unit), so the four overloads that take a `TimeSpan` are computed from the interval instead: each value is read with `EXTRACT` for its seconds, the two totals are subtracted and reduced to the unit, and the result is truncated with `TRUNC` rather than cast, because `CAST(2.9 AS INT)` answered 3 on this server while `TRUNC` answered 2, -2 and -1 for 2.9, -2.9 and -1.5, which is what the in-memory form does. Getting there exposed a second defect: an interval parameter was bound as a time, so an expression over it answered `[EXTRACT]中的参数数据非法` and subtracting one interval from another answered `数据类型不匹配`; the mapping now asks the driver for its interval type. The answers were compared with .NET against the server for a span of exactly two hours, one past a day, a fraction of an hour and a negative span, in both directions.
-
-Cancellation was measured against the same server. A token cancelled before the call stops the query from starting, which the unit tests cover with a command double. What the real driver does with `DbCommand.Cancel` is now recorded: it did not interrupt a running statement, it blocked until the statement ended — about eleven seconds for a statement with an eight second command timeout — and the pending read then threw a `NullReferenceException` from the driver rather than `OperationCanceledException`. The connection stayed usable and answered the next statement. A statement is therefore bounded by the command timeout rather than by the token.
-
-The date and time members of `DateOnly` and `TimeOnly` were measured in the same runs. On a date, `+ n` adds days, `ADD_MONTHS` clamps the way .NET does (`2024-02-29` plus twelve months answered `2025-02-28`), and `TRUNC` then a cast to `DATE` builds a date from a timestamp. The day number does not come from a count to year one: the server's calendar skips the ten days of the Gregorian reform, so `DATEDIFF(DAY, DATE '1582-10-04', DATE '1582-10-15')` answered 1 and a count from `0001-01-01` answered 739619 for `2026-01-02` where .NET answers 739617; anchored on `1970-01-01` the count answered 739617. On a time of day, `TIMESTAMPADD` of a second count, cast back to `TIME`, wraps past midnight — `23:00:00` plus two hours answered `01:00` — and a fractional count is truncated, which is why an addition is expressed in seconds: an hour count of 1.5 answered one whole hour. A negative interval signs every part: `-1 2:3:4` answered -1 days and -2 hours, and `-0 00:00:01.5` answered -1.5 seconds.
-
-The interval between two timestamps was measured in the same runs. Subtracting two dates answers a number of days, and `NUMTODSINTERVAL` of that number scaled to seconds turns it into an interval — on both compatibility modes, which the migration notes had placed the function behind: 86400 seconds answered one day, a fractional count kept its fraction, and a difference that runs backwards answered a negative interval. Reading it is not the same as reading an interval column: a column arrives as a `TimeSpan`, an expression as the driver's own interval type, so reading it as a time span answered `Object must implement IConvertible`. The parts of that type are the magnitude only, with the sign in the rendered value, and the fraction is in microseconds — `-1 1:1:1.333` answered 1 day, 1 hour, 1 minute, 1 second and 333000 — so the value is summed as ticks and negated from the sign, which matched .NET to the tick in both directions.
-
-The count of a byte array was measured in both forms: `LENGTHB` answered 4 for a four-byte `VARBINARY(64)` and 5 for a five-byte `BLOB`, where `LENGTH` answered 8 for the first — the length of the hexadecimal form the server stores — and a null array answered a null count. The framework sends `Payload.Length > 0` and `Payload.Any()` to a translator as a collection method, but a comparison against another count as its own node, which the translating visitor now reads, so every form of the count translates.
-
-The members of an interval that are not one of its parts were measured as well: `Ticks` is the second count scaled by ten million, `Milliseconds` is the seconds part scaled by a thousand and reduced modulo a thousand, which answered -500 for -5.5 seconds where a signed remainder is what .NET keeps, and `Duration` cannot be `ABS` over an interval (`参数不兼容`) so it is built as a new interval from the absolute second count. All three answered the values .NET answers, for a negative and for a positive interval.
-
-Still unverified by a live run, and therefore still recorded as unverified in the matrix: the PostgreSQL-compatible mode. The idempotent script has since been executed as a script, and the migration lock with four deployments starting at once, which is recorded below.
+The server accepts a declared length larger than a row can hold: on 8.1.4.80 a single value above about
+4000 bytes is refused with `记录超长` whatever the column declares. A string or byte array past the
+provider's ceiling is therefore mapped to `NCLOB`/`BLOB`, which is why the specification case that stores
+9000 characters and the one that stores 9000 bytes pass.
 
 ### What the specification suite measured
 
-`tests/DM.EntityFrameworkCore.SpecificationTests` was run against the Oracle-compatible instance on 2026-11-11: 32 cases of `BuiltInDataTypesDmTest`, 31 passed, and the one that did not is in the [skip ledger](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with the measurement that decided it. That case exposed a mapping rule which is now in place: a byte array longer than a row can hold is a `BLOB` rather than a `VARBINARY(n)` column that cannot store its own declared length, measured on a one column table where 7500 bytes were stored and 8000 were refused with `记录超长`. A key or an index keeps its bounded type even then, because the server refuses to index a large object. The store drops the tables, sequences and views the model declares, because the database is one an application already uses and Dameng has no `CREATE DATABASE` to give the suite a fresh one. The updates fixture and the migrations suite own a schema of their own (`DM_SPEC_UPDATES`, `DM_SPEC_MIGRATIONS`), because the first creates a view and the second creates the tables of the migration rather than the model's. The project is not part of the solution and its cases do not run in CI; the pipeline builds it and runs the one part that needs no server, the skip ledger guard.
+`tests/DM.EntityFrameworkCore.SpecificationTests` runs against a live instance, is not part of the
+solution and does not run in CI; the pipeline builds it and runs the skip ledger guard.
 
-`StoreGeneratedDmTest` joined the project on 2026-11-11 and its 211 cases ran against the same instance: all passed, and the ledger gained no entry. It brings the store generated values of the model under the suite: identity keys, column defaults read back after an insert, the before-save and after-save behaviours of a generated value, and the wrapped and converted key types. That run closed the last gap the first trial had exposed, because the identity convention now reads the column a converter produces rather than the property's CLR type: an enum or a wrapped integer key is an identity column on its `INT` column, while an integer key converted onto a character column stays application supplied. One fixture choice is recorded beside the test rather than in the ledger: the backing field case gives its generated values as column defaults instead of a computed column, because a table whose only writable column is the identity is inserted with `DEFAULT VALUES`, and measured on 8.1.4.80 that expansion includes a virtual column and is refused with `不允许对虚拟列执行INSERT操作`. The provider's computed column support is covered by `DmComputedColumnTests` and the acceptance program instead.
+| Suite | Cases | Result |
+|---|---|---|
+| `BuiltInDataTypesDmTest` | 32 | 31 pass, 1 in the ledger |
+| `StoreGeneratedDmTest` | 211 | all pass |
+| `NorthwindWhereQueryDmTest` | 408 | all pass |
+| `NorthwindJoinQueryDmTest` | 132 | four upstream skips, one ledger case |
+| `NorthwindSelectQueryDmTest` | 372 | four cases in the ledger |
+| `NorthwindGroupByQueryDmTest` | 512 | three cases in the ledger, four upstream |
+| `NorthwindAggregateOperatorsQueryDmTest` | 422 | one case in the ledger |
+| `NorthwindIncludeQueryDmTest` | 236 | all pass |
+| `UpdatesDmTest` | 36 | one case does not run (filtered unique index) |
+| `MigrationsDmTest` | 134 | 115 pass, 19 in the ledger |
 
-`NorthwindWhereQueryDmTest` joined the project on the same day and its 408 cases ran against the instance: all passed, and the ledger gained no entry. Nine of them compare two constructed tuples or anonymous objects, which the relational pipeline does not translate for any provider, so the class asserts that failure the way the SQL Server test does (EF Core issue #14672) instead of expecting rows. The set paid for itself twice. Its model declares an index on the self-referencing manager key, and the server indexes a foreign key's columns itself: `CREATE INDEX` on that column then answered `此列列表已索引`, so a self-referencing foreign key is now added after the indexes of a script, which the server accepts and which leaves both the model's index and the constraint's own index in place. It also compares a boolean column with a condition, `Discontinued = (ProductID > 50)`, which the server rejects with `语法分析出错`; a condition used as an operand is now written as the `CASE WHEN ... THEN 1 ELSE 0 END` the projection rule already used.
-
-`NorthwindJoinQueryDmTest` ran its 132 cases against the same instance: 126 passed, four are skipped by the shipped base itself (`#30677` and `#35028`), and one case is in the ledger as a server ordering limitation — the statement is the same `CROSS APPLY` the SQL Server test asserts, but the server does not keep the ordering of the inner subquery inside one customer, while the rows are the same set. The run found two defects that were fixed: a collection joined in a query was written as a bare `VALUES` inside a `UNION ALL`, which the server rejects with `语法分析出错` and which is now a `SELECT ... FROM DUAL` per row joined by `UNION ALL`; and a tautological join predicate was written as a bare `1`, which the server rejects with `查询使用值表达式作为过滤条件` and which is now compared with `1` like the statement's own predicate.
-
-`NorthwindSelectQueryDmTest` ran its 372 cases against the same instance: 364 passed, eight did not (four cases in their two forms), and the shipped base skips none of them. The four are in the ledger as server limitations of two kinds: a nested `APPLY` whose inner query references the outermost table answers `不支持的语句类型` — measured on 8.1.4.80, the same statement without that reference parsed and answered — and one case picks a row without an ordering, so the server answered another row of the same set. A fifth case, the one that asked for the first row of a keyless entity, did not pass in that run because this project's store left the keyless table empty; the fixture now seeds it, and the case passes. The run found three defects that were fixed: a nested `Take` composed through `LEAST` left the function without a type mapping when an argument was a parameter; a condition in a `CASE` result was written as a bare condition, which the server rejects at the comparison; and a difference of two dates was translated although the server answers it with a number of days, which cannot be read back as a time span, so it is now projected as the date and subtracted by the client. The whole project then ran 1138 of 1155 cases against the instance: 13 failed, each in the ledger, and 4 are skipped upstream.
-
-`NorthwindGroupByQueryDmTest` ran its 512 cases against the same instance: 502 passed, six did not (three cases in their two forms), and the shipped base skips four. The three are in the ledger under one server limitation: SQL Server accepts an outer reference where this server needs the referenced column to be grouped. The run found one defect that was fixed: a null-safe comparison of an `EXTRACT` key was written `MONTH IS NULL OR "OrderDate" IS NULL`, because the keyword argument propagated nullability like a value, and the server rejects it with `无效的列名[MONTH]`; a fragment no longer propagates.
-
-`NorthwindAggregateOperatorsQueryDmTest` ran its 422 cases against the same instance: 420 passed and two did not (one case in its two forms), which is the ledger's one remaining `APPLY` case. The run found no provider defect. Two cases it did touch are worth recording. An average of nested averages is computed by the server to its own decimal scale, so the class compares it at three decimal places, which is what the SQL Server test does for the same reason; and a case that reads a keyless set ran into this project's store rather than the provider: the reference store is created from a script that fills the keyless tables the model maps, while this store is created from the model and only the seeded entities have a key, so the fixture now projects the keyless rows from the keyed ones. `NorthwindIncludeQueryDmTest` added its 236 cases on 2026-11-12 and every one passed; the first run's eighteen failures were the fixture base throwing `MultipleCollectionIncludeWarning`, which the shared fixture now logs as the shipped fixtures do. `UpdatesDmTest` added 36 cases on the same day: 35 ran and passed, one does not run because it needs a filtered unique index the server cannot create, and the run found and fixed three defects — an undeclared 128-character identifier limit, an unbounded byte array token mapped to `BLOB`, and a concurrency message without the framework's link. The whole project then ran 2361 cases against the instance: 2334 passed, 19 failed (each in the ledger), and 8 are skipped upstream; one of the passes is the overridden filtered-index case, which does not run.
-
-`MigrationsDmTest` joined the project on 2026-11-12 and brought the migrations layer under the same gate. Its 134 cases build a model, generate the migration, apply it to the instance and scaffold the result back, so they cover the differ, the DDL generator, the history repository and the model factory together. 115 passed and 19 are in the ledger with their measurements; the store owns `DM_SPEC_MIGRATIONS` and the named schemas the cases use (`dbo2`, `SomeOtherSchema`, `TestTableSchema`), wipes only those, and the class runs in a serialized collection because the database is shared with an application that has 247 tables of its own. The run found and fixed nine defects: a virtual column written with a data type (`不支持为虚拟列指定的数据类型`), a `COLLATE` value written without the quotes the server needs, column comments read from `ALL_COL_COMMENTS`, which is empty on this server (the text is in `SYS.SYSCOLUMNCOMMENTS`), the indexes the server creates for keys read back as model indexes, an unbounded string mapped to a typed column (now `CLOB`/`NCLOB`), a foreign key delete rule that was not read back (the factory now reads `DELETE_RULE`), a descending index whose direction was lost, an alteration that changed only a comment and rewrote an identity column (now only `COMMENT ON`), and the missing `ALTER SEQUENCE ... RENAME TO` operation. The 19 ledger rows are server limitations (stored computed columns, filtered indexes, schema moves, sequence restart, JSON alterations, identity in place, NOT NULL over null data, a comment-only statement) or scaffolding gaps the catalog cannot close (virtual expressions read back as defaults, column collation).
-
-The whole project then ran 2495 cases against the instance: 2449 passed, 19 failed (each in the ledger), and 27 are skipped (8 upstream and 19 in the ledger).
-
-The bound a bounded column can hold was measured while the max length case was worked on, and it is smaller than the type name suggests. On 8.1.4.80 a single value above about 4000 bytes is refused with `记录超长` whatever its column declares and however it is supplied: a 4000 character value in an `NVARCHAR2(8188)` column was refused through a parameter, a literal of 3500 characters was stored and 3900 was not, a 9000 byte value in a `VARBINARY(9000)` column was refused, and a 2000 character value in the same column was stored. So the type's declared length is a ceiling the server accepts in DDL, not a length the row can fill, and a value that needs more has to be a character or binary large object: the specification case that stores a 9000 character string passes because a string past the provider's ceiling is already an `NCLOB`, and the one that stores 9000 bytes started passing when a byte array past the ceiling became a `BLOB`. A column declared with a length between that bound and the ceiling is therefore legal and unusable at its full width, which is a property of the store and is why the ledger's remaining case cannot be written differently.
+Whole project: 2495 cases, 2449 passed, 19 in the ledger and 27 skipped (8 upstream and 19 in the
+ledger). The store drops the objects its model declares; the updates fixture and the migrations suite own
+a schema of their own (`DM_SPEC_UPDATES`, `DM_SPEC_MIGRATIONS`), and the migrations class is serialized
+because the database is shared with an application that has 247 tables of its own. Every case that does
+not pass is in [Skipped.md](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with its
+measurement.
 
 ### Server boundaries that no provider change can move
 

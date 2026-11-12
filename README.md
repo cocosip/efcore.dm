@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: implementation in progress. Work proceeds per the [Roadmap](docs/roadmap.md) and what is implemented is recorded in the [Capability Matrix](docs/capability-matrix.md).
+Status: EF Core 10 release candidate. The provider is feature-complete within the server limits recorded in the [Capability Matrix](docs/capability-matrix.md); the `v10.0.1` tag is pending. Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 
@@ -82,11 +82,13 @@ It exits non-zero when any step fails and never prints the connection string. [T
 - [Branching and Release](docs/branching-and-release.md)
 - [Version Matrix](docs/version-matrix.md)
 - [Testing](docs/testing.md)
+- [Changelog](CHANGELOG.md)
 - [Roadmap](docs/roadmap.md)
 - [Provenance](docs/provenance.md)
 
 ## Licence
 
 [MIT](LICENSE). MIT covers original code in this repository only. Third-party fragments are registered separately in [Provenance](docs/provenance.md).
+
 
 

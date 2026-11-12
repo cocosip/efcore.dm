@@ -12,6 +12,12 @@ Status: **decided**. Dates and ordering may change; exit criteria do not.
 
 ## 2. Phases
 
+| Phase | Status |
+|---|---|
+| P0-P5 | Complete: the offline and live gates pass and each capability is in the matrix |
+| P6 | Code complete; the package is verified, the release tag and NuGet publish are pending |
+| P7-P9 | Not started |
+
 ### P0 — Walking skeleton
 
 Split into two gates so that construction is never blocked by environment availability. Most of a database provider can be built and verified without a database; only the execution gate needs one.
@@ -108,26 +114,7 @@ P0 --> P1 --+--> P2 --+
 - **Serial:** maintenance branches are created only after P6, and chain from newest to oldest.
 - P9 is scheduled independently of P6–P8.
 
-## 4. Estimates
-
-Single-implementer effort, excluding review time.
-
-| Phase | Person-days |
-|---|---|
-| P0 | 3–4 |
-| P1 | 7–10 |
-| P2 | 15–20 |
-| P3 | 5–7 |
-| P4 | 10–12 |
-| P5 | 3–4 |
-| P6 | 3–5 |
-| P7 | 8–10 |
-| P8 | 6–8 |
-| **Total** | **60–80** |
-
-P2 carries the widest range. Dameng's dialect documentation is incomplete, so parts of it can only be settled by differential comparison and live experimentation.
-
-## 5. Prerequisites
+## 4. Prerequisites
 
 These are requirements, not open questions. Work that depends on them does not start until they are met.
 
@@ -136,11 +123,12 @@ These are requirements, not open questions. Work that depends on them does not s
 | A reachable Dameng instance with credentials able to create a schema | P0b, and every phase exit criterion from P1 onward |
 | A Dameng instance in PostgreSQL-compatible mode | P6 exit criterion |
 | A Linux x64 environment with a .NET runtime matching the branch target framework | P6 exit criterion |
-| A NuGet feed and API key for tag releases | P6 |
+| A nuget.org trusted-publishing policy for this repository and workflow | P6 |
 | A list of capabilities required by existing deployments | Backport scope for P7 and P8 |
 
 Nothing in P0a requires a database. A missing live environment delays completion of P0b and later phases; it does not delay P0a or the start of P1 construction.
 
 If a prerequisite is unavailable, the affected phase stays open. It is not marked complete.
 
-Recorded 2026-11-11: an instance is reachable — DM 8.1.4.80, in the default and in the Oracle-compatible mode, with credentials that can create and drop tables in a schema of the operator's choosing. That closes the first row for P0b and for the phase exits up to P5. The PostgreSQL-compatible instance, the Linux environment, the feed and the deployment list remain open.
+Recorded 2026-11-12: an instance is reachable — DM 8.1.4.80, in the default and in the Oracle-compatible mode, with credentials that can create and drop tables in a schema of the operator's choosing. That closes the first row for P0b and for the phase exits up to P5. The PostgreSQL-compatible instance, the Linux environment, the trusted-publishing policy and the deployment list remain open.
+
