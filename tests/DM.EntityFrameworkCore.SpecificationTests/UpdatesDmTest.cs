@@ -71,7 +71,7 @@ public class UpdatesDmTest : UpdatesRelationalTestBase<UpdatesDmTest.UpdatesDmFi
     public class UpdatesDmFixture : UpdatesRelationalFixture
     {
         protected override ITestStoreFactory TestStoreFactory
-            => DmTestStoreFactory.Instance;
+            => DmUpdatesTestStoreFactory.Instance;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder, DbContext context)
         {

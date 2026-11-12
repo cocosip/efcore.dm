@@ -12,16 +12,13 @@ namespace DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 /// </summary>
 /// <remarks>
 /// Dameng creates a database with the <c>dminit</c> tool before a connection can reach it, so this store
-/// cannot create one and does not try. What it owns is a schema of its own: every table, sequence and view
-/// in it is dropped and the model's tables are created again for every fixture, which is what a
-/// specification test expects of a store it shares.
+/// cannot create one and does not try. The tables, sequences and views it drops are the ones the model
+/// declares, so a database that holds objects the suite does not own keeps them.
 /// <para>
-/// Each fixture gets a schema named after it, so two classes running at the same time never see each
-/// other's tables; nothing outside that schema is touched.</para>
-/// <para>
-/// The migrations suite creates the tables of the migration it applies rather than the tables of the
-/// context model, so it is handed the named schemas its cases use
-/// (<see cref="MigrationsSchemas" />) and drops every object in them.</para>
+/// A fixture that creates an object its model does not name, or that owns a view another class also
+/// creates, is given a schema of its own instead: the migrations suite uses
+/// <see cref="MigrationsSchemas" />, and the updates fixture uses <see cref="UpdatesSchema" />. Such a
+/// store drops every object in its schemas and nothing outside them.</para>
 /// </remarks>
 public sealed class DmTestStore : RelationalTestStore
 {
@@ -29,36 +26,39 @@ public sealed class DmTestStore : RelationalTestStore
 
     public const string MigrationsSchema = "DM_SPEC_MIGRATIONS";
 
+    public const string UpdatesSchema = "DM_SPEC_UPDATES";
+
     /// <summary>
-    /// The schemas the migrations suite owns: its own, the default one, and the named ones the cases
-    /// create tables in.
+    /// The schemas the migrations suite owns: its own and the named ones the cases create tables in.
     /// </summary>
     internal static readonly string[] MigrationsSchemas =
         [MigrationsSchema, "dbo2", "SomeOtherSchema", "TestTableSchema"];
 
     private readonly string[] _schemas;
+    private readonly bool _ownsWholeSchema;
 
-    private DmTestStore(string name, bool shared, string[] schemas)
-        : base(name, shared, new DmConnection(WithSchema(DmTestConnection.ConnectionString, schemas[0])))
-        => _schemas = schemas;
+    private DmTestStore(string name, bool shared, string[] schemas, bool ownsWholeSchema)
+        : base(
+            name,
+            shared,
+            new DmConnection(
+                schemas.Length > 0
+                    ? WithSchema(DmTestConnection.ConnectionString, schemas[0])
+                    : DmTestConnection.ConnectionString))
+    {
+        _schemas = schemas;
+        _ownsWholeSchema = ownsWholeSchema;
+    }
 
-    public static DmTestStore Create(string name) => new(name, shared: false, [StoreSchema(name)]);
+    public static DmTestStore Create(string name) => new(name, shared: false, [], ownsWholeSchema: false);
 
-    public static DmTestStore GetOrCreate(string name) => new(name, shared: true, [StoreSchema(name)]);
+    public static DmTestStore GetOrCreate(string name) => new(name, shared: true, [], ownsWholeSchema: false);
 
     public static DmTestStore CreateForMigrations(string name)
-        => new(name, shared: false, MigrationsSchemas);
+        => new(name, shared: false, MigrationsSchemas, ownsWholeSchema: true);
 
-    /// <summary>
-    /// The schema a fixture owns. Each fixture gets one of its own in the shared database, so two classes
-    /// running at the same time never drop or create each other's objects.
-    /// </summary>
-    private static string StoreSchema(string name)
-    {
-        var cleaned = new string(name.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
-
-        return "DM_SPEC_" + (cleaned.Length > 100 ? cleaned[..100] : cleaned);
-    }
+    public static DmTestStore CreateForUpdates(string name)
+        => new(name, shared: false, [UpdatesSchema], ownsWholeSchema: true);
 
     private static string WithSchema(string connectionString, string schema)
         => Regex.Replace(
@@ -92,7 +92,21 @@ public sealed class DmTestStore : RelationalTestStore
 
     public override async Task CleanAsync(DbContext context)
     {
-        await CleanOwnSchemasAsync();
+        if (_ownsWholeSchema)
+        {
+            await CleanOwnSchemasAsync();
+        }
+        else
+        {
+            // The drops run on a connection of their own: the context manages the state of the one it was
+            // built with, and a command issued on it while it is closed fails.
+            await using var connection = new DmConnection(ConnectionString);
+            await connection.OpenAsync();
+
+            await DropViewsAsync(connection, context);
+            await DropSequencesAsync(connection, context);
+            await DropTablesAsync(connection, context);
+        }
 
         // EnsureCreated is not used: it answers "does this schema have any table", and the database the
         // suite runs against is one an application already uses, so it would decide there is nothing to do.
@@ -103,10 +117,9 @@ public sealed class DmTestStore : RelationalTestStore
     }
 
     /// <summary>
-    /// Empties the schema this fixture owns. The migrations suite creates the tables of the migration it
-    /// applies rather than the tables of the context model, so the model cannot name what has to go; the
-    /// other fixtures have a schema of their own for the same reason, which keeps their clean independent
-    /// of what another class is doing.
+    /// Empties the schemas this fixture owns, for the stores whose model cannot name what has to go: the
+    /// migrations suite creates the tables of the migration it applies, and the updates fixture owns a
+    /// view of its own so that no other class can remove it while a case runs.
     /// </summary>
     private async Task CleanOwnSchemasAsync()
     {
@@ -172,6 +185,46 @@ public sealed class DmTestStore : RelationalTestStore
         return names;
     }
 
+    private static async Task DropViewsAsync(DmConnection connection, DbContext context)
+    {
+        // A view outlives a table the model maps, and the suite creates the view of its model itself, so
+        // the second run against the same database would fail with 对象[ProductView]已存在 without this.
+        var views = context.Model
+            .GetEntityTypes()
+            .Select(entityType => entityType.GetViewName())
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var view in views)
+        {
+            await TryExecuteAsync(connection, $"DROP VIEW \"{view}\"");
+        }
+    }
+
+    private static async Task DropTablesAsync(DmConnection connection, DbContext context)
+    {
+        var tables = context.Model
+            .GetEntityTypes()
+            .Select(entityType => entityType.GetTableName())
+            .OfType<string>()
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var table in tables)
+        {
+            // CASCADE CONSTRAINTS drops the foreign keys that point at the table, not the tables that
+            // hold them, so every table is dropped rather than only the roots.
+            await TryExecuteAsync(connection, $"DROP TABLE \"{table}\" CASCADE CONSTRAINTS");
+        }
+    }
+
+    private static async Task DropSequencesAsync(DmConnection connection, DbContext context)
+    {
+        foreach (var sequence in context.Model.GetSequences())
+        {
+            await TryExecuteAsync(connection, $"DROP SEQUENCE \"{sequence.Name}\"");
+        }
+    }
+
     private static async Task TryExecuteAsync(DmConnection connection, string sql)
     {
         try
@@ -188,6 +241,3 @@ public sealed class DmTestStore : RelationalTestStore
         }
     }
 }
-
-
-

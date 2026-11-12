@@ -5,8 +5,8 @@ measurement that decided it. A row leaves this file when the suite passes the ca
 intends to fix it.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
-store gives each fixture a schema of its own and empties it between cases, so the database it runs against
-keeps every object an application already has.
+store drops the objects its model declares, and the updates and migrations fixtures own a schema of their
+own, so the database it runs against keeps every object an application already has.
 
 Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 32 cases, 31 passed, 1 failed. The
 failure is below, and it is the whole of the gap this fixture set exposes.
@@ -139,4 +139,5 @@ named schemas below, so the rest of the shared database is untouched.
 | `Convert_string_column_to_a_json_column_containing_reference` | The case alters a string column to the JSON type, and the server answers `数据类型的变更无效` | Server limitation |
 | `Convert_string_column_to_a_json_column_containing_collection` | The same JSON alteration limitation | Same |
 | `Convert_string_column_to_a_json_column_containing_required_reference` | The same JSON alteration limitation | Same |
+
 
