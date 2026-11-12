@@ -17,7 +17,8 @@ public class DmDateDiffTranslationTests
         ["Hour"] = q => q.Where(p => EF.Functions.DateDiffHour(p.CreatedAt, p.CreatedAt) > 0),
         ["Minute"] = q => q.Where(p => EF.Functions.DateDiffMinute(p.CreatedAt, p.CreatedAt) > 0),
         ["Second"] = q => q.Where(p => EF.Functions.DateDiffSecond(p.CreatedAt, p.CreatedAt) > 0),
-        ["Millisecond"] = q => q.Where(p => EF.Functions.DateDiffMillisecond(p.CreatedAt, p.CreatedAt) > 0)
+        ["Millisecond"] = q => q.Where(p => EF.Functions.DateDiffMillisecond(p.CreatedAt, p.CreatedAt) > 0),
+        ["Nanosecond"] = q => q.Where(p => EF.Functions.DateDiffNanosecond(p.CreatedAt, p.CreatedAt) > 0)
     };
 
     [Theory]
@@ -28,6 +29,7 @@ public class DmDateDiffTranslationTests
     [InlineData("Minute", "MINUTE")]
     [InlineData("Second", "SECOND")]
     [InlineData("Millisecond", "MILLISECOND")]
+    [InlineData("Nanosecond", "NANOSECOND")]
     public void DateDiff_TranslatesToDatediff(string unit, string datePart)
     {
         using var context = new ProbeContext();
@@ -218,3 +220,4 @@ public class DmDateDiffTranslationTests
         public TimeSpan Span { get; set; }
     }
 }
+

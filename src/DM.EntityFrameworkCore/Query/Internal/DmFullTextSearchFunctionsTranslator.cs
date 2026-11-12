@@ -8,20 +8,22 @@ using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 namespace DM.EntityFrameworkCore.Query.Internal;
 
 /// <summary>
-/// Translates <see cref="DmDbFunctionsExtensions.Contains" /> to Dameng's full-text <c>CONTAINS</c>.
+/// Translates the full-text methods of <see cref="DmDbFunctionsExtensions" /> to Dameng's <c>CONTAINS</c>
+/// and <c>FREETEXT</c>.
 /// </summary>
 /// <remarks>
 /// The first argument has to be a column, because the server matches a full-text index and indexes are
 /// built on columns; anything else is refused while the query is translated rather than sent to fail.
 /// The predicate is complete on its own, so it is not compared with a constant: measured on 8.1.4.80, the
 /// server rejects a boolean value but accepts <c>CONTAINS(column, condition)</c> as a search condition.
+/// <para>
+/// <c>FREETEXT</c> and the language term are written for parity with the reference provider. Measured on
+/// 8.1.4.80, <c>FREETEXT</c> is not resolved at all, so those forms need a server version that provides
+/// them; a language term is written as a fragment, which is why it has to be a constant.
+/// </para>
 /// </remarks>
 internal sealed class DmFullTextSearchFunctionsTranslator : IMethodCallTranslator
 {
-    private static readonly MethodInfo ContainsMethod = typeof(DmDbFunctionsExtensions).GetRuntimeMethod(
-        nameof(DmDbFunctionsExtensions.Contains),
-        [typeof(DbFunctions), typeof(string), typeof(string)])!;
-
     private readonly ISqlExpressionFactory _sqlExpressionFactory;
 
     public DmFullTextSearchFunctionsTranslator(ISqlExpressionFactory sqlExpressionFactory)
@@ -33,7 +35,14 @@ internal sealed class DmFullTextSearchFunctionsTranslator : IMethodCallTranslato
         IReadOnlyList<SqlExpression> arguments,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
-        if (method != ContainsMethod)
+        var function = method.Name switch
+        {
+            nameof(DmDbFunctionsExtensions.Contains) => "CONTAINS",
+            nameof(DmDbFunctionsExtensions.FreeText) => "FREETEXT",
+            _ => null
+        };
+
+        if (function is null)
         {
             return null;
         }
@@ -41,15 +50,33 @@ internal sealed class DmFullTextSearchFunctionsTranslator : IMethodCallTranslato
         if (arguments[1] is not ColumnExpression column)
         {
             throw new InvalidOperationException(
-                $"{nameof(DmDbFunctionsExtensions.Contains)} needs a mapped column as its first argument, because "
-                + "Dameng matches a full-text index and an index is built on a column.");
+                $"{nameof(DmDbFunctionsExtensions)}.{method.Name} needs a mapped column as its first argument, "
+                + "because Dameng matches a full-text index and an index is built on a column.");
+        }
+
+        var functionArguments = new List<SqlExpression>
+        {
+            column,
+            _sqlExpressionFactory.ApplyTypeMapping(arguments[2], column.TypeMapping)
+        };
+
+        if (arguments.Count == 4)
+        {
+            if (arguments[3] is not SqlConstantExpression language)
+            {
+                throw new InvalidOperationException(
+                    $"The language term of {nameof(DmDbFunctionsExtensions)}.{method.Name} has to be a constant, "
+                    + "because the server writes it into the statement instead of binding it as a parameter.");
+            }
+
+            functionArguments.Add(_sqlExpressionFactory.Fragment($"LANGUAGE {language.Value}"));
         }
 
         return _sqlExpressionFactory.Function(
-            "CONTAINS",
-            [column, _sqlExpressionFactory.ApplyTypeMapping(arguments[2], column.TypeMapping)],
+            function,
+            functionArguments,
             nullable: true,
-            argumentsPropagateNullability: [false, false],
+            argumentsPropagateNullability: functionArguments.Select(_ => false),
             typeof(bool),
             typeMapping: null);
     }

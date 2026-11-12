@@ -107,7 +107,8 @@ internal sealed class DmDateDiffFunctionsTranslator : IMethodCallTranslator
             (nameof(DmDbFunctionsExtensions.DateDiffHour), 3600.0),
             (nameof(DmDbFunctionsExtensions.DateDiffMinute), 60.0),
             (nameof(DmDbFunctionsExtensions.DateDiffSecond), 1.0),
-            (nameof(DmDbFunctionsExtensions.DateDiffMillisecond), 0.001)
+            (nameof(DmDbFunctionsExtensions.DateDiffMillisecond), 0.001),
+            (nameof(DmDbFunctionsExtensions.DateDiffNanosecond), 1e-9)
         ];
 
         var units = new Dictionary<MethodInfo, double>();
@@ -139,7 +140,8 @@ internal sealed class DmDateDiffFunctionsTranslator : IMethodCallTranslator
             (nameof(DmDbFunctionsExtensions.DateDiffMinute), "MINUTE"),
             (nameof(DmDbFunctionsExtensions.DateDiffSecond), "SECOND"),
             (nameof(DmDbFunctionsExtensions.DateDiffMillisecond), "MILLISECOND"),
-            (nameof(DmDbFunctionsExtensions.DateDiffMicrosecond), "MICROSECOND")
+            (nameof(DmDbFunctionsExtensions.DateDiffMicrosecond), "MICROSECOND"),
+            (nameof(DmDbFunctionsExtensions.DateDiffNanosecond), "NANOSECOND")
         ];
 
         var dateParts = new Dictionary<MethodInfo, string>();
@@ -166,3 +168,4 @@ internal sealed class DmDateDiffFunctionsTranslator : IMethodCallTranslator
         return dateParts;
     }
 }
+

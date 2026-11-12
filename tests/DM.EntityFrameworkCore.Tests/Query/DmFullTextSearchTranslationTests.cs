@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore.Dm.Extensions;
 namespace DM.EntityFrameworkCore.Tests.Query;
 
 /// <summary>
-/// T2 SQL shape tests for <see cref="DmDbFunctionsExtensions.Contains" />. The call sits in a predicate and
+/// T2 SQL shape tests for the full-text methods of <see cref="DmDbFunctionsExtensions" />. The call sits in a predicate and
 /// the method has no client side implementation, so the test cannot pass without the translation.
 /// </summary>
 public class DmFullTextSearchTranslationTests
@@ -37,6 +37,58 @@ public class DmFullTextSearchTranslationTests
             () => context.Probes.Where(p => EF.Functions.Contains(p.Text.ToUpper(), "word")).ToQueryString());
 
         Assert.Contains("needs a mapped column", exception.Message, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The language term is written into the statement as a fragment, the way the reference provider writes
+    /// it; the server takes no parameter there.
+    /// </summary>
+    [Fact]
+    public void Contains_WithLanguage_WritesTheLanguageTerm()
+    {
+        using var context = new ProbeContext();
+        var term = "word";
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Text"
+            FROM "Probes" AS "p"
+            WHERE CONTAINS("p"."Text", :term, LANGUAGE 1033) = 1
+            """,
+            Statement(context.Probes.Where(p => EF.Functions.Contains(p.Text, term, 1033)).ToQueryString()));
+    }
+
+    /// <summary>
+    /// <c>FREETEXT</c> is provided for parity with the reference provider; 8.1.4.80 does not resolve it.
+    /// </summary>
+    [Fact]
+    public void FreeText_TranslatesToFreeText()
+    {
+        using var context = new ProbeContext();
+        var term = "word";
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Text"
+            FROM "Probes" AS "p"
+            WHERE FREETEXT("p"."Text", :term) = 1
+            """,
+            Statement(context.Probes.Where(p => EF.Functions.FreeText(p.Text, term)).ToQueryString()));
+    }
+
+    /// <summary>
+    /// The language term is not a bindable argument, so a computed one fails while the query is translated.
+    /// </summary>
+    [Fact]
+    public void Language_ThatIsNotAConstant_IsRefused()
+    {
+        using var context = new ProbeContext();
+        var language = 1033;
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => context.Probes.Where(p => EF.Functions.FreeText(p.Text, "word", language)).ToQueryString());
+
+        Assert.Contains("has to be a constant", exception.Message, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -74,3 +126,5 @@ public class DmFullTextSearchTranslationTests
         public string Text { get; set; } = string.Empty;
     }
 }
+
+

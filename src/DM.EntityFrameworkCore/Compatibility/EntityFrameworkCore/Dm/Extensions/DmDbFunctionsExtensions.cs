@@ -282,6 +282,47 @@ public static class DmDbFunctionsExtensions
             : null;
 
     /// <summary>
+    /// The number of nanosecond boundaries crossed between two dates.
+    /// </summary>
+    /// <remarks>
+    /// The method exists for parity with the reference provider and translates to
+    /// <c>DATEDIFF(NANOSECOND, date1, date2)</c>. Measured on 8.1.4.80, the part name is a syntax error
+    /// there, so it needs a server version that names it. A .NET <see cref="DateTime" /> counts in 100
+    /// nanosecond ticks, so the in-memory form answers a multiple of 100.
+    /// </remarks>
+    public static int DateDiffNanosecond(this DbFunctions _, DateTime startDate, DateTime endDate)
+        => (int)(endDate - startDate).TotalNanoseconds;
+
+    /// <inheritdoc cref="DateDiffNanosecond(DbFunctions, DateTime, DateTime)" />
+    public static int? DateDiffNanosecond(this DbFunctions _, DateTime? startDate, DateTime? endDate)
+        => startDate.HasValue && endDate.HasValue
+            ? (int)(endDate.Value - startDate.Value).TotalNanoseconds
+            : null;
+
+    /// <inheritdoc cref="DateDiffNanosecond(DbFunctions, DateTime, DateTime)" />
+    public static int DateDiffNanosecond(this DbFunctions _, DateTimeOffset startDate, DateTimeOffset endDate)
+        => (int)(endDate.UtcDateTime - startDate.UtcDateTime).TotalNanoseconds;
+
+    /// <inheritdoc cref="DateDiffNanosecond(DbFunctions, DateTime, DateTime)" />
+    public static int? DateDiffNanosecond(
+        this DbFunctions _,
+        DateTimeOffset? startDate,
+        DateTimeOffset? endDate)
+        => startDate.HasValue && endDate.HasValue
+            ? (int)(endDate.Value.UtcDateTime - startDate.Value.UtcDateTime).TotalNanoseconds
+            : null;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int DateDiffNanosecond(this DbFunctions _, TimeSpan startTimeSpan, TimeSpan endTimeSpan)
+        => (int)(endTimeSpan - startTimeSpan).TotalNanoseconds;
+
+    /// <inheritdoc cref="DateDiffHour(DbFunctions, TimeSpan, TimeSpan)" />
+    public static int? DateDiffNanosecond(this DbFunctions _, TimeSpan? startTimeSpan, TimeSpan? endTimeSpan)
+        => startTimeSpan.HasValue && endTimeSpan.HasValue
+            ? (int)(endTimeSpan.Value - startTimeSpan.Value).TotalNanoseconds
+            : null;
+
+    /// <summary>
     /// Whether a value is a valid date, which Dameng answers with <c>ISDATE</c>.
     /// </summary>
     public static bool IsDate(this DbFunctions _, string value) => ParsesAsDate(value);
@@ -297,12 +338,51 @@ public static class DmDbFunctionsExtensions
     /// its own schema. The provider writes the predicate and leaves the index to the schema.
     /// <para>
     /// This overload has no client-side form: outside a query it throws, so a condition the provider cannot
-    /// translate fails where it is written instead of silently matching nothing in memory. For the same
-    /// reason there is no overload taking a language term: Dameng's <c>CONTAINS</c> has no such argument.
+    /// translate fails where it is written instead of silently matching nothing in memory.
     /// </para>
     /// </remarks>
     public static bool Contains(this DbFunctions _, string propertyReference, string searchCondition)
         => throw new InvalidOperationException(ClientOnly("Contains"));
+
+    /// <summary>
+    /// Whether a property is matched by a full-text search condition in a named language, which Dameng
+    /// answers with <c>CONTAINS(column, condition LANGUAGE languageTerm)</c>.
+    /// </summary>
+    /// <remarks>
+    /// The language term is part of the statement rather than a parameter, so it has to be a constant.
+    /// It is the form the reference provider writes; whether this server accepts it depends on its
+    /// version, and 8.1.4.80 was not measured with one.
+    /// </remarks>
+    public static bool Contains(
+        this DbFunctions _,
+        string propertyReference,
+        string searchCondition,
+        int languageTerm)
+        => throw new InvalidOperationException(ClientOnly("Contains"));
+
+    /// <summary>
+    /// Whether a property is matched by a full-text free-text condition, which Dameng answers with
+    /// <c>FREETEXT(column, freeText)</c>.
+    /// </summary>
+    /// <remarks>
+    /// The method exists for parity with the reference provider. Measured on 8.1.4.80, the server does not
+    /// resolve <c>FREETEXT</c> (<c>无法解析的成员访问表达式[FREETEXT]</c>), so it is for the server versions
+    /// that provide it; the same applies to <see cref="FreeText(DbFunctions, string, string, int)" />.
+    /// </remarks>
+    public static bool FreeText(this DbFunctions _, string propertyReference, string freeText)
+        => throw new InvalidOperationException(ClientOnly("FreeText"));
+
+    /// <summary>
+    /// Whether a property is matched by a free-text condition in a named language, which Dameng answers
+    /// with <c>FREETEXT(column, freeText LANGUAGE languageTerm)</c>.
+    /// </summary>
+    /// <inheritdoc cref="FreeText(DbFunctions, string, string)" />
+    public static bool FreeText(
+        this DbFunctions _,
+        string propertyReference,
+        string freeText,
+        int languageTerm)
+        => throw new InvalidOperationException(ClientOnly("FreeText"));
 
     // The parse lives in its own method because this class names its receiver "_", and a discard in the
     // same scope would bind to that parameter instead.
