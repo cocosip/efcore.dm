@@ -54,6 +54,11 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
 
             nameof(Math.Pow) => Function("POWER", arguments, method),
             nameof(Math.Atan2) => Function("ATAN2", arguments, method),
+
+            // EF Core 8 has no Greatest/Least hook on the relational visitor, so Max and Min are
+            // answered here; from EF Core 9 the visitor resolves them first.
+            nameof(Math.Max) => Function("GREATEST", arguments, method),
+            nameof(Math.Min) => Function("LEAST", arguments, method),
             nameof(Math.Clamp) => Function(
                 "GREATEST",
                 [Function("LEAST", [arguments[0], arguments[2]], method), arguments[1]],

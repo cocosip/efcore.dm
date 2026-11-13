@@ -10,7 +10,7 @@ internal static class RepositoryRoot
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
 
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "DM.EntityFrameworkCore.slnx")))
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "DM.EntityFrameworkCore.sln")))
         {
             directory = directory.Parent;
         }

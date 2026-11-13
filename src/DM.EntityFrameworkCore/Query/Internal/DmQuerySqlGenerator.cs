@@ -288,14 +288,14 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             ? base.VisitSelect(selectExpression)
             : base.VisitSelect(
                 selectExpression.Update(
+                    selectExpression.Projection,
                     selectExpression.Tables,
                     predicate,
                     selectExpression.GroupBy,
                     having,
-                    selectExpression.Projection,
                     orderings,
-                    selectExpression.Offset,
-                    selectExpression.Limit));
+                    selectExpression.Limit,
+                    selectExpression.Offset));
     }
 
     /// <summary>
@@ -319,14 +319,14 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             : base.VisitUpdate(
                 updateExpression.Update(
                     select.Update(
+                        select.Projection,
                         select.Tables,
                         predicate,
                         select.GroupBy,
                         select.Having,
-                        select.Projection,
                         select.Orderings,
-                        select.Offset,
-                        select.Limit),
+                        select.Limit,
+                        select.Offset),
                     updateExpression.ColumnValueSetters));
     }
 
@@ -340,16 +340,15 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
             ? base.VisitDelete(deleteExpression)
             : base.VisitDelete(
                 deleteExpression.Update(
-                    deleteExpression.Table,
                     select.Update(
+                        select.Projection,
                         select.Tables,
                         predicate,
                         select.GroupBy,
                         select.Having,
-                        select.Projection,
                         select.Orderings,
-                        select.Offset,
-                        select.Limit)));
+                        select.Limit,
+                        select.Offset)));
     }
 
     /// <summary>

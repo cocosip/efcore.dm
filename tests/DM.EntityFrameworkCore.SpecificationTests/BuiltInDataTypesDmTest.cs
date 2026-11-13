@@ -34,8 +34,9 @@ public class BuiltInDataTypesDmTest : BuiltInDataTypesTestBase<BuiltInDataTypesD
     /// <c>Skipped.md</c>.
     /// </summary>
     [ConditionalFact(Skip = "Server limitation: Dameng cannot compare a large object with the equality operator")]
-    public override Task Can_perform_query_with_max_length()
-        => Task.CompletedTask;
+    public override void Can_perform_query_with_max_length()
+    {
+    }
 
     public class BuiltInDataTypesDmFixture : BuiltInDataTypesFixtureBase
     {

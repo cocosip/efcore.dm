@@ -44,17 +44,16 @@ public sealed class DmTestStore : RelationalTestStore
         string[] schemas,
         bool ownsWholeSchema,
         string? connectionString = null)
-        : base(
-            name,
-            shared,
-            new DmConnection(
-                connectionString
-                ?? (schemas.Length > 0
-                    ? WithSchema(DmTestConnection.ConnectionString, schemas[0])
-                    : DmTestConnection.ConnectionString)))
+        : base(name, shared)
     {
         _schemas = schemas;
         _ownsWholeSchema = ownsWholeSchema;
+
+        ConnectionString = connectionString
+            ?? (schemas.Length > 0
+                ? WithSchema(DmTestConnection.ConnectionString, schemas[0])
+                : DmTestConnection.ConnectionString);
+        Connection = new DmConnection(ConnectionString);
     }
 
     public static DmTestStore Create(string name) => new(name, shared: false, [], ownsWholeSchema: false);
@@ -93,25 +92,12 @@ public sealed class DmTestStore : RelationalTestStore
     public override FormattableString NormalizeDelimitersInInterpolatedString(FormattableString sql)
         => FormattableStringFactory.Create(NormalizeDelimitersInRawString(sql.Format), sql.GetArguments());
 
-    protected override async Task InitializeAsync(
-        Func<DbContext> createContext,
-        Func<DbContext, Task>? seed,
-        Func<DbContext, Task>? clean)
-    {
-        await using var context = createContext();
-
-        await CleanAsync(context);
-
-        if (clean is not null)
-        {
-            await clean(context);
-        }
-
-        if (seed is not null)
-        {
-            await seed(context);
-        }
-    }
+    /// <summary>
+    /// The suite cleans and seeds asynchronously, while the store hook is synchronous on this line, so
+    /// the clean is awaited here rather than written twice.
+    /// </summary>
+    public override void Clean(DbContext context)
+        => CleanAsync(context).GetAwaiter().GetResult();
 
     public override async Task CleanAsync(DbContext context)
     {

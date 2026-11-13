@@ -9,6 +9,6 @@ internal sealed class DmParameterBasedSqlProcessorFactory : IRelationalParameter
     public DmParameterBasedSqlProcessorFactory(RelationalParameterBasedSqlProcessorDependencies dependencies)
         => _dependencies = dependencies;
 
-    public RelationalParameterBasedSqlProcessor Create(RelationalParameterBasedSqlProcessorParameters parameters)
-        => new DmParameterBasedSqlProcessor(_dependencies, parameters);
+    public RelationalParameterBasedSqlProcessor Create(bool useRelationalNulls)
+        => new DmParameterBasedSqlProcessor(_dependencies, useRelationalNulls);
 }

@@ -43,16 +43,6 @@ public class MigrationsDmTest : MigrationsTestBase<MigrationsDmTest.MigrationsDm
         return;
     }
 
-    /// <summary>
-    /// The two cases that need a provider-specific literal for the default value of a primitive
-    /// collection. Dameng stores a collection as its JSON text.
-    /// </summary>
-    public override Task Add_required_primitive_collection_with_custom_default_value_sql_to_existing_table()
-        => Add_required_primitve_collection_with_custom_default_value_sql_to_existing_table_core("'[3, 2, 1]'");
-
-    public override Task Add_required_primitve_collection_with_custom_default_value_sql_to_existing_table()
-        => Add_required_primitve_collection_with_custom_default_value_sql_to_existing_table_core("'[3, 2, 1]'");
-
     // A virtual column is written, but the catalog reports its expression in the same column as a default,
     // so a scaffolded model cannot name it as computed. Stored computed columns do not exist on the server.
     [ConditionalTheory, InlineData(true), InlineData(false), InlineData(null)]
@@ -127,18 +117,6 @@ public class MigrationsDmTest : MigrationsTestBase<MigrationsDmTest.MigrationsDm
 
     [ConditionalFact(Skip = "Server limitation: Dameng refuses NOT NULL on a column that holds nulls")]
     public override Task Alter_column_make_required_with_null_data()
-        => Task.CompletedTask;
-
-    [ConditionalFact(Skip = "Server limitation: Dameng refuses to alter a column to the JSON type")]
-    public override Task Convert_string_column_to_a_json_column_containing_reference()
-        => Task.CompletedTask;
-
-    [ConditionalFact(Skip = "Server limitation: Dameng refuses to alter a column to the JSON type")]
-    public override Task Convert_string_column_to_a_json_column_containing_collection()
-        => Task.CompletedTask;
-
-    [ConditionalFact(Skip = "Server limitation: Dameng refuses to alter a column to the JSON type")]
-    public override Task Convert_string_column_to_a_json_column_containing_required_reference()
         => Task.CompletedTask;
 
     [ConditionalFact(Skip = "Server limitation: measured on 8.1.4.80")]

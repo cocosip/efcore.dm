@@ -92,7 +92,7 @@ public class DialectLayerIsolationTests
 
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "DM.EntityFrameworkCore.slnx")))
+            if (File.Exists(Path.Combine(directory.FullName, "DM.EntityFrameworkCore.sln")))
             {
                 var dialect = Path.Combine(
                     directory.FullName,
@@ -108,6 +108,6 @@ public class DialectLayerIsolationTests
             directory = directory.Parent;
         }
 
-        throw new InvalidOperationException("Repository root (DM.EntityFrameworkCore.slnx) not found.");
+        throw new InvalidOperationException("Repository root (DM.EntityFrameworkCore.sln) not found.");
     }
 }

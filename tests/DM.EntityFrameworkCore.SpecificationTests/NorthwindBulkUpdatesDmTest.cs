@@ -15,7 +15,7 @@ namespace DM.EntityFrameworkCore.SpecificationTests;
 /// marked skipped with the measurement recorded in <c>Skipped.md</c>.
 /// </remarks>
 public class NorthwindBulkUpdatesDmTest
-    : NorthwindBulkUpdatesRelationalTestBase<NorthwindBulkUpdatesDmTest.NorthwindBulkUpdatesDmFixture>
+    : NorthwindBulkUpdatesTestBase<NorthwindBulkUpdatesDmTest.NorthwindBulkUpdatesDmFixture>
 {
     public NorthwindBulkUpdatesDmTest(
         NorthwindBulkUpdatesDmFixture fixture,
@@ -109,7 +109,7 @@ public class NorthwindBulkUpdatesDmTest
     }
 
     public class NorthwindBulkUpdatesDmFixture
-        : NorthwindBulkUpdatesRelationalFixture<NoopModelCustomizer>
+        : NorthwindBulkUpdatesFixture<NoopModelCustomizer>
     {
         protected override ITestStoreFactory TestStoreFactory
             => DmTestStoreFactory.Instance;

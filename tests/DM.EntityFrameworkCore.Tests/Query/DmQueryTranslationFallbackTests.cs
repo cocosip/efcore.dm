@@ -11,8 +11,8 @@ public class DmQueryTranslationFallbackTests
 {
     /// <summary>
     /// Nested <c>Take</c> calls keep the inner query as a subquery on this line: the framework folds them
-    /// into one <c>LEAST</c> only from the next major version, so what is pinned here is the two
-    /// statements-shape the server accepts.
+    /// into one <c>LEAST</c> only from a later major version, so what is pinned here is the two-<c>FETCH</c>
+    /// shape the server accepts.
     /// </summary>
     [Fact]
     public void NestedTake_KeepsTheSubqueryWithTwoFetches()
@@ -25,14 +25,14 @@ public class DmQueryTranslationFallbackTests
             """
             -- :__p_0='5'
             -- :__p_1='3'
-            SELECT "i0"."Id", "i0"."CreatedAt", "i0"."Name"
+            SELECT "t"."Id", "t"."CreatedAt", "t"."Name"
             FROM (
                 SELECT "i"."Id", "i"."CreatedAt", "i"."Name"
                 FROM "Items" AS "i"
                 ORDER BY "i"."Id"
                 FETCH FIRST :__p_0 ROWS ONLY
-            ) AS "i0"
-            ORDER BY "i0"."Id"
+            ) AS "t"
+            ORDER BY "t"."Id"
             FETCH FIRST :__p_1 ROWS ONLY
             """,
             actual);
@@ -94,15 +94,15 @@ public class DmQueryTranslationFallbackTests
 
         Assert.Equal(
             """
-            SELECT "s0"."Key", (
+            SELECT "t"."Key", (
                 SELECT COUNT(*)
-                FROM "Stamps" AS "s1"
-                WHERE EXTRACT(MONTH FROM "s1"."StampAt") = "s0"."Key" OR ("s1"."StampAt" IS NULL AND "s0"."Key" IS NULL)) AS "Count"
+                FROM "Stamps" AS "s0"
+                WHERE EXTRACT(MONTH FROM "s0"."StampAt") = "t"."Key" OR ("s0"."StampAt" IS NULL AND "t"."Key" IS NULL)) AS "Count"
             FROM (
                 SELECT EXTRACT(MONTH FROM "s"."StampAt") AS "Key"
                 FROM "Stamps" AS "s"
-            ) AS "s0"
-            GROUP BY "s0"."Key"
+            ) AS "t"
+            GROUP BY "t"."Key"
             """,
             actual);
     }

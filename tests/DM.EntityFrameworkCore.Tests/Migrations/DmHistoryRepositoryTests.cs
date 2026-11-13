@@ -1,4 +1,3 @@
-using DM.EntityFrameworkCore.Dialect;
 using DM.EntityFrameworkCore.Tests.TestUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -7,8 +6,8 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace DM.EntityFrameworkCore.Tests.Migrations;
 
 /// <summary>
-/// T2 tests for the history repository and the migration lock. The lock and the existence check
-/// are asserted from the statements the repository issues, not from the driver's return value.
+/// T2 tests for the history repository. The scripts and the existence check are asserted from the
+/// statements the repository issues, not from the driver's return value.
 /// </summary>
 public class DmHistoryRepositoryTests
 {
@@ -69,81 +68,6 @@ public class DmHistoryRepositoryTests
             SELECT ID FROM SYS.SYSOBJECTS WHERE NAME = '__EFMigrationsHistory' AND SCHID = (SELECT ID FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH' AND NAME = (SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')));
             """,
             Compact(Assert.Single(connection.Commands)));
-    }
-
-    [Fact]
-    public void AcquireDatabaseLock_RequestsANamedLockExclusiveForItsWait()
-    {
-        var connection = new FakeDmConnection();
-        using var context = new HistoryContext(connection);
-
-        using (context.GetService<IHistoryRepository>().AcquireDatabaseLock())
-        {
-            Assert.Equal(
-                $"SELECT DBMS_LOCK.REQUEST({DmNamedLock.Id("fake")}, 6, 30, FALSE) FROM DUAL;",
-                Compact(Assert.Single(connection.Commands)));
-        }
-    }
-
-    /// <summary>
-    /// The lock belongs to the session, not to a transaction: the server commits around DDL, so a
-    /// transaction scoped lock is gone before the migration it guards has finished.
-    /// </summary>
-    [Fact]
-    public void DatabaseLock_IsReleasedWithTheConnection()
-    {
-        using var context = new HistoryContext(new FakeDmConnection());
-
-        Assert.Equal(
-            LockReleaseBehavior.Connection,
-            context.GetService<IHistoryRepository>().LockReleaseBehavior);
-    }
-
-    /// <summary>
-    /// The name is a function of the database, so that two deployments of the same database contend for one
-    /// lock and deployments of different databases do not. The value is fixed, because a hash the runtime
-    /// randomises per process would give every process its own lock.
-    /// </summary>
-    [Fact]
-    public void NamedLockId_DependsOnTheNameAlone()
-    {
-        // The runtime randomises string hash codes per process, so the id cannot come from one: two
-        // deployments in two processes must ask for the same lock.
-        Assert.Equal(DmNamedLock.Id("hidos"), DmNamedLock.Id("HIDOS"));
-        Assert.Equal(DmNamedLock.Id("hidos"), DmNamedLock.Id("hidos"));
-        Assert.NotEqual(DmNamedLock.Id("hidos"), DmNamedLock.Id("another"));
-
-        // Measured on 8.1.4.80: 2^30 - 1 is granted and 2^30 answers a parameter error, so the id stays
-        // below the ceiling rather than merely inside the range of an int.
-        Assert.InRange(DmNamedLock.Id("hidos"), 0, (1 << 30) - 1);
-    }
-
-    /// <summary>
-    /// Measured on 8.1.4.80: a second session answered `1` while the first held the lock, and `0` once it was
-    /// released, which is what the interpretation reads.
-    /// </summary>
-    [Fact]
-    public void DatabaseLock_ReportsAWaitThatRanOut()
-    {
-        var connection = new FakeDmConnection { ScalarResult = 1 };
-        using var context = new HistoryContext(connection);
-
-        var exception = Assert.Throws<TimeoutException>(
-            () => context.GetService<IHistoryRepository>().AcquireDatabaseLock());
-
-        Assert.Contains("migration lock", exception.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void DatabaseLock_TreatsASessionThatAlreadyHoldsItAsGranted()
-    {
-        var connection = new FakeDmConnection { ScalarResult = 4 };
-        using var context = new HistoryContext(connection);
-
-        using var databaseLock = context.GetService<IHistoryRepository>().AcquireDatabaseLock();
-
-        // Only the request was issued: the session already held it, so releasing it is left to the holder.
-        Assert.Single(connection.Commands);
     }
 
     [Fact]

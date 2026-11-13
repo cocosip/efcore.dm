@@ -95,26 +95,24 @@ internal sealed class DmQueryableMethodTranslatingExpressionVisitor : Relational
 
         // The path and the column definition are constants; the only value from outside is the store
         // type, which comes from the element's own mapping and not from user input. The ordinality column
-        // is not projected: it gives a paged row source the ordering a page needs, and the generator
+        // identifies the row and gives a paged row source the ordering a page needs, and the generator
         // writes that ordering (measured on 8.1.4.80: `FOR ORDINALITY` parses and answers 1..n in array
         // order).
         var columns = new SqlFragmentExpression(
             $"'$[*]' COLUMNS (\"value\" {elementMapping.StoreType} PATH '$', \"rn\" FOR ORDINALITY)");
         var table = new TableValuedFunctionExpression(tableAlias, "JSON_TABLE", [sqlExpression, columns]);
-        var value = new ColumnExpression(
-            "value",
-            tableAlias,
-            Nullable.GetUnderlyingType(elementClrType) ?? elementClrType,
-            elementMapping,
-            elementType?.IsNullable
-                ?? (Nullable.GetUnderlyingType(elementClrType) is not null || !elementClrType.IsValueType));
 
 #pragma warning disable EF1001 // A query root is built from a SelectExpression, as it is for every provider.
         var selectExpression = new SelectExpression(
-            [table],
-            value,
-            [(value, elementMapping.Comparer)],
-            _queryCompilationContext.SqlAliasManager);
+            table,
+            columnName: "value",
+            columnType: elementClrType,
+            columnTypeMapping: elementMapping,
+            isColumnNullable: elementType?.IsNullable
+                ?? (Nullable.GetUnderlyingType(elementClrType) is not null || !elementClrType.IsValueType),
+            identifierColumnName: "rn",
+            identifierColumnType: typeof(int),
+            identifierColumnTypeMapping: RelationalDependencies.TypeMappingSource.FindMapping(typeof(int)));
 #pragma warning restore EF1001
 
         Expression shaperExpression = new ProjectionBindingExpression(

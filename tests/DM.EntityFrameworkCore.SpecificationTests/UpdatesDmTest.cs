@@ -66,8 +66,9 @@ public class UpdatesDmTest : UpdatesRelationalTestBase<UpdatesDmTest.UpdatesDmFi
     /// <c>语法分析出错</c>. The case swaps two values under a filtered unique index, so it cannot run here.
     /// </summary>
     [ConditionalFact(Skip = "Server limitation: Dameng has no filtered index")]
-    public override Task Swap_filtered_unique_index_values()
-        => Task.CompletedTask;
+    public override void Swap_filtered_unique_index_values()
+    {
+    }
 
     public class UpdatesDmFixture : UpdatesRelationalFixture
     {

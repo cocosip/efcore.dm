@@ -9,8 +9,8 @@ internal sealed class DmParameterBasedSqlProcessor : RelationalParameterBasedSql
 {
     public DmParameterBasedSqlProcessor(
         RelationalParameterBasedSqlProcessorDependencies dependencies,
-        RelationalParameterBasedSqlProcessorParameters parameters)
-        : base(dependencies, parameters)
+        bool useRelationalNulls)
+        : base(dependencies, useRelationalNulls)
     {
     }
 }

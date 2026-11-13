@@ -8,11 +8,14 @@ A case that does not pass is marked `Skip` in the test class with the same reaso
 it as skipped rather than failed; the ledger remains the record of the measurement. A skipped theory is
 reported once even though it carries the synchronous and the asynchronous form as two data rows.
 
-Current live run on this branch, 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 4034 results,
-3961 passed, 73 skipped, 0 failed. The 73 skipped results are 73 cases: 61 this project declares, 12 the
-shipped EF Core 9 base skips itself. The paragraphs between here and the first section are the
-`efcore/10.0` line's measurements, kept as history: the EF Core 9 line runs the same bases with its own
-case set, so a per-set count in them is not this branch's count.
+This branch has not run its suite yet. `efcore/8.0` was adapted against EF Core 8 on 2026-11-13, and the
+offline gate — the specification project build against 8.0.0 and this guard — passes, but the live run needs
+an instance that was not reachable. The last measured live run is the `efcore/9.0` one of 2026-11-13 against
+DM 8.1.4.80, `COMPATIBLE_MODE` 2: 4034 results, 3961 passed, 73 skipped, 0 failed — 73 cases, 61 that project
+declares plus the 12 the shipped EF Core 9 base skips. The paragraphs between here and the first section are
+the `efcore/10.0` line's measurements, kept as history. The 8 base declares fewer cases, so the rows that
+named a case it does not declare left this file together with the 8 overrides; its own case count is
+unmeasured until the suite runs on 8.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
 store drops the objects its model declares, and the updates and migrations fixtures own a schema of their
@@ -152,11 +155,8 @@ skipped results in the total above.
 | `Update_Where_Join_set_property_from_joined_single_result_table` | The upstream assertion expects SQL Server's `COALESCE(..., '')`; this provider preserves the null a customer with no order produces | Provider difference: the assertion encodes SQL Server's empty-string coalesce |
 | `Update_Where_Join_set_property_from_joined_single_result_scalar` | The same upstream empty-string coalesce assertion | Same as the row above |
 | `Inline_collection_index_Column` | The index is an expression, and the server rejects a dynamic `LIMIT`/`OFFSET` expression with `TOP、LIMIT或OFFSET子句中的表达式无效` | Server limitation: row limiting needs a constant |
-| `Inline_collection_List_value_index_Column` | The same dynamic row-limiting expression | Same as the row above |
-| `Inline_collection_value_index_Column` | The same dynamic row-limiting expression | Same as the row above |
 | `Parameter_collection_index_Column_equal_Column` | The same dynamic row-limiting expression | Same as the row above |
 | `Parameter_collection_index_Column_equal_constant` | The same dynamic row-limiting expression | Same as the row above |
-| `Parameter_collection_with_type_inference_for_JsonScalarExpression` | The statement builds the same dynamic `LIMIT`, which the server rejects | Same as the row above |
 | `Column_collection_of_bools_Contains` | `JSON_TABLE` declares the element as `BIT`, which the server rejects with `无效的数据类型` | Server limitation: `BIT` is not a `JSON_TABLE` column type |
 | `Project_collection_of_ints_ordered` | The statement orders the row source by the ordinality column, and the projected collection still materializes in the array order: measured, the first element answered 2 where 7 was expected | Not a provider defect: the row source is ordered; how a projected collection is materialized is not |
 | `Project_collection_of_datetimes_filtered` | The filtered projection materializes a different element set: measured, one element where two were expected | Not a provider defect: the row source is ordered; how a projected collection is materialized is not |
@@ -225,10 +225,3 @@ named schemas below, so the rest of the shared database is untouched.
 | `Alter_sequence_all_settings` | The same restart limitation, together with the start value gap above | Server limitation |
 | `Add_primary_key_int` | The case turns an existing column into an identity column, which the server refuses (`试图修改自增列`); the provider refuses the operation in place with a message that names the measurement | Server limitation |
 | `Alter_column_make_required_with_null_data` | The table holds a null in the column that becomes `NOT NULL`, and the server rejects the alteration (`违反列 ... 非空约束`) rather than updating the row | Server limitation |
-| `Convert_string_column_to_a_json_column_containing_reference` | The case alters a string column to the JSON type, and the server answers `数据类型的变更无效` | Server limitation |
-| `Convert_string_column_to_a_json_column_containing_collection` | The same JSON alteration limitation | Same |
-| `Convert_string_column_to_a_json_column_containing_required_reference` | The same JSON alteration limitation | Same |
-
-
-| `Add_required_primitive_collection_with_custom_converter_to_existing_table` | The shipped EF Core 9 migrations base declares the skip itself | Not a provider defect: the base declares the skip |
-| `Add_required_primitve_collection_with_custom_converter_to_existing_table` | The same case under the base's misspelled name, declared skipped by the base | Same as the row above |

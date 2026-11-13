@@ -99,7 +99,7 @@ public class NamespaceLayoutTests
 
         while (directory is not null)
         {
-            if (File.Exists(Path.Combine(directory.FullName, "DM.EntityFrameworkCore.slnx")))
+            if (File.Exists(Path.Combine(directory.FullName, "DM.EntityFrameworkCore.sln")))
             {
                 return directory.FullName;
             }
@@ -107,6 +107,6 @@ public class NamespaceLayoutTests
             directory = directory.Parent;
         }
 
-        throw new InvalidOperationException("Repository root (DM.EntityFrameworkCore.slnx) not found.");
+        throw new InvalidOperationException("Repository root (DM.EntityFrameworkCore.sln) not found.");
     }
 }

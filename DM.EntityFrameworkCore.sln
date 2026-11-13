@@ -1,0 +1,52 @@
+
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{55E6B951-57B2-40E0-8671-66E35578DA33}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DM.EntityFrameworkCore", "src\DM.EntityFrameworkCore\DM.EntityFrameworkCore.csproj", "{FDE3AB85-8DFC-418D-92BA-51C78BCC46F2}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{C419A128-102C-4962-8B67-62DF9653BBD4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DM.EntityFrameworkCore.Tests", "tests\DM.EntityFrameworkCore.Tests\DM.EntityFrameworkCore.Tests.csproj", "{1A62C37C-C945-4884-881B-495ECFDF060B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{ACFFFAAE-8DA4-4C21-8DDD-169D55EE8E8F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DmProviderValidation", "samples\DmProviderValidation\DmProviderValidation.csproj", "{A0685DB3-66A2-4CD4-910D-E054B9C40EBF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DmProviderFeatureProbe", "samples\DmProviderFeatureProbe\DmProviderFeatureProbe.csproj", "{05BFAB77-ACC7-4FCB-956A-9E8E8FB14768}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FDE3AB85-8DFC-418D-92BA-51C78BCC46F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FDE3AB85-8DFC-418D-92BA-51C78BCC46F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FDE3AB85-8DFC-418D-92BA-51C78BCC46F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FDE3AB85-8DFC-418D-92BA-51C78BCC46F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A62C37C-C945-4884-881B-495ECFDF060B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A62C37C-C945-4884-881B-495ECFDF060B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A62C37C-C945-4884-881B-495ECFDF060B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A62C37C-C945-4884-881B-495ECFDF060B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A0685DB3-66A2-4CD4-910D-E054B9C40EBF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A0685DB3-66A2-4CD4-910D-E054B9C40EBF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A0685DB3-66A2-4CD4-910D-E054B9C40EBF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A0685DB3-66A2-4CD4-910D-E054B9C40EBF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{05BFAB77-ACC7-4FCB-956A-9E8E8FB14768}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{05BFAB77-ACC7-4FCB-956A-9E8E8FB14768}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{05BFAB77-ACC7-4FCB-956A-9E8E8FB14768}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{05BFAB77-ACC7-4FCB-956A-9E8E8FB14768}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FDE3AB85-8DFC-418D-92BA-51C78BCC46F2} = {55E6B951-57B2-40E0-8671-66E35578DA33}
+		{1A62C37C-C945-4884-881B-495ECFDF060B} = {C419A128-102C-4962-8B67-62DF9653BBD4}
+		{A0685DB3-66A2-4CD4-910D-E054B9C40EBF} = {ACFFFAAE-8DA4-4C21-8DDD-169D55EE8E8F}
+		{05BFAB77-ACC7-4FCB-956A-9E8E8FB14768} = {ACFFFAAE-8DA4-4C21-8DDD-169D55EE8E8F}
+	EndGlobalSection
+EndGlobal

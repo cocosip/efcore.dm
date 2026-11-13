@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and not yet adapted. The branch still carries the 9 line's configuration and gates: zero-warning build, 561 unit and SQL shape cases, the 33-step acceptance dry run, the skip ledger guard, the package smoke test and the live specification suite (4034 results, 3961 passed, 73 skipped, 0 failed against DM 8.1.4.80). The EF Core 8 retarget — `net8.0`, dependency range `[8.0.0,9.0.0)`, specification package 8.0.34, the migrations lock removed — is roadmap phase P8 in the [Roadmap](docs/roadmap.md); the numbers above change with it. Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and adapted to EF Core 8 the same day. The offline gate passes on SDK 8.0.404: zero-warning build, 553 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0 with its skip ledger guard, and the package smoke test, which restores and runs a consumer of `Sharp.DM.EntityFrameworkCore` 8.0.1 on `net8.0`. The live acceptance console and the live specification suite are not measured on this branch: the last live numbers (4034 results, 3961 passed, 73 skipped, 0 failed against DM 8.1.4.80) are the 9 line's. The adaptation is roadmap phase P8 in the [Roadmap](docs/roadmap.md). Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 
@@ -12,7 +12,7 @@ Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and
 |---|---|---|---|---|
 | `efcore/10.0` | 10 | `net10.0` | `10.0.x` | Development and release for the EF Core 10 line; `v10.x` tags are here |
 | `efcore/9.0` | 9 | `net9.0` | `9.0.x` | Development and release for the EF Core 9 line; code complete and verified, `v9.x` tags are here |
-| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Development and release for the EF Core 8 line; branch created, adaptation pending, `v8.x` tags are here |
+| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Development and release for the EF Core 8 line; code complete and verified offline, `v8.x` tags are here |
 | `dev` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 integration |
 | `master` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 packaging and `v11.x` tags |
 
@@ -52,11 +52,12 @@ The assembly is `DM.EntityFrameworkCore`, the same identity the EF Core provider
 Four commands, each proving something the previous one cannot:
 
 ```pwsh
-dotnet build DM.EntityFrameworkCore.slnx                 # zero warnings, zero errors
-dotnet test DM.EntityFrameworkCore.slnx                  # the unit and SQL shape suite, no server needed
+dotnet build DM.EntityFrameworkCore.sln                 # zero warnings, zero errors
+dotnet test DM.EntityFrameworkCore.sln                  # the unit and SQL shape suite, no server needed
 dotnet run --project samples/DmProviderValidation -- --dry-run   # the acceptance model, its migration and its idempotent script
 pwsh -File scripts/package-smoke.ps1                     # packs, restores in an isolated cache and runs a consumer
-```
+```n
+`global.json` pins SDK 8.0.404 on this branch: the 8.0 SDK binds C# 12, which is the compiler the EF Core 8 query pipeline expects, and it reads the classic `.sln` the branch uses.
 
 Nothing above needs a Dameng instance. The live acceptance run does, and it takes the connection string from user secrets, the `ConnectionStrings__Dm` environment variable, or its first argument — in that order of specificity — so no credential has to sit in the repository:
 

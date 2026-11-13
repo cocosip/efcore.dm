@@ -10,7 +10,7 @@ Used in two directions: forward when adopting a new EF Core major version, backw
 
 | EF Core | Target framework | Official support until | Branch | Specification tests |
 |---|---|---|---|---|
-| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.34 |
+| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.0 (range floor of `[8.0.0,9.0.0)`) |
 | 9.0 | `net9.0` | 2026-11-10 (expired) | `efcore/9.0` | 9.0.22 |
 | 10.0 | `net10.0` | 2028-11-10 | `efcore/10.0` | 10.0.14 |
 | 11.0 | `net11.0` | not released | `efcore/11.0` (not created) | 11.0.0-rc (xUnit v3) |
@@ -55,29 +55,36 @@ The provider implements locking with a `DBMS_LOCK` named lock (D7). The implemen
 | Parameterized collection translation becomes user-selectable (`ToConstants` / `ToParameters`) | Both rendering forms must work | [EF Core 9 what's new](https://learn.microsoft.com/ef/core/what-is-new/ef-core-9.0/whatsnew) |
 | `PropertyDiscoveryConvention.IsCandidatePrimitiveProperty` is overridable | Available hook for Dameng type discovery | same |
 
-### Reverse adaptation, EF Core 9 to 8, planned on `efcore/8.0` (2026-11-13)
+### Reverse adaptation, EF Core 9 to 8, measured on `efcore/8.0` (2026-11-13)
 
-The 8 line was cut from `efcore/9.0` at `3e937a2` (see [Branching and Release](branching-and-release.md)), so
-the code it starts from already carries the three statement-level fixes the 9 line measured: a boolean
-`ORDER BY`, a boolean `^`, and the `JSON_TABLE` ordinality ordering. None of the three is an EF Core API, so
-all three carry over unchanged and the table below is what is left.
+The 8 line was cut from `efcore/9.0` at `3e937a2`, so the code it starts from already carries the three
+statement-level fixes the 9 line measured: a boolean `ORDER BY`, a boolean `^`, and the `JSON_TABLE`
+ordinality ordering. None of the three is an EF Core API, and all three pass on 8 unchanged.
 
-Nothing here is measured yet. Each row is a prediction from the EF Core 8 sources and a task for the first P8
-pass; a row becomes a measured row of this section once the suite answers it, and a row that turns out not to
-matter is deleted rather than carried.
+The direction matters: the maintenance branch is cut from the newer line, so these are the changes the
+9 line's code needed to become the 8 line. Anything marked *absent* was removed rather than shimmed.
+Measured against the 8.0.0 packages the build restores and the `release/8.0` sources.
 
-| Area | Why it differs on EF Core 8 | Action |
+| Area | Measured | Action taken |
 |---|---|---|
-| Migrations lock | `HistoryRepository` declares no lock members before EF Core 9 | Delete the `HistoryRepository` overrides, the migration database lock implementation, the `DBMS_LOCK` scripts and the acceptance step that waits on the lock |
-| Parameterized collection options | `TranslateParameterizedCollectionsToConstants()` and `...ToParameters()` are EF Core 9 API | Remove the option plumbing and its T2 cases; the one-JSON-parameter form through `JSON_TABLE` stays the only rendering |
-| `EF.Constant()` and `EF.Parameter()` | Both exist on 8; only 9 rejects them inside a compiled query | Keep the translation and re-measure the two compiled-query cases the 9 ledger skips |
-| `PropertyDiscoveryConvention.IsCandidatePrimitiveProperty` | Overridable from EF Core 9 only | Confirm the discovery hook compiles; if it does not, discover the type in the mapping source |
-| `SqlFunctionExpression` arity validation | EF Core 9 validates one nullability flag per argument | No change expected; re-check every node the translators build |
-| Primitive collection comparer types | EF Core 9 replaced `ListComparer` with `ListOfValueTypesComparer` and related types | Replace any direct use on this line |
-| JSON column store type | 9 resolves it through `FindMapping(typeof(JsonElement))`; the 8 shape is to be measured | Keep the `JsonElement` mapping and confirm the reader path on the live suite |
-| Specification case set | 8's bases name and skip cases differently again | Rewrite the overrides against the 8 signatures and rebuild the ledger from a live run, never from the 9 copy |
-| Specification package | 8.0.34 ships `net8.0` assets and pins xUnit v2 | The spec project inherits `DmTargetFramework` = `net8.0`; the xunit pin is read from the package at first restore |
-| Driver assets | `DM.DmProvider` 8.3.1.47463 ships `net8.0` assets | No packaging change; recorded so a later driver drop can be checked the same way |
+| Migrations lock | `HistoryRepository` declares no `LockReleaseBehavior` / `AcquireDatabaseLock` members before EF Core 9, and `IMigrationsDatabaseLock` / `LockReleaseBehavior` do not exist | Deleted the overrides, `DmMigrationDatabaseLock`, the `DBMS_LOCK` helper in `Dialect/`, its 4 T2 cases and the `migrations: concurrent deployments` acceptance step (33 steps become 32). The idempotent create block keeps its lost-race tolerance and no longer mentions a lock |
+| Parameterized collection options | `TranslateParameterizedCollectionsToConstants()` / `...ToParameters()` / `UseParameterizedCollectionMode` are 9/10 API | No plumbing existed outside the tests; the 2 constants-mode T2 cases are deleted. The one-JSON-parameter `JSON_TABLE` form is the only rendering, and its case passes |
+| `EF.Parameter()` | Absent on 8.0.34; `EF.Constant()` is the only member of that family that exists (9 sources add `Parameter`) | The T2 case that used it is deleted; the default collection-parameter case pins the same SQL |
+| `PropertyDiscoveryConvention.IsCandidatePrimitiveProperty` | Absent on 8; the provider never referenced it | No action; the predicted row was deleted |
+| Primitive collection comparer types | 8 has `ListComparer<T>` and no `ListOfValueTypesComparer` / `ListOfNullableValueTypesComparer`; the provider never referenced either | No action; the predicted row was deleted |
+| Parameter-based SQL processor | `RelationalParameterBasedSqlProcessorParameters` is 9 API; the 8 processor and factory take `bool useRelationalNulls` | `DmParameterBasedSqlProcessor` and its factory moved to the 8 signatures |
+| Value generator selector | 8 has `Select`/`Create` and no `TrySelect`; 9 moved hi-lo selection into `TrySelect` | The hi-lo switch moved into `Create`; an unsupported CLR type now throws instead of returning false |
+| `Math.Max` / `Math.Min` | 8 has no `GenerateGreatest` / `GenerateLeast` hook on the relational visitor, and no `EF.Functions.Greatest` / `Least` | Translation moved into `DmMathMethodTranslator`; the `GREATEST`/`LEAST` baselines pass unchanged |
+| `SelectExpression` and friends | 8 has no `SqlAliasManager`, `ColumnExpression` is abstract, the primitive-collection root is built with the `(tableExpression, columnName, columnType, mapping, isColumnNullable, identifier…)` constructor, `Update` lists projections first and limit before offset, and `DeleteExpression.Update` takes only the select | The `JSON_TABLE` row source is built with the 8 constructor and an ordinality identifier column (`rn`, `int`); the three `Update` call sites and the delete rewrite follow the 8 order |
+| `HistoryRepository.GetCreateCommands()` | 9 API; 8 publishes `GetCreateScript()` only | The idempotent wrapper splits the script on the batch terminator and refuses more than one statement |
+| Test store | 8's `TestStore` has abstract `Clean(DbContext)`, no `InitializeAsync`, and `RelationalTestStore` takes `(name, shared)` with the connection as a property | `Clean` awaits the store's async clean; the connection and its string are set in the constructor |
+| SQL shape baselines | 8 aliases an anonymous projection as `"t"` where 9 uses `"s0"`/`"i0"`, and wraps the `SUBSTR` parts of `string.Remove`/`Insert` in `COALESCE(..., '')` | The four affected T2 baselines carry the 8 shapes; the other 549 cases pass unchanged |
+| Specification base classes | `NorthwindBulkUpdatesRelationalTestBase`/`…RelationalFixture` and `ITestSqlLoggerFactory` are 9 API; `Average_over_max_subquery` / `…nested_subquery` are named `…_is_client_eval`; 8 declares no lock, `TrySelect`, `value_index_Column`, `JsonScalarExpression` inference or JSON-column migration cases; `Can_perform_query_with_max_length` and `Swap_filtered_unique_index_values` are `void` | The bulk-updates class derives from the 8 base and fixture, the fixture keeps its `TestSqlLoggerFactory` property without the interface, the two `void` cases return nothing, 8 overrides and 8 ledger rows leave, and 2 average cases stop overriding behaviour the 8 base does not assert |
+| JSON column store type | `JsonTypePlaceholder` is absent on 8; the mapping is resolved through `FindMapping(typeof(JsonElement))`, which the code already does | The mapping compiles and the shape tests pass; the live reader path stays the open item |
+| Specification package | 8.0.x ships `net8.0` assets only and pins `xunit.core`/`xunit.assert` 2.4.2, `Microsoft.CodeAnalysis.CSharp` 4.5.0 and `NetTopologySuite` 2.5.0 | The project inherits `DmTargetFramework` = `net8.0` and references the package as the range `[8.0.0,9.0.0)`. It keeps `xunit` 2.9.3 rather than the pinned floor: the 2.4.2 analyzer reports `xUnit1013` on the EF base classes, which leave case methods public without an attribute |
+| Build tooling | The 8.0 SDK cannot read `.slnx` (`MSB4068`), and C# 14 binds `T[].Contains` to `MemoryExtensions` instead of `Enumerable.Contains`, which the 8 query pipeline does not translate | The solution is a classic `.sln` on this branch, `global.json` pins 8.0.404, and CI installs 8.0.x, so the branch compiles with C# 12 as the framework expects |
+| Dependency ranges | The line's EF Core packages were pinned to one patch or floated on `9.0.*` | Every EF Core package on this line is a range with an 8.0.0 floor: `[8.0.0,9.0.0)` for the provider dependency, `Design`, `UserSecrets` and the specification package |
+| Driver assets | `DM.DmProvider` 8.3.1.47463 ships `net8.0` assets | No packaging change; the package smoke test restores and runs the consumer on `net8.0` |
 
 ## 3. EF Core 9 to 10
 

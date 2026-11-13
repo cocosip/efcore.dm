@@ -34,17 +34,17 @@ internal sealed class DmValueGeneratorSelector : RelationalValueGeneratorSelecto
 
     private DmValueGeneratorCache DmCache => (DmValueGeneratorCache)Cache;
 
-    public override bool TrySelect(IProperty property, ITypeBase typeBase, out ValueGenerator? valueGenerator)
+    public override ValueGenerator Create(IProperty property, ITypeBase typeBase)
     {
         if (property.GetDmValueGenerationStrategy() != DmValueGenerationStrategy.SequenceHiLo)
         {
-            return base.TrySelect(property, typeBase, out valueGenerator);
+            return base.Create(property, typeBase);
         }
 
         var state = DmCache.GetOrAddSequenceState(FindHiLoSequence(property, typeBase));
         var clrType = Nullable.GetUnderlyingType(property.ClrType) ?? property.ClrType;
 
-        valueGenerator = clrType switch
+        return clrType switch
         {
             _ when clrType == typeof(byte) => new DmSequenceHiLoValueGenerator<byte>(_rawSqlCommandBuilder, _connection, _commandLogger, state),
             _ when clrType == typeof(sbyte) => new DmSequenceHiLoValueGenerator<sbyte>(_rawSqlCommandBuilder, _connection, _commandLogger, state),
@@ -54,10 +54,11 @@ internal sealed class DmValueGeneratorSelector : RelationalValueGeneratorSelecto
             _ when clrType == typeof(uint) => new DmSequenceHiLoValueGenerator<uint>(_rawSqlCommandBuilder, _connection, _commandLogger, state),
             _ when clrType == typeof(long) => new DmSequenceHiLoValueGenerator<long>(_rawSqlCommandBuilder, _connection, _commandLogger, state),
             _ when clrType == typeof(ulong) => new DmSequenceHiLoValueGenerator<ulong>(_rawSqlCommandBuilder, _connection, _commandLogger, state),
-            _ => null
+            _ => throw new InvalidOperationException(
+                $"The property '{typeBase.DisplayName()}.{property.Name}' declares the hi-lo strategy, "
+                + $"but '{clrType.Name}' has no integer value generator. Use an identity column or a "
+                + "sequence for a key of another type.")
         };
-
-        return valueGenerator is not null;
     }
 
     /// <summary>

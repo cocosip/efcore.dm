@@ -37,8 +37,7 @@ internal static class Steps
         .. QuerySteps.All,
         ("cancellation", CancellationAsync),
         ("migrations: apply, read back and apply again", MigrationsAsync),
-        ("migrations: idempotent script executed twice", IdempotentScriptAsync),
-        ("migrations: concurrent deployments", ConcurrentMigrationsAsync)
+        ("migrations: idempotent script executed twice", IdempotentScriptAsync)
     ];
 
     private static async Task ConnectionAsync(ValidationContext context, CancellationToken cancellationToken)
@@ -641,67 +640,6 @@ internal static class Steps
         Expect(
             await ScalarAsync(context, HistoryRows, cancellationToken) == 1,
             "the repair run must record the migration when the table is already there");
-
-        await ExecuteAsync(context, "DROP TABLE \"DM_VALIDATION_JOURNAL\" CASCADE CONSTRAINTS", cancellationToken);
-        await ExecuteAsync(context, "DROP TABLE \"__EFMigrationsHistory\" CASCADE CONSTRAINTS", cancellationToken);
-    }
-
-    /// <summary>
-    /// Starts several migrations at once against a database none has run against, which is what a rolling
-    /// deployment does when two instances come up together. Every attempt has to end with the migration
-    /// applied exactly once: the lock serialises them, and the ones that arrive later find nothing to do.
-    /// </summary>
-    /// <remarks>
-    /// Sessions rather than processes: the lock is a table lock the server holds, so a second connection in
-    /// this process waits for it exactly as another process would. Measured on 8.1.4.80, a second session
-    /// asking for the lock blocks and answers `请求执行超时` when its command timeout runs out, and takes the
-    /// lock within milliseconds once the holder releases it.
-    /// </remarks>
-    private static async Task ConcurrentMigrationsAsync(ValidationContext context, CancellationToken cancellationToken)
-    {
-        await ExecuteAsync(context, "DROP TABLE \"DM_VALIDATION_JOURNAL\" CASCADE CONSTRAINTS", cancellationToken);
-        await ExecuteAsync(context, "DROP TABLE \"__EFMigrationsHistory\" CASCADE CONSTRAINTS", cancellationToken);
-
-        const int Attempts = 4;
-
-        var failures = new List<Exception>();
-        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-
-        var migrations = Enumerable.Range(0, Attempts).Select(async attempt =>
-        {
-            await start.Task;
-
-            try
-            {
-                await using var journal = new JournalContext(context.ConnectionString);
-
-                await journal.Database.MigrateAsync(cancellationToken);
-            }
-            catch (Exception exception)
-            {
-                lock (failures)
-                {
-                    failures.Add(exception);
-                }
-            }
-        }).ToList();
-
-        start.SetResult();
-
-        await Task.WhenAll(migrations);
-
-        Expect(
-            failures.Count == 0,
-            $"{failures.Count} of {Attempts} concurrent migrations failed, the first with: "
-            + (failures.FirstOrDefault()?.ToString() ?? string.Empty));
-
-        Expect(
-            await ScalarAsync(context, HistoryRows, cancellationToken) == 1,
-            "the migration must be recorded once, however many deployments applied it");
-
-        Expect(
-            await ScalarAsync(context, TableExists("DM_VALIDATION_JOURNAL"), cancellationToken) == 1,
-            "the table of the migration must exist once the deployments are done");
 
         await ExecuteAsync(context, "DROP TABLE \"DM_VALIDATION_JOURNAL\" CASCADE CONSTRAINTS", cancellationToken);
         await ExecuteAsync(context, "DROP TABLE \"__EFMigrationsHistory\" CASCADE CONSTRAINTS", cancellationToken);

@@ -1,8 +1,8 @@
 <Project>
   <PropertyGroup>
     <!-- Retargeted per branch: the EF Core 8 line uses net8.0, the 9 line net9.0, 10 net10.0. -->
-    <DmTargetFramework Condition="'$(DmTargetFramework)' == ''">net9.0</DmTargetFramework>
-    <DmVersion Condition="'$(DmVersion)' == ''">9.0.1</DmVersion>
+    <DmTargetFramework Condition="'$(DmTargetFramework)' == ''">net8.0</DmTargetFramework>
+    <DmVersion Condition="'$(DmVersion)' == ''">8.0.1</DmVersion>
 
     <!--
       The product name is the assembly name, the root namespace and the project directory.

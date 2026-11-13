@@ -61,25 +61,6 @@ public class NorthwindAggregateOperatorsQueryDmTest : NorthwindAggregateOperator
     }
 
     /// <summary>
-    /// The case asserts an average the server computes to its own precision; SQL Server answers a
-    /// different value, so its test asserts the failure rather than pinning a number (#34256).
-    /// </summary>
-    public override async Task Average_over_max_subquery(bool async)
-        => await Assert.ThrowsAsync<EqualException>(() => base.Average_over_max_subquery(async));
-
-    /// <summary>
-    /// The server answers an average of nested averages to its own decimal scale, which differs from the
-    /// client's value past the third decimal; the reference provider compares at that precision for the
-    /// same reason.
-    /// </summary>
-    public override async Task Average_over_nested_subquery(bool async)
-        => await AssertAverage(
-            async,
-            ss => ss.Set<Customer>().OrderBy(c => c.CustomerID).Take(3),
-            selector: c => (decimal)c.Orders.Average(o => 5 + o.OrderDetails.Average(od => od.ProductID)),
-            asserter: (e, a) => Assert.Equal(e, a, precision: 3));
-
-    /// <summary>
     /// The statement composes a chained navigation into an <c>OUTER APPLY</c> whose scalar subqueries
     /// reference the outermost row; Dameng answers <c>不支持的语句类型</c>. Measured on 8.1.4.80: the same
     /// scalar subquery in a plain subquery answers, while inside the <c>APPLY</c> it does not. Recorded in

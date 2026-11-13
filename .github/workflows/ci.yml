@@ -48,8 +48,8 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          # Every project of this branch targets the provider's framework, net9.0.
-          dotnet-version: 9.0.x
+          # Every project of this branch targets the provider's framework, net8.0.
+          dotnet-version: 8.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -84,10 +84,10 @@ jobs:
 
       # A warning is a failed build, so no continuation flag is needed here.
       - name: Build
-        run: dotnet build DM.EntityFrameworkCore.slnx -c Release
+        run: dotnet build DM.EntityFrameworkCore.sln -c Release
 
       - name: Unit and SQL shape tests
-        run: dotnet test DM.EntityFrameworkCore.slnx -c Release --no-build
+        run: dotnet test DM.EntityFrameworkCore.sln -c Release --no-build
 
       # The specification project is not in the solution: its cases need a running Dameng instance.
       # It is built, and the part of it that runs without a server - the skip ledger guard - is run.
@@ -110,7 +110,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 8.0.x
 
       - name: Pack, restore in an isolated cache and run the consumer
         shell: pwsh
@@ -148,7 +148,7 @@ jobs:
     steps:
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 8.0.x
 
       - uses: actions/download-artifact@v4
         with:

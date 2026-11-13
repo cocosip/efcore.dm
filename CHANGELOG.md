@@ -13,8 +13,22 @@ This branch is `efcore/8.0`, cut from `efcore/9.0` at `3e937a2` on 2026-11-13. T
 from the 9 line, and the 8 line's own release waits until its specification suite and live acceptance run on
 EF Core 8; anything measured only on 9 is the 9 line's record, not this branch's.
 
-### Added
+### Changed on `efcore/8.0` (EF Core 8)
 
+- The provider targets `net8.0` and depends on `Microsoft.EntityFrameworkCore` `[8.0.0,9.0.0)`; on this line
+  every EF Core package is a range whose floor is 8.0.0.
+- `global.json` pins SDK 8.0.404 and the solution is a classic `.sln`: the 8.0 SDK binds C# 12, which the
+  EF Core 8 query pipeline expects, and CI installs 8.0.x.
+- The migrations lock is removed: EF Core 8's `HistoryRepository` declares no lock members, so no
+  `DBMS_LOCK` named lock is taken and the acceptance console declares 32 steps.
+- The parameterized-collection translation option is removed with its tests; a collection parameter is
+  still rendered as one JSON parameter read through `JSON_TABLE`.
+- `Math.Max` and `Math.Min` are translated by the provider's math translator, because EF Core 8 has no
+  `GenerateGreatest`/`GenerateLeast` hook.
+- The specification suite is rewritten against the 8 base classes, and the skip ledger's rows for cases the
+  8 bases do not declare are removed.
+
+### Added
 - EF Core 10 provider for Dameng (`net10.0`), package `Sharp.DM.EntityFrameworkCore`.
 - Query translation for the relational operators, `DbFunctions` date differences, `ISDATE`, full-text
   `CONTAINS`/`FREETEXT`, and the language and nanosecond forms the reference provider exposes.

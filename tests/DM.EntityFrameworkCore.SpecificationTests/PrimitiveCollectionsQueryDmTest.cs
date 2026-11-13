@@ -106,24 +106,6 @@ public class PrimitiveCollectionsQueryDmTest
     [ConditionalTheory(Skip = DynamicRowLimit)]
     [InlineData(true)]
     [InlineData(false)]
-    public override Task Inline_collection_List_value_index_Column(bool async)
-    {
-        _ = async;
-        return Task.CompletedTask;
-    }
-
-    [ConditionalTheory(Skip = DynamicRowLimit)]
-    [InlineData(true)]
-    [InlineData(false)]
-    public override Task Inline_collection_value_index_Column(bool async)
-    {
-        _ = async;
-        return Task.CompletedTask;
-    }
-
-    [ConditionalTheory(Skip = DynamicRowLimit)]
-    [InlineData(true)]
-    [InlineData(false)]
     public override Task Parameter_collection_index_Column_equal_Column(bool async)
     {
         _ = async;
@@ -134,15 +116,6 @@ public class PrimitiveCollectionsQueryDmTest
     [InlineData(true)]
     [InlineData(false)]
     public override Task Parameter_collection_index_Column_equal_constant(bool async)
-    {
-        _ = async;
-        return Task.CompletedTask;
-    }
-
-    [ConditionalTheory(Skip = DynamicRowLimit)]
-    [InlineData(true)]
-    [InlineData(false)]
-    public override Task Parameter_collection_with_type_inference_for_JsonScalarExpression(bool async)
     {
         _ = async;
         return Task.CompletedTask;
@@ -194,7 +167,7 @@ public class PrimitiveCollectionsQueryDmTest
         return Task.CompletedTask;
     }
 
-    public class PrimitiveCollectionsDmFixture : PrimitiveCollectionsQueryFixtureBase, ITestSqlLoggerFactory
+    public class PrimitiveCollectionsDmFixture : PrimitiveCollectionsQueryFixtureBase
     {
         public TestSqlLoggerFactory TestSqlLoggerFactory
             => (TestSqlLoggerFactory)ListLoggerFactory;

@@ -39,29 +39,29 @@ Every translation test places the expression in a position that requires server 
 | `efcore/10.0` (EF Core 10) | `10.0.14` | xUnit v2 (`xunit.core` 2.9.3) |
 | `dev` (EF Core 10) | `10.0.14` | xUnit v2 |
 | `efcore/9.0` | `9.0.22` | xUnit v2 |
-| `efcore/8.0` | `8.0.34` | xUnit v2 |
+| `efcore/8.0` | `8.0.0` (floor of `[8.0.0,9.0.0)`) | xUnit v2 (`xunit.core` 2.9.3) |
 | EF Core 11 | `11.0.0-rc` | **xUnit v3** (`xunit.v3.assert` 4.x) |
 
-The specification package is built for the framework of its EF Core line, and each branch targets that framework: 9.0.22 ships `net9.0` assets and `efcore/9.0` targets `net9.0`, so the project inherits `DmTargetFramework`. A branch whose package moved ahead of the provider would set `TargetFramework` in the project instead: the test project follows the package, never the other way round.
+The specification package is built for the framework of its EF Core line, and each branch targets that framework: 8.0.0 and 9.0.22 ship `net8.0` and `net9.0` assets respectively, and each branch targets the framework its package ships, so the project inherits `DmTargetFramework`. A branch whose package moved ahead of the provider would set `TargetFramework` in the project instead: the test project follows the package, never the other way round.
 
 
-This document is maintained per branch, and its measured numbers describe `efcore/9.0` here. `efcore/8.0` was
-cut from it on 2026-11-13 and still carries the 9 line's project files, so the counts, the ledger and the live
-measurements below are the 9 line's until P8 rebuilds them from an EF Core 8 run. The 8 line's skeleton differs
-in three places the build answers on its own: `net8.0` instead of `net9.0`, specification package 8.0.34, and no
-migrations lock abstract members to implement.
+This document is maintained per branch. Its offline numbers now describe `efcore/8.0`: the Release build, the
+553 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0,
+the skip ledger guard and the package smoke test all pass on SDK 8.0.404. The **live** numbers below — the
+acceptance console and the specification suite — are the 9 line's, because the instance was not reachable while
+the 8 line was adapted; they stay attributed to `efcore/9.0` until this branch runs them.
 
 ### Dependency pinning
 
 The specification test package pins its own dependency versions, which must be honoured:
 
-- `xunit.core` and `xunit.assert` 2.9.3, `xunit.runner.visualstudio` 3.1.3 on the EF Core 8/9/10 branches
-- `NetTopologySuite` 2.6.0, `Newtonsoft.Json` 13.0.4
-- `Microsoft.CodeAnalysis.*` 5.0.0, `Mono.TextTemplating` 3.0.0
+- `xunit` 2.9.3, `xunit.runner.visualstudio` 3.1.3 on the EF Core 8/9/10 branches. The 8.0.0 package pins `xunit.core` and `xunit.assert` at 2.4.2, and that version's analyzer rejects the EF base classes (`xUnit1013` on methods EF leaves public without an attribute), so the project references the newer compatible xunit instead of the floor
+- `NetTopologySuite` 2.5.0 and `NetTopologySuite.IO.GeoJSON` 4.0.0, `Newtonsoft.Json` 13.0.3
+- `Microsoft.CodeAnalysis.CSharp` 4.5.0; the 8.0.0 package has no `Mono.TextTemplating` dependency
 
-Rule: the **specification test project** is exempt from central package management, because the EF Core test package pins `xunit.core` and `xunit.assert` at 2.9.3 and its own analysis and templating versions. The unit test project follows the central versions, since it inherits nothing from EF Core. Do not raise the specification test project's xunit versions independently of the EF Core version: they move together.
+Rule: the **specification test project** is exempt from central package management, because it follows the EF Core test package's own analysis versions rather than the central ones. The unit test project follows the central versions, since it inherits nothing from EF Core. Do not raise the specification test project's xunit versions independently of the EF Core version: they move together.
 
-`Microsoft.EntityFrameworkCore.Design` and `Microsoft.Extensions.Configuration.UserSecrets` are build and test tooling, never part of the package, so they follow the highest patch of the line through a floating version (`$(EfCoreToolingVersion)`, `9.0.*` here) rather than the dependency range: a range resolves its floor, and the `9.0.0` tooling pulls transitive packages NuGet audit reports as vulnerable. A floating version is answered by the restore, so a tooling patch needs no branch edit while the audit stays meaningful and `TreatWarningsAsErrors` keeps doing its job. The provider itself still compiles against the floor of the range, and the packed nuspec carries the range, so a consumer on any patch of the major can install the package. Central package management rejects a floating version unless `CentralPackageFloatingVersionsEnabled` is set, which `Directory.Packages.props` does.
+`Microsoft.EntityFrameworkCore.Design` and `Microsoft.Extensions.Configuration.UserSecrets` are build and test tooling, never part of the package, and on this line they are ranges with an 8.0.0 floor (`$(EfCoreDesignVersionRange)` and `$(UserSecretsVersionRange)`, both `[8.0.0,9.0.0)`) rather than floating versions or a fixed patch. A range resolves its floor, so the tooling the build uses is the first release of the major, the same version the provider compiles against, and the packed nuspec carries `[8.0.0,9.0.0)` for the provider dependency, so a consumer on any 8.x patch can install the package. No `CentralPackageFloatingVersionsEnabled` switch is needed, because no version on this line floats.
 
 ### Test framework follows the EF Core version
 
@@ -137,10 +137,13 @@ difference from a known baseline; no behaviour changed because of it.
 
 ### What the live runs measured
 
-The acceptance console has 33 steps on the EF Core 9 branch (34 before the `right join` step was dropped, because
-`RightJoinExpression` does not exist on this line) and passed on DM 8.1.4.80 in both compatibility modes on 2026-11-13.
+The acceptance console has 32 steps on the EF Core 8 branch: 34 on the 10 line, less the `right join` step,
+because `RightJoinExpression` does not exist before EF Core 10, and less the
+`migrations: concurrent deployments` step, because EF Core 8 declares no migration lock. The live run
+reported below is the 9 line's, which has 33 steps; on this branch the console has not been run against an
+instance. The 9 line passed all 33 steps on DM 8.1.4.80 in both compatibility modes on 2026-11-13.
 It covers the query surface, the retry and cancellation behaviour, JSON, intervals, computed columns,
-ambient transactions and the migrations steps, including four migrations started at once. The steps do
+ambient transactions and the migrations steps, including four migrations started at once on that line. The steps do
 not only re-run what the unit tests already say: they are where the server's shape is observed, and each
 step pins the measurement that decided a translation. The console leaves no table, sequence or history
 row behind, and `scripts/design-time-smoke.ps1` covers `dotnet ef` end to end against a live instance.
@@ -154,6 +157,10 @@ provider's ceiling is therefore mapped to `NCLOB`/`BLOB`, which is why the speci
 
 `tests/DM.EntityFrameworkCore.SpecificationTests` runs against a live instance, is not part of the
 solution and does not run in CI; the pipeline builds it and runs the skip ledger guard.
+
+The rows below are the **`efcore/9.0`** run, kept as the reference until this branch runs its own; the
+8 base classes declare fewer cases and skip a different number themselves, so a per-set count is not this
+branch's count.
 
 | Suite | Results | Result |
 |---|---|---|
@@ -170,13 +177,14 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 | `NorthwindAggregateOperatorsQueryDmTest` | 420 | 418 pass, 2 skipped (the two ledger cases) |
 | `NorthwindIncludeQueryDmTest` | 232 | 230 pass, 2 skipped (two empty-list ordering cases) |
 | `UpdatesDmTest` | 36 | 35 pass, 1 skipped (filtered unique index) |
-| `UpdatesDmTest` | 36 | 35 pass, 1 skipped (filtered unique index) |
 | `MigrationsDmTest` | 131 | 112 pass, 19 skipped |
 | `SkipLedgerTests` | 1 | all pass |
 
-Whole project: 4034 results, 3961 passed, 73 skipped, 0 failed. A skipped theory is reported once even
-though its two async forms are both data rows, so the 73 cases in the ledger appear as 73 skipped
-results: 61 this project declares, plus the 12 the shipped EF Core 9 base skips. The specification project
+Whole project on the 9 line: 4034 results, 3961 passed, 73 skipped, 0 failed. A skipped theory is reported once
+even though its two async forms are both data rows, so the 73 cases in the ledger appear as 73 skipped
+results: 61 that project declares, plus the 12 the shipped EF Core 9 base skips. On this branch the ledger
+no longer holds the rows whose case the 8 base does not declare, and the total is unmeasured until the suite
+runs on 8. The specification project
 runs its collections serially (`xunit.runner.json`) because
 every fixture shares one database and a fixture that recreates the Northwind tables would otherwise race
 another class. The store drops the objects its model declares; the updates fixture and the migrations
@@ -240,7 +248,7 @@ Work is not reclassified as complete. Rules:
 
 Its `query:` steps ask the server a question and compare the answer with the value .NET computes from the rows the step wrote: the string functions, the date parts and the arithmetic (including a month end, where a clamp and a time of day are both asserted), the date differences, the math functions, paging and ordering, grouping and aggregates, null semantics, and a boolean condition in a projection. A translation that is generated but wrong passes every shape test and fails here; both defects found so far were found by these steps or by the step next to them.
 
-Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Concurrent migration locking is exercised by the console's concurrent-deployment step. Applying a migration *down* and a custom history table are not covered by the console; the `dotnet ef` add/update/list/remove/scaffold path is covered by `scripts/design-time-smoke.ps1`, and the migrations specification suite has no infrastructure base yet.
+Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Concurrent migration locking is not exercised here: EF Core 8 declares no migration lock, so this branch has no concurrent-deployment step (the 9 line has one, and its `DBMS_LOCK` named lock is removed on this branch). Applying a migration *down* and a custom history table are not covered by the console; the `dotnet ef` add/update/list/remove/scaffold path is covered by `scripts/design-time-smoke.ps1`, and the migrations specification suite has no infrastructure base yet.
 
 It reads the connection string from its first argument, from `ConnectionStrings__Dm`, or from user secrets (`dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation`), in that order of specificity, so no credential has to sit in the repository; `--secrets=<key>` reads `ConnectionStrings:<key>` for a second instance. It never prints the string. It creates its own prefixed tables through the relational database creator rather than through `EnsureCreated`, because a Dameng database is made with the `dminit` tool before a connection can reach it and the catalog may already hold tables the run does not own. Each run marks its rows with an identifier, isolates them from another run, drops only the tables it created, and returns a non-zero exit code when any step fails. `--keep` leaves the tables behind for inspection. `--dry-run` builds the model and generates the schema script without a database, prints the declared steps, and returns a non-zero exit code when the model no longer produces the tables and the sequence a run needs. It also compares the shipped migration snapshot with the model and generates the idempotent script of that migration, failing when the snapshot no longer matches or the script has lost its guards or gained a statement Dameng does not define; that is the check a build machine can run, and it is why the sample does not rot between the runs that have an instance.
 

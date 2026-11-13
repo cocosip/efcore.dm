@@ -361,7 +361,7 @@ public class DmStringTranslationTests
             """
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
-            WHERE (SUBSTR("p"."Name", 1, 3) || SUBSTR("p"."Name", 6)) = 'x'
+            WHERE (COALESCE(SUBSTR("p"."Name", 1, 3), '') || COALESCE(SUBSTR("p"."Name", 6), '')) = 'x'
             """);
     }
 
@@ -375,7 +375,7 @@ public class DmStringTranslationTests
             """
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
-            WHERE ((SUBSTR("p"."Name", 1, 3) || 'y') || SUBSTR("p"."Name", 4)) = 'x'
+            WHERE ((COALESCE(SUBSTR("p"."Name", 1, 3), '') || 'y') || COALESCE(SUBSTR("p"."Name", 4), '')) = 'x'
             """);
     }
 
