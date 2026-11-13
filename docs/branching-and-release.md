@@ -37,9 +37,10 @@ dev (EF11) ----------------------------->  integration
 ```
 
 1. A version branch starts from the previous line's branch at the moment that line starts, so it inherits every capability the previous line already has. Creating it from an older tag would drop the difference between the lines into a single step, where it could not be attributed to EF Core 9 or EF Core 10.
-2. Work is committed on the version branch, and its release tags are placed on that branch. An EF Core 8, 9 or 10 branch never merges into `dev` or `master`.
-3. `dev` is reserved for EF Core 11 integration and `master` for EF Core 11 packaging. During the transition they still contain the EF Core 10 ancestry; they receive no further EF Core 10 commits, and no `v10.x` tag is placed on either.
-4. A branch is closed when its line stops receiving changes. A line that only receives defect fixes is a tag plus a temporary `hotfix/X.Y.Z` branch, not a long-lived branch.
+2. Tags are placed on the branch that owns the line and are never a branch source for another line. A line starts when the decision to serve it is taken, not when the line above it is released; one line's release never gates another line's start.
+3. Work is committed on the version branch, and its release tags are placed on that branch. An EF Core 8, 9 or 10 branch never merges into `dev` or `master`.
+4. `dev` is reserved for EF Core 11 integration and `master` for EF Core 11 packaging. During the transition they still contain the EF Core 10 ancestry; they receive no further EF Core 10 commits, and no `v10.x` tag is placed on either.
+5. A branch is closed when its line stops receiving changes. A line that only receives defect fixes is a tag plus a temporary `hotfix/X.Y.Z` branch, not a long-lived branch.
 
 ## 3. Synchronization
 
@@ -140,7 +141,7 @@ The trigger is the decision to support that version, not its release date. Steps
 
 1. The newest line uses `dev` for integration and `master` for packaging and tags. When EF Core 11 starts, retarget `dev`/`master` to `net11.0`; no separate `efcore/11.0` branch is created while it is the newest line.
 2. When EF Core 11 is no longer the newest line, create `efcore/11.0` from its last release tag, and move `dev`/`master` to the new line. Tags for the old line stay on `efcore/11.0`.
-3. Create a maintenance branch for an older major version from its last release tag, if that line will receive new capabilities. If it will only receive defect fixes, no branch is created; use `hotfix/X.Y.Z` from the tag.
+3. Create a maintenance branch for an older major version from the newest line's branch at the moment that line starts. Do not wait for, and do not branch from, the newer line's release tag: that tag belongs to the newer line, and the older line's own `v` tags are placed on its own branch when it releases. A line that will only receive defect fixes gets no branch; use `hotfix/X.Y.Z` from a tag.
 4. Update the branch table in this document and the support table in `README.md`.
 5. Work through [Version Matrix](version-matrix.md) for the transition.
 

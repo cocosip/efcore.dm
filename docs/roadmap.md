@@ -74,14 +74,14 @@ Largest phase, roughly 35–40% of the total effort.
 |---|---|
 | Delivers | Packaging with tag, package and assembly version agreement; consumer smoke test in an isolated NuGet cache; full live acceptance on Windows and Linux in both compatibility modes; final documentation |
 | Exit criteria | The produced package works in a fresh consumer project; the EF Core dependency range carries an upper bound; no `Known defect` ledger entries remain; `DmProviderValidation` passes every step |
-| Produces | Tag `v10.0.x` on `efcore/10.0`; that tag is the source for the EF Core 9 maintenance branch |
+| Produces | Tag `v10.0.x` on `efcore/10.0`. The tag belongs to this line and is not a precondition for any other line |
 
 ### P7 — EF Core 9 maintenance branch
 
 | Item | Detail |
 |---|---|
-| Precondition | P6 complete and tagged |
-| Delivers | Branch created from the EF Core 10 release tag; target framework `net8.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md); `v9.0.x` tags stay on `efcore/9.0` |
+| Precondition | P6 code complete on `efcore/10.0`. The `v10.0.x` tag is not a precondition: a tag belongs to the line that owns it, and this line's start waits for no other line's release |
+| Delivers | Branch created from `efcore/10.0` at the moment the line starts, not from a tag; target framework `net8.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md); `v9.0.x` tags stay on `efcore/9.0` |
 | Exit criteria | Specification tests pass for every executable case; live acceptance passes; `v9.0.x` published |
 
 ### P8 — EF Core 8 maintenance branch

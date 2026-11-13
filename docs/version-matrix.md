@@ -140,7 +140,7 @@ Checked for every version transition.
 
 ## 7. Reverse adaptation procedure
 
-Applied when creating a maintenance branch, newest to oldest.
+Applied when creating a maintenance branch, newest to oldest. The branch is created from the newest line's branch at the moment this procedure starts; no other line's release tag is a precondition, and the branch's own `v` tags are placed on it when it releases.
 
 1. Set the EF Core dependency range, the specification test package version, and the target framework.
 2. Handle compile errors first: APIs that do not exist on the older version fail the build.
