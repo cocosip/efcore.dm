@@ -97,14 +97,14 @@ Set-Content (Join-Path $work 'Probe.csproj') @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <NoWarn>`$(NoWarn);EF1001</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="$provider" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="[8.0.0,9.0.0)" />
   </ItemGroup>
 </Project>
 "@

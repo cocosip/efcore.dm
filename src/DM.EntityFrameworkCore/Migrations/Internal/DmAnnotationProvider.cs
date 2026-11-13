@@ -64,15 +64,19 @@ internal sealed class DmAnnotationProvider : RelationalAnnotationProvider
     /// </summary>
     internal static IProperty? IdentityProperty(IColumn column)
     {
-        if (column.PropertyMappings.FirstOrDefault()?.Property is not { } property)
-        {
-            return null;
-        }
-
         var table = StoreObjectIdentifier.Table(column.Table.Name, column.Table.Schema);
 
-        return property.GetDmValueGenerationStrategy(table) == DmValueGenerationStrategy.IdentityColumn
-            ? property
-            : null;
+        // A column carries one mapping per property that shares it: the key of an owned type and the
+        // owner's key, or the keys of the types of a hierarchy. The first mapping is not necessarily the
+        // one that names the strategy, so every mapping is asked rather than the first one only.
+        foreach (var mapping in column.PropertyMappings)
+        {
+            if (mapping.Property.GetDmValueGenerationStrategy(table) == DmValueGenerationStrategy.IdentityColumn)
+            {
+                return mapping.Property;
+            }
+        }
+
+        return null;
     }
 }

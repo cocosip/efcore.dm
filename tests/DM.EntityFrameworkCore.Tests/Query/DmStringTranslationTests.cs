@@ -236,6 +236,22 @@ public class DmStringTranslationTests
             """);
     }
 
+    /// <summary>
+    /// Dameng answers <c>INSTR(x, '')</c> with null, measured on 8.1.4.80 in both compatibility modes,
+    /// while .NET answers <c>IndexOf("")</c> with 0 for any string, so the empty needle is a constant.
+    /// </summary>
+    [Fact]
+    public void IndexOf_WithEmptyString_AnswersZero()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name!.IndexOf("")),
+            """
+            SELECT 0
+            FROM "Probes" AS "p"
+            """);
+    }
     [Fact]
     public void StringConcatenation_UsesTheDoublePipeOperator()
     {

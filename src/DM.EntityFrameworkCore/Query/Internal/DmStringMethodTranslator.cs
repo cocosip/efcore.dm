@@ -296,6 +296,14 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         // -1, so subtracting one moves both ends at once.
         if (method == IndexOfMethod || method == IndexOfCharacterMethod)
         {
+            // Dameng answers INSTR(x, '') with null, measured on 8.1.4.80 in both compatibility modes,
+            // while .NET answers IndexOf("") with 0 for any string. The framework folds a conditional
+            // over the constant to the constant itself, so the empty needle is written as it is.
+            if (method == IndexOfMethod && arguments[0] is SqlConstantExpression { Value: "" })
+            {
+                return _sqlExpressionFactory.Constant(0);
+            }
+
             return _sqlExpressionFactory.Subtract(IndexOf(instance, arguments[0]), _sqlExpressionFactory.Constant(1));
         }
 

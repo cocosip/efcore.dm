@@ -45,11 +45,11 @@ Every translation test places the expression in a position that requires server 
 The specification package is built for the framework of its EF Core line, and each branch targets that framework: 8.0.0 and 9.0.22 ship `net8.0` and `net9.0` assets respectively, and each branch targets the framework its package ships, so the project inherits `DmTargetFramework`. A branch whose package moved ahead of the provider would set `TargetFramework` in the project instead: the test project follows the package, never the other way round.
 
 
-This document is maintained per branch. Its offline numbers now describe `efcore/8.0`: the Release build, the
-553 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0,
-the skip ledger guard and the package smoke test all pass on SDK 8.0.404. The **live** numbers below — the
-acceptance console and the specification suite — are the 9 line's, because the instance was not reachable while
-the 8 line was adapted; they stay attributed to `efcore/9.0` until this branch runs them.
+This document is maintained per branch. Its numbers describe `efcore/8.0`: the Release build, the 557 unit
+and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0, the skip
+ledger guard and the package smoke test all pass on SDK 8.0.404. The **live** numbers below are this
+branch's: the acceptance console, the design-time smoke test, the feature probe and the specification suite
+ran against DM 8.1.4.80 on 2026-11-13.
 
 ### Dependency pinning
 
@@ -139,14 +139,23 @@ difference from a known baseline; no behaviour changed because of it.
 
 The acceptance console has 32 steps on the EF Core 8 branch: 34 on the 10 line, less the `right join` step,
 because `RightJoinExpression` does not exist before EF Core 10, and less the
-`migrations: concurrent deployments` step, because EF Core 8 declares no migration lock. The live run
-reported below is the 9 line's, which has 33 steps; on this branch the console has not been run against an
-instance. The 9 line passed all 33 steps on DM 8.1.4.80 in both compatibility modes on 2026-11-13.
-It covers the query surface, the retry and cancellation behaviour, JSON, intervals, computed columns,
-ambient transactions and the migrations steps, including four migrations started at once on that line. The steps do
-not only re-run what the unit tests already say: they are where the server's shape is observed, and each
-step pins the measurement that decided a translation. The console leaves no table, sequence or history
-row behind, and `scripts/design-time-smoke.ps1` covers `dotnet ef` end to end against a live instance.
+`migrations: concurrent deployments` step, because EF Core 8 declares no migration lock. All 32 steps
+passed on DM 8.1.4.80 in both compatibility modes on 2026-11-13. It covers the query surface, the retry and
+cancellation behaviour, JSON, intervals, computed columns, ambient transactions and the migrations steps.
+The steps do not only re-run what the unit tests already say: they are where the server's shape is
+observed, and each step pins the measurement that decided a translation. The console leaves no table,
+sequence or history row behind.
+
+`scripts/design-time-smoke.ps1` covers `dotnet ef` end to end against a live instance: it builds a
+throwaway project that references the provider, adds, scripts, applies, lists and removes a migration, and
+scaffolds the schema back into a compiling model. It passed on DM 8.1.4.80 in the Oracle-compatible mode on
+2026-11-13. The throwaway project targets `net8.0` with `Microsoft.EntityFrameworkCore.Design`
+`[8.0.0,9.0.0)`, which is the branch's framework and dependency range; a project that pulled a newer EF Core
+than the provider implements failed to create the context, which is the same boundary the range policy
+draws for the package.
+
+`samples/DmProviderFeatureProbe` ran against the same instance in both compatibility modes on 2026-11-13:
+44 steps passed in each.
 
 The server accepts a declared length larger than a row can hold: on 8.1.4.80 a single value above about
 4000 bytes is refused with `记录超长` whatever the column declares. A string or byte array past the
@@ -158,33 +167,37 @@ provider's ceiling is therefore mapped to `NCLOB`/`BLOB`, which is why the speci
 `tests/DM.EntityFrameworkCore.SpecificationTests` runs against a live instance, is not part of the
 solution and does not run in CI; the pipeline builds it and runs the skip ledger guard.
 
-The rows below are the **`efcore/9.0`** run, kept as the reference until this branch runs its own; the
-8 base classes declare fewer cases and skip a different number themselves, so a per-set count is not this
-branch's count.
+The rows below are the **`efcore/8.0`** run of 2026-11-13 against DM 8.1.4.80, measured on the same instance
+as the console.
 
 | Suite | Results | Result |
 |---|---|---|
 | `BuiltInDataTypesDmTest` | 31 | 30 pass, 1 skipped |
 | `StoreGeneratedDmTest` | 211 | all pass |
-| `NorthwindWhereQueryDmTest` | 476 | 475 pass, 1 skipped (the ledger case) |
+| `NorthwindWhereQueryDmTest` | 446 | 445 pass, 1 skipped (the ledger case) |
 | `NorthwindNavigationsQueryDmTest` | 146 | all pass |
-| `NorthwindMiscellaneousQueryDmTest` | 954 | 947 pass, 7 skipped (server-ordering and limit cases) |
+| `NorthwindMiscellaneousQueryDmTest` | 911 | 904 pass, 7 skipped (server-ordering and limit cases) |
 | `NorthwindBulkUpdatesDmTest` | 164 | 156 pass, 8 skipped (three upstream skips and five ledger cases) |
-| `PrimitiveCollectionsQueryDmTest` | 244 | 226 pass, 18 skipped (one upstream skip and 17 ledger cases) |
-| `NorthwindJoinQueryDmTest` | 121 | 118 pass, 3 skipped (two upstream, one ledger case) |
-| `NorthwindSelectQueryDmTest` | 360 | 356 pass, 4 skipped (the four ledger cases) |
+| `PrimitiveCollectionsQueryDmTest` | 141 | 124 pass, 17 skipped (one upstream skip and sixteen ledger cases) |
+| `NorthwindJoinQueryDmTest` | 119 | 116 pass, 3 skipped (two upstream, one ledger case) |
+| `NorthwindSelectQueryDmTest` | 348 | 344 pass, 4 skipped (the four ledger cases) |
 | `NorthwindGroupByQueryDmTest` | 507 | 500 pass, 7 skipped (four upstream, three ledger cases) |
-| `NorthwindAggregateOperatorsQueryDmTest` | 420 | 418 pass, 2 skipped (the two ledger cases) |
+| `NorthwindAggregateOperatorsQueryDmTest` | 390 | 386 pass, 4 skipped (the four ledger cases) |
 | `NorthwindIncludeQueryDmTest` | 232 | 230 pass, 2 skipped (two empty-list ordering cases) |
-| `UpdatesDmTest` | 36 | 35 pass, 1 skipped (filtered unique index) |
-| `MigrationsDmTest` | 131 | 112 pass, 19 skipped |
+| `UpdatesDmTest` | 31 | 30 pass, 1 skipped (filtered unique index) |
+| `MigrationsDmTest` | 102 | 88 pass, 14 skipped |
 | `SkipLedgerTests` | 1 | all pass |
 
-Whole project on the 9 line: 4034 results, 3961 passed, 73 skipped, 0 failed. A skipped theory is reported once
-even though its two async forms are both data rows, so the 73 cases in the ledger appear as 73 skipped
-results: 61 that project declares, plus the 12 the shipped EF Core 9 base skips. On this branch the ledger
-no longer holds the rows whose case the 8 base does not declare, and the total is unmeasured until the suite
-runs on 8. The specification project
+Whole project: 3780 results, 3711 passed, 69 skipped, 0 failed. A skipped theory is reported once even
+though its two async forms are both data rows, so the 69 cases in the ledger appear as 69 skipped results:
+59 that project declares, plus the 10 the shipped EF Core 8 base skips. This run found and fixed five
+defects the 9 line does not have: the fixture's asynchronous seed is never called on 8, which left the
+keyless tables empty; a column shared with an owned type carried no identity attribute, because the
+annotation provider read only the first property mapping; a bitwise `&` or `|` between booleans was
+rendered as the operator, which the server rejects with `语法分析出错`; `IndexOf("")` was rendered as
+`INSTR(x, '') - 1`, which the server answers with null; and the design-time smoke project still targeted
+`net10.0`. The two average-of-subquery cases compare at three decimal places as the reference provider
+does. The specification project
 runs its collections serially (`xunit.runner.json`) because
 every fixture shares one database and a fixture that recreates the Northwind tables would otherwise race
 another class. The store drops the objects its model declares; the updates fixture and the migrations

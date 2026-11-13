@@ -111,6 +111,35 @@ public class DmAnnotationProviderTests
         Assert.Contains("IDENTITY(1,1)", Assert.Single(sql).CommandText, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// A column carries one mapping per property that shares it. An owned type maps its foreign key to
+    /// the owner's key column here, and that mapping comes first, so the identity the owner's key names
+    /// has to be found from the mappings and not from the first one only.
+    /// </summary>
+    [Fact]
+    public void Differ_FindsTheIdentityOnAColumnSharedWithAnOwnedType()
+    {
+        using var context = new OwnedKeyContext(new FakeDmConnection());
+
+        var createTable = Assert.Single(Differences(context).OfType<CreateTableOperation>());
+        var column = Assert.Single(createTable.Columns, c => c.Name == "OwnerId");
+
+        var mappings = context.Model.GetRelationalModel()
+            .FindTable("Probes", null)!
+            .FindColumn("OwnerId")!
+            .PropertyMappings.ToList();
+
+        Assert.True(mappings.Count > 1, "the column has to be shared for this case to exercise the rule");
+
+
+        Assert.NotEqual(
+            DmValueGenerationStrategy.IdentityColumn,
+            mappings[0].Property.GetDmValueGenerationStrategy(StoreObjectIdentifier.Table("Probes", null)));
+
+        Assert.Equal(
+            DmValueGenerationStrategy.IdentityColumn,
+            column[DmPropertyExtensions.ValueGenerationStrategyAnnotation]);
+    }
     private static IReadOnlyList<MigrationOperation> Differences(DbContext context)
     {
         var differ = context.GetService<IMigrationsModelDiffer>();
@@ -182,6 +211,36 @@ public class DmAnnotationProviderTests
         }
     }
 
+    private sealed class OwnedKeyContext : ProbeContext
+    {
+        public OwnedKeyContext(FakeDmConnection connection)
+            : base(connection)
+        {
+        }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Owner>(
+                e =>
+                {
+                    e.ToTable("Probes");
+                    e.HasKey(o => o.OwnerId);
+                    e.OwnsOne(o => o.Address);
+                });
+    }
+
+    private sealed class Owner
+    {
+        public int OwnerId { get; set; }
+
+        public Address Address { get; set; } = null!;
+    }
+
+    private sealed class Address
+    {
+        public int OwnerId { get; set; }
+
+        public string? City { get; set; }
+    }
     private sealed class Probe
     {
         public int Id { get; set; }

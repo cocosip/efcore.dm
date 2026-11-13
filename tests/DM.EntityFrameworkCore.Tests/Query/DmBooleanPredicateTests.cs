@@ -54,6 +54,38 @@ public class DmBooleanPredicateTests
     }
 
     /// <summary>
+    /// EF Core 8 renders a bitwise <c>&amp;</c> between two booleans as the operator itself, which the
+    /// server rejects (<c>语法分析出错</c>, measured on 8.1.4.80), so the provider translates it to the
+    /// logical form. A bitwise <c>|</c> is the same question answered with <c>OR</c>.
+    /// </summary>
+    [Fact]
+    public void ABitwiseAndBetweenBooleans_BecomesAnd()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Flag", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE "p"."Flag" = 1 AND "p"."Id" > 1
+            """,
+            Statement(context.Probes.Where(p => p.Flag & (p.Id > 1)).ToQueryString()));
+    }
+
+    [Fact]
+    public void ABitwiseOrBetweenBooleans_BecomesOr()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Flag", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE "p"."Flag" = 1 OR "p"."Id" > 1
+            """,
+            Statement(context.Probes.Where(p => p.Flag | (p.Id > 1)).ToQueryString()));
+    }
+    /// <summary>
     /// The predicate is rebuilt rather than amended, so the rest of the statement has to survive it.
     /// </summary>
     [Fact]

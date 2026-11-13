@@ -119,11 +119,11 @@ public class NorthwindBulkUpdatesDmTest
         /// <c>CustomerQueries</c> set another fixture seeds for its cases. Refill it here so the
         /// serial run does not depend on which class ran first.
         /// </summary>
-        protected override async Task SeedAsync(NorthwindContext context)
+        protected override void Seed(NorthwindContext context)
         {
-            await base.SeedAsync(context);
+            base.Seed(context);
 
-            await context.Database.ExecuteSqlRawAsync(
+            context.Database.ExecuteSqlRaw(
                 """
                 INSERT INTO "CustomerQueries" ("CompanyName", "ContactName", "ContactTitle", "Address", "City")
                 SELECT "CompanyName", "ContactName", "ContactTitle", "Address", "City" FROM "Customers"

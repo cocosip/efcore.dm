@@ -29,11 +29,11 @@ public abstract class NorthwindQueryDmFixtureBase : NorthwindQueryRelationalFixt
         => base.AddOptions(builder)
             .ConfigureWarnings(c => c.Log(RelationalEventId.MultipleCollectionIncludeWarning));
 
-    protected override async Task SeedAsync(NorthwindContext context)
+    protected override void Seed(NorthwindContext context)
     {
-        await base.SeedAsync(context);
+        base.Seed(context);
 
-        await context.Database.ExecuteSqlRawAsync(
+        context.Database.ExecuteSqlRaw(
             """
             INSERT INTO "CustomerQueries" ("CompanyName", "ContactName", "ContactTitle", "Address", "City")
             SELECT "CompanyName", "ContactName", "ContactTitle", "Address", "City" FROM "Customers"

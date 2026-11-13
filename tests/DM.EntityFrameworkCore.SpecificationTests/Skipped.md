@@ -8,124 +8,94 @@ A case that does not pass is marked `Skip` in the test class with the same reaso
 it as skipped rather than failed; the ledger remains the record of the measurement. A skipped theory is
 reported once even though it carries the synchronous and the asynchronous form as two data rows.
 
-This branch has not run its suite yet. `efcore/8.0` was adapted against EF Core 8 on 2026-11-13, and the
-offline gate — the specification project build against 8.0.0 and this guard — passes, but the live run needs
-an instance that was not reachable. The last measured live run is the `efcore/9.0` one of 2026-11-13 against
-DM 8.1.4.80, `COMPATIBLE_MODE` 2: 4034 results, 3961 passed, 73 skipped, 0 failed — 73 cases, 61 that project
-declares plus the 12 the shipped EF Core 9 base skips. The paragraphs between here and the first section are
-the `efcore/10.0` line's measurements, kept as history. The 8 base declares fewer cases, so the rows that
-named a case it does not declare left this file together with the 8 overrides; its own case count is
-unmeasured until the suite runs on 8.
+Measured on 2026-11-13 against DM 8.1.4.80: 3780 results, 3711 passed, 69 skipped, 0 failed. The 69 cases
+are the 59 this project declares plus the 10 the shipped EF Core 8 base skips: three of the `BulkUpdates`
+set, four of `GroupBy`, two of `Join` and one `PrimitiveCollections` case. The Northwind, store generated and
+migrations sets ran against an instance in the Oracle-compatible mode and the `PrimitiveCollections` set
+against the same server in its default mode, which is the reason given beside that suite.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
 store drops the objects its model declares, and the updates and migrations fixtures own a schema of their
 own, so the database it runs against keeps every object an application already has.
 
-Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 31 cases, 30 passed, 1 skipped. The
-skipped case is below, and it is the whole of the gap this fixture set exposes.
+The `BuiltInDataTypes` set (`BuiltInDataTypesDmTest`, 31 cases): 30 passed, 1 skipped. The skipped case is
+below, and it is the whole of the gap this fixture set exposes.
 
-The store generated fixture set (`StoreGeneratedDmTest`, 211 cases) ran against the same instance on
-2026-11-11 and every case passed, so it adds no entry here.
+The store generated set (`StoreGeneratedDmTest`, 211 cases) and the `Navigations` set
+(`NorthwindNavigationsQueryDmTest`, 146 cases) ran against the same instance and every case passed, so
+neither adds an entry.
 
-The `Where` set of the Northwind query suite (`NorthwindWhereQueryDmTest`, 408 cases) ran against the
-same instance on 2026-11-11 and every case passed, so it adds no entry either. Nine of its cases
-compare two constructed values, which the relational pipeline does not translate for any provider; the
-class asserts that failure, as the SQL Server test does, so those cases pass as written (EF Core issue
-#14672).
+The `Where` set (`NorthwindWhereQueryDmTest`, 446 results): 445 passed, 1 skipped (one case covering its two
+async forms). The case is below. Nine of its cases compare two constructed values, which the relational
+pipeline does not translate for any provider; the class asserts that failure, as the SQL Server test does,
+so those cases pass as written (EF Core issue #14672). The bitwise cases of this set, of `Select` and of
+`Miscellaneous` found a defect this line alone has: EF Core 8 renders `&` and `|` between two booleans as
+the operators themselves, and the server rejects both (`语法分析出错`, 14 cases), so the translator now
+answers them with the framework's `AND` and `OR`; the two-valued operands make the bitwise form the logical
+one.
 
-The `Navigations` set of the Northwind query suite (`NorthwindNavigationsQueryDmTest`, 146 cases) ran
-against the same instance on 2026-11-13 and every case passed, so it adds no entry.
+The `Miscellaneous` set (`NorthwindMiscellaneousQueryDmTest`, 911 results): 904 passed, 7 skipped (six cases
+below covering twelve async executions, and one case the shipped base skips). The run found no other
+provider defect; the bitwise cases are the ones recorded in the `Where` paragraph.
 
-The `Miscellaneous` set of the Northwind query suite (`NorthwindMiscellaneousQueryDmTest`, 930 results)
-ran against the same instance on 2026-11-13: 921 passed, 9 skipped (eight cases below covering 16 async
-executions, and one case the shipped base skips), and 0 failed. The run found and fixed provider defects
-rather than recording them: `uint.ToString` was not translated although `TO_CHAR` formats it; a
-culture-sensitive `string.Equals(..., StringComparison)` was silently compared as an ordinal one; and a
-token that was already cancelled reached the driver and surfaced as `TaskCanceledException` rather than
-the framework's `OperationCanceledException`. The test host also runs with globalization enabled now, so
-the upstream case that formats a date with `en-US` can resolve the culture. Four upstream cases whose
-base body leaves the expected exception to the provider test are asserted in the class, as the SQL Server
-test does: the empty `Max`, the composite-key entity equality, the client-code guard checks, and the DTO
-projection case recorded as EF Core issue #24478.
+The `BulkUpdates` set (`NorthwindBulkUpdatesDmTest`, 164 results): 156 passed, 8 skipped (three cases the
+shipped base skips and five cases below), 0 failed. The five are the two server limitations in an update
+source (`APPLY` and a left-joined projection) and the three upstream assertions that expect SQL Server's
+empty-string coalesce where this provider preserves `NULL`.
 
-The `BulkUpdates` set (`NorthwindBulkUpdatesDmTest`, 180 results) ran against the same instance on
-2026-11-13: 172 passed, 8 skipped (three cases the shipped base skips and five cases below), and 0
-failed. The five are two server limitations in an update source (`APPLY` and a left-joined projection)
-and two upstream assertions that expect SQL Server's empty-string coalesce where this provider preserves
-`NULL`; the raw-SQL case was corrected to the model's `OrderDetails` table name and passes.
+The `PrimitiveCollections` set (`PrimitiveCollectionsQueryDmTest`, 141 results) ran on the
+default-compatibility instance: 124 passed, 17 skipped (one case the shipped base skips and the sixteen
+below), 0 failed. The fixture uses `COMPATIBLE_MODE=0` because the upstream seed writes an empty string into
+a required column, which the Oracle-compatible mode stores as `null` and refuses. Two cases of this set
+cannot run on EF Core 8 at all: the framework refuses an empty inline collection before translation, which
+the 9 line accepts, so they are recorded as a framework limitation rather than a provider one. The remaining
+skips are the server's refusal of a dynamic `LIMIT`/`OFFSET` expression, `JSON_TABLE` refusing `BIT`, and
+the row order the collection paging assertions expect.
 
-The `PrimitiveCollections` set (`PrimitiveCollectionsQueryDmTest`, 156 results) ran on the
-default-compatibility instance on 2026-11-13: 137 passed, 19 skipped (one case the shipped base skips and
-the eighteen below), and 0 failed. The fixture uses `COMPATIBLE_MODE=0` because the upstream seed writes
-an empty string into a required column; Oracle-compatible mode stores that string as `null` and refuses
-the seed. The run found and fixed a provider defect: the collection element type was read from
-`GetGenericArguments()[0]`, which an array has none of, so every array-backed collection threw
-`IndexOutOfRangeException`; the element type is now taken from the array. The `EF.Parameter` collection
-cases now translate through `JSON_TABLE`; the remaining skips are the server's refusal of a dynamic
-`LIMIT`/`OFFSET` expression, `JSON_TABLE` refusing `BIT`, and the row order the collection paging
-assertions expect.
+The `Join` set (`NorthwindJoinQueryDmTest`, 119 results): 116 passed, 3 skipped (two cases the shipped base
+skips, `#30677`, and one case in its two forms), 0 failed. The skipped case is below.
 
-The `Join` set of the Northwind query suite (`NorthwindJoinQueryDmTest`, 131 results) ran against the
-same instance on 2026-11-11: 126 passed, 5 skipped (four upstream, `#30677` and `#35028`, and one case in
-its two forms), and 0 failed. The skipped case is below. Two other families failed on that run and
-are fixed rather than recorded: a collection joined in a query was rendered as a bare `VALUES` inside a
-set operation, which the server rejects with `语法分析出错`, and is now a `SELECT ... FROM DUAL` per row
-joined by `UNION ALL`; a tautological join predicate was rendered as a bare `1`, which the server
-rejects with `查询使用值表达式作为过滤条件`, and is now compared with `1` like the statement's own
-predicate.
+The `Select` set (`NorthwindSelectQueryDmTest`, 348 results): 344 passed, 4 skipped (four cases, each
+covering its two async forms), 0 failed. The four are below, and they are two server limitations: a nested
+`APPLY` whose inner query references the outermost table, and a row picked without an ordering. Two cases
+failed until this run and are fixed: `c.ContactName.IndexOf("")` answered `Nullable object must have a
+value`, because the server answers `INSTR(x, '')` with null where .NET answers 0, so the empty needle is
+translated as the constant; and the keyless `FirstOrDefault` case found the keyless table empty, because EF
+Core 8 calls the fixture's synchronous `Seed` and never the asynchronous one the 9 line overrides, so the
+fixture seeds through `Seed` now. The same hook is what kept `Contains_over_keyless_entity_throws` from
+passing, and it passes with the seeding in place.
 
-The `Select` set of the Northwind query suite (`NorthwindSelectQueryDmTest`, 368 results) ran against the
-same instance on 2026-11-11: 364 passed, 4 skipped (four cases, each covering its two async forms), and
-the shipped base skips none of them. The four are below, and they are two server limitations: a nested `APPLY` whose
-inner query references the outermost table, and a row picked without an ordering. A fifth case, the one
-that asked for the first row of a keyless entity, did not pass in that run because this project's store
-left the keyless table empty; the fixture now seeds it, and the case passes. The run found three
-defects that were fixed: a nested `Take` composed through `LEAST` left the function without a type
-mapping when an argument was a parameter; a condition in a `CASE` result was written as a bare condition,
-which the server rejects at the comparison; and a difference of two dates was translated although the
-server answers it with a number of days, which cannot be read back as a time span, so it is now
-projected as the date and subtracted by the client.
+The `GroupBy` set (`NorthwindGroupByQueryDmTest`, 507 results): 500 passed, 7 skipped (four cases the shipped
+base skips and three cases below, each covering its two async forms), 0 failed.
 
-The `GroupBy` set (`NorthwindGroupByQueryDmTest`, 509 results) ran against the same instance on
-2026-11-11: 502 passed, 7 skipped (four upstream and three cases, each covering its two async forms), and
-0 failed. The three are below, and they are the same server limitation: SQL Server accepts an outer reference where this server
-needs the referenced column to be grouped, or refuses it outright. The run found one defect that was
-fixed: a null-safe comparison of an `EXTRACT` key was written `MONTH IS NULL OR "OrderDate" IS NULL`,
-because the keyword argument propagated nullability like a value, which the server rejects with
-`无效的列名[MONTH]`; a fragment no longer propagates.
+The `AggregateOperators` set (`NorthwindAggregateOperatorsQueryDmTest`, 390 results): 386 passed, 4 skipped
+(the nested `APPLY` case and the two collection cases below, each covering its two async forms), 0 failed.
+The average of a nested average and the average of a maximum are computed by the server to its own decimal
+scale, so the class compares them at three decimal places as the reference provider does; the two
+collection cases of tuples and of an anonymous type are refused by the 8 pipeline in its parameter
+processor with its own message where the base asserts the translation-failure one, so only the text
+differs.
 
-The `AggregateOperators` set (`NorthwindAggregateOperatorsQueryDmTest`, 421 results) ran against the same
-instance on 2026-11-12: 420 passed, 1 skipped (one case covering its two async forms), and the shipped
-base skips none of them. The case is below, and it is the same server limitation the nested `APPLY` rows record.
-The run found no provider defect; the one case that differed from the client's arithmetic is an average
-the server computes to its own decimal scale, which the class compares at three decimal places as the
-reference provider does, and the one that read a keyless set exposed a gap in this project's store
-rather than in the provider: the shipped store is created from a script that fills the keyless tables,
-while this store is created from the model, so the fixture now projects those rows from the keyed ones.
+The `Include` set (`NorthwindIncludeQueryDmTest`, 232 results): 230 passed, 2 skipped (two cases below), 0
+failed. Its first run on this line failed eighteen cases, all from `MultipleCollectionIncludeWarning`: the
+shared fixture base throws every warning, and this one is guidance about splitting a query that loads two
+collections rather than a provider defect. The warning is logged by the shared fixture, as the shipped
+fixtures log the other guidance warnings, so it adds no entry here.
 
-The `Include` set of the Northwind query suite (`NorthwindIncludeQueryDmTest`, 236 cases) ran against the
-same instance on 2026-11-12 and every case passed. Its first run failed eighteen cases, all from
-`MultipleCollectionIncludeWarning`: the shared fixture base throws every warning, and this one is
-guidance about splitting a query that loads two collections rather than a provider defect. The warning is
-now logged by the shared fixture, as the shipped fixtures log the other guidance warnings, so it adds no
-entry here.
-
-The `Updates` set (`UpdatesDmTest`, 36 results) ran against the same instance on 2026-11-12: 35 passed,
-and one is skipped because it needs a filtered unique index the server cannot create. It is under "Cases
-that do not run". The run found and fixed three defects: the identifier limit was not
-declared, so a model with a generated name past 128 characters failed while its tables were created; a
-byte array concurrency token the model leaves unbounded was mapped to a `BLOB`, which the server cannot
-compare in a statement's predicate, so updates and deletes were rejected with a data type error; and the
-provider's own concurrency message left out the framework's explanatory link. The fixture also maps the
-abstract product base the shared foreign key case needs, the way the SQL Server fixture does.
-
+The `Updates` set (`UpdatesDmTest`, 31 results): 30 passed, 1 skipped, and the skip is the filtered index
+under "Cases that do not run". Three cases failed until this run and are fixed: the table of the shared
+column kept no identity attribute, so inserting a person without a key was refused with
+`违反列[PersonId]非空约束`. The column carries one mapping per property that shares it, and inside an owned
+type that mapping comes first in EF Core 8, while the annotation provider read the first mapping only; it
+asks every mapping now. The cases of an enum with a conversion and of a shared column with a conversion
+failed for the same reason, and pass.
 ## Cases that do not pass (marked skipped)
 
-The fifty-four query cases and the nineteen migrations cases below are overridden with `Skip = "..."` in
-their test class, except the twelve the shipped EF Core 9 base skips itself, which are recorded here
-because the ledger is the record of what does not run. A skipped theory is reported once even though it
-carries the synchronous and the asynchronous form as two data rows, so the 73 cases account for the 73
-skipped results in the total above.
+The fifty-nine cases below are overridden with `Skip = "..."` in their test class or recorded as a case
+the shipped base skips, which the ledger keeps because it is the record of what does not run. Fourteen of
+the fifty-nine are migrations cases, in their own table below. A skipped theory is reported once even
+though it carries the synchronous and the asynchronous form as two data rows, so the 59 cases account for
+the 59 of the 69 skipped results that this project declares, the other ten being the base skips.
 
 | Case | Cause | Fix |
 |---|---|---|
@@ -167,29 +137,33 @@ skipped results in the total above.
 | `Project_empty_collection_of_nullables_and_collection_only_containing_nulls` | The projection of an empty collection and one holding only nulls materializes a different element set: measured, an element answered 6 where 5 was expected | Same as the row above |
 | `Project_multiple_collections` | Two projected collections are paired in a different order: measured, the first element answered 2 where 7 was expected | Same as the row above |
 
-| `Contains_with_local_enumerable_inline_closure_mix` | The EF Core 9 base expects this mixed inline and closure collection to fail translation, as it does for every relational provider on that line (EF Core issue #31776); the provider translates it through `JSON_TABLE`, so no exception is thrown | Not a provider defect: the provider translates a shape the EF Core 9 base expects to fail |
-| `Where_equals_method_string_with_ignore_case` | The EF Core 9 base has no translation for a `StringComparison` overload and expects the comparison to fail; the provider translates it with `UPPER` on both sides, which is a superset of that line | Not a provider defect: the provider translates what the EF Core 9 base expects to fail |
+| `Contains_with_local_enumerable_inline_closure_mix` | The shipped base expects this mixed inline and closure collection to fail translation, as it does for every relational provider on that line (EF Core issue #31776); the provider translates it through `JSON_TABLE`, so no exception is thrown | Not a provider defect: the provider translates a shape the shipped base expects to fail |
+| `Where_equals_method_string_with_ignore_case` | The shipped base has no translation for a `StringComparison` overload and expects the comparison to fail; the provider translates it with `UPPER` on both sides, which is a superset of that line | Not a provider defect: the provider translates what the shipped base expects to fail |
 | `Parameter_collection_of_bools_Contains` | `JSON_TABLE` declares the element as `BIT`, which the server rejects with `无效的数据类型` | Server limitation: `BIT` is not a `JSON_TABLE` column type |
 | `Parameter_collection_in_subquery_and_Convert_as_compiled_query` | The base expects the compiled-query form to fail with a message naming the LINQ expression; the provider translates the collection, so the expected substring is not produced | Not a provider defect: the provider translates the compiled-query form |
 | `Parameter_collection_in_subquery_Union_another_parameter_collection_as_compiled_query` | The base expects the compiled-query form to throw; the provider translates the collection instead | Same as the row above |
 | `Include_collection_OrderBy_empty_list_contains` | The ordering key is a predicate over an empty list, so every row ties and the server answers the customers in an order the statement does not define: measured on 8.1.4.80, the first customer is `ALFKI` where the expected data starts with `ANATR` | Not a provider defect: the statement has no ordering key |
 | `Include_collection_OrderBy_empty_list_does_not_contains` | The same tie for the negated empty-list predicate | Same as the row above |
-| `GroupBy_aggregate_from_multiple_query_in_same_projection` | The shipped EF Core 9 `GroupBy` base declares the skip itself, and this project does not declare it | Not a provider defect: the base declares the skip |
+| `GroupBy_aggregate_from_multiple_query_in_same_projection` | The shipped EF Core 8 `GroupBy` base declares the skip itself, and this project does not declare it | Not a provider defect: the base declares the skip |
 | `GroupBy_aggregate_from_multiple_query_in_same_projection_3` | The same base-declared skip | Same as the row above |
 | `GroupBy_aggregate_left_join_GroupBy_aggregate_left_join` | The same base-declared skip | Same as the row above |
 | `GroupBy_with_group_key_being_navigation_with_complex_projection` | The same base-declared skip | Same as the row above |
-| `Join_local_bytes_closure_is_cached_correctly` | The shipped EF Core 9 `Join` base declares the skip itself (EF Core issue #30677), and this project does not declare it | Not a provider defect: the base declares the skip |
+| `Join_local_bytes_closure_is_cached_correctly` | The shipped EF Core 8 `Join` base declares the skip itself (EF Core issue #30677), and this project does not declare it | Not a provider defect: the base declares the skip |
 | `Join_local_string_closure_is_cached_correctly` | The same base-declared skip | Same as the row above |
 | `Swap_filtered_unique_index_values` | The case swaps two values under a filtered unique index, and the server has no filtered index: `CREATE INDEX ... WHERE` answered `语法分析出错`, and the shared model's plain unique index cannot swap both values in one save | Server limitation: Dameng has no filtered index |
+| `Inline_collection_Contains_with_zero_values` | EF Core 8 rejects an empty inline collection before translation (`Empty collections are not supported as inline query roots` on `InlineQueryRootExpression`); EF Core 9 accepts it, so the case cannot run on this line | Framework limitation: an empty inline collection is refused by the 8 query pipeline |
+| `Inline_collection_Count_with_zero_values` | The same empty inline collection, refused in the same place | Same as the row above |
+| `Contains_with_local_tuple_array_closure` | EF Core 8 refuses the collection later than the 9 line does and answers with its own `Query root of type 'ParameterQueryRootExpression'` message where the 8 base asserts the translation-failure message; measured on the live suite, the query is refused either way, so only the text differs | Provider difference: the 8 pipeline refuses the shape in the parameter processor |
+| `Contains_with_local_anonymous_type_array_closure` | The same anonymous-typed collection, refused in the same place | Same as the row above |
 
 `Case` names are methods of the test classes this project owns. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
 fails when a row names a case the suite does not have.
 
 ## Cases that do not run
 
-The twelve cases the shipped EF Core 9 base skips itself are listed in the tables with that cause: four of
-the `GroupBy` set (`#35028`), two of the `Join` set (`#30677`), three of the `BulkUpdates` set, one
-`PrimitiveCollections` case, and two migrations cases. Every other case of the bases ran in the
+The ten cases the shipped EF Core 8 base skips itself are listed in the table above with that cause: four of
+the `GroupBy` set (`#35028`), two of the `Join` set (`#30677`), three of the `BulkUpdates` set and one
+`PrimitiveCollections` case. Every other case of the bases ran in the
 measurements above; the four capability answers in the `BuiltInDataTypesDmTest` fixture narrow what the
 model contains rather than skipping a case.
 
@@ -204,8 +178,8 @@ that carries a filter, so a migration cannot silently create an index with diffe
 rather than the suite. Each answer is a measured fact and the reason is beside the property.
 ## Migrations cases that do not run
 
-The migrations suite (`MigrationsDmTest`, 131 cases) builds a model, generates the migration and applies it
-to the live store. Measured on this branch, 2026-11-13 against DM 8.1.4.80: 112 passed, 19 skipped, and the
+The migrations suite (`MigrationsDmTest`, 102 cases) builds a model, generates the migration and applies it
+to the live store. Measured on this branch, 2026-11-13 against DM 8.1.4.80: 88 passed, 14 skipped, and the
 cases below either do not run or run without their assertion. The migrations store owns `DM_SPEC_MIGRATIONS` and the
 named schemas below, so the rest of the shared database is untouched.
 

@@ -63,6 +63,20 @@ internal sealed class DmSqlTranslatingExpressionVisitor : RelationalSqlTranslati
             return Dependencies.SqlExpressionFactory.NotEqual(xorLeft, xorRight);
         }
 
+        // Dameng keeps `&` and `|` out of its grammar for booleans as well: measured on 8.1.4.80, both
+        // answered 语法分析出错 at the operator. On two-valued operands the bitwise forms are the logical
+        // ones, so the framework's `AND` and `OR` are what the server accepts, including their null
+        // semantics, which the framework applies to the node it is given.
+        if (binaryExpression.NodeType is ExpressionType.And or ExpressionType.Or
+            && binaryExpression.Left.Type == typeof(bool)
+            && binaryExpression.Right.Type == typeof(bool))
+        {
+            return Visit(
+                binaryExpression.NodeType == ExpressionType.And
+                    ? Expression.AndAlso(binaryExpression.Left, binaryExpression.Right)
+                    : Expression.OrElse(binaryExpression.Left, binaryExpression.Right));
+        }
+
         return binaryExpression.NodeType == ExpressionType.Subtract
             && IsDate(binaryExpression.Left.Type)
             && IsDate(binaryExpression.Right.Type)

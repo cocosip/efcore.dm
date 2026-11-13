@@ -10,8 +10,10 @@ do not pass and why. This file records what changed, once per release, instead o
 ## [Unreleased]
 
 This branch is `efcore/8.0`, cut from `efcore/9.0` at `3e937a2` on 2026-11-13. The entries below are inherited
-from the 9 line, and the 8 line's own release waits until its specification suite and live acceptance run on
-EF Core 8; anything measured only on 9 is the 9 line's record, not this branch's.
+from the 9 line. The 8 line's own gate ran on 2026-11-13 against DM 8.1.4.80: the specification suite
+reports 3780 results, 3711 passed, 69 skipped and 0 failed, the acceptance console 32 of 32 steps in both
+compatibility modes, the design-time smoke test passed end to end, and the feature probe 44 steps in each
+mode. `v8.0.1` is not published yet.
 
 ### Changed on `efcore/8.0` (EF Core 8)
 
@@ -27,6 +29,19 @@ EF Core 8; anything measured only on 9 is the 9 line's record, not this branch's
   `GenerateGreatest`/`GenerateLeast` hook.
 - The specification suite is rewritten against the 8 base classes, and the skip ledger's rows for cases the
   8 bases do not declare are removed.
+
+### Fixed on `efcore/8.0` (EF Core 8)
+
+- The specification fixtures seed through the synchronous `Seed`, because EF Core 8 never calls the
+  asynchronous one; the keyless `CustomerQueries` rows the fixture projects from `Customers` now exist, and
+  the two keyless cases that failed pass.
+- A column shared with an owned type keeps its `IDENTITY` attribute: the annotation provider asks every
+  property mapping of a column instead of the first, whose strategy is `None` for the owned type's key.
+- A boolean `&` or `|` is translated to `AND` or `OR`: EF Core 8 renders the operator, which the server
+  rejects with `语法分析出错`.
+- `IndexOf("")` answers 0 as .NET does, where the server answers `INSTR(x, '')` with null.
+- The design-time smoke project targets `net8.0` with the `[8.0.0,9.0.0)` dependency range instead of
+  `net10.0` with `10.0.14`, so `dotnet ef` can create the context the provider implements.
 
 ### Added
 - EF Core 10 provider for Dameng (`net10.0`), package `Sharp.DM.EntityFrameworkCore`.
