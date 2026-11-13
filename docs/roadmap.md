@@ -16,8 +16,9 @@ Status: **decided**. Dates and ordering may change; exit criteria do not.
 |---|---|
 | P0-P5 | Complete: the offline and live gates pass and each capability is in the matrix |
 | P6 | Code complete; the package and the Windows live matrix are verified, the Linux run, release tag and NuGet publish are pending |
-| P7 | In progress on `efcore/9.0`. The offline gate passes on 2026-11-13: zero-warning build, the unit and SQL shape suite, the acceptance dry run, the package smoke test and the skip ledger guard. The live specification run, the ledger re-measurement and `v9.0.1` are pending |
-| P8-P9 | Not started |
+| P7 | Code complete on `efcore/9.0`. Everything measured on 2026-11-13 passes: zero-warning build, 561 unit and SQL shape cases, the 33-step acceptance dry run, the package smoke test, the ledger guard, the live acceptance console (33 of 33 steps) and the live specification suite (4034 results, 3961 passed, 73 skipped, 0 failed). `v9.0.1`, the Linux run and the PostgreSQL-compatible run are pending |
+| P8 | Branch `efcore/8.0` created on 2026-11-13; the adaptation has not started |
+| P9 | Not started |
 
 ### P0 — Walking skeleton
 
@@ -89,9 +90,11 @@ Largest phase, roughly 35–40% of the total effort.
 
 | Item | Detail |
 |---|---|
-| Precondition | P7 complete, since branches chain |
-| Delivers | Same as P7 against EF Core 8; `v8.0.x` tags stay on `efcore/8.0`. The migrations lock API does not exist in EF Core 8 and is not carried over. |
-| Exit criteria | Same as P7; `v8.0.x` published |
+| Precondition | P7 code complete. The branch exists: `efcore/8.0`, cut from `efcore/9.0` at `3e937a2` on 2026-11-13. It still carries the 9 line's configuration, because a branch that is halfway retargeted does not build and would hide real failures behind configuration noise |
+| Delivers | Target framework `net8.0`; EF Core dependency `[8.0.0,9.0.0)`; design and user-secrets tooling floating on `8.0.*`; specification package 8.0.34 with xUnit v2; the migrations lock removed, because EF Core 8 declares no lock members; the parameterized-collection option plumbing removed, because `TranslateParameterizedCollectionsToConstants/Parameters` is EF Core 9 API; `v8.0.x` tags stay on `efcore/8.0` |
+| Steps | 1. Retarget and re-range in one commit (`net8.0`, `[8.0.0,9.0.0)`, `8.0.*`) and let the compiler list what is absent. 2. Delete rather than shim what EF Core 8 does not declare. 3. Rebuild the T2 baselines against the 8 SQL shapes. 4. Rewrite the skip overrides against the 8 signatures and rebuild the ledger from a live run, never from the 9 copy. 5. Run the offline gate, then the live acceptance console and the live specification suite. 6. Update the per-line documents in the same commits. 7. Move each measured row of [Version Matrix](version-matrix.md) §2 into the measured section and delete the rows that turned out not to matter |
+| Exit criteria | The live specification suite passes with every remaining skip recorded and measured; `DmProviderValidation` passes every step; the package resolves and runs in an isolated consumer; `v8.0.x` published |
+
 
 ### P9 — EF Core 11
 
@@ -133,3 +136,4 @@ If a prerequisite is unavailable, the affected phase stays open. It is not marke
 
 Recorded 2026-11-12: an instance is reachable — DM 8.1.4.80, in the default and in the Oracle-compatible mode, with credentials that can create and drop tables in a schema of the operator's choosing. That closes the first row for P0b and for the phase exits up to P5. The PostgreSQL-compatible instance, the Linux environment, the trusted-publishing policy and the deployment list remain open.
 
+Recorded 2026-11-13: the EF Core 9 line passes its own gates on `efcore/9.0` (4034 specification results, 3961 passed, 73 skipped, 0 failed; live acceptance 33 of 33 steps). `v9.0.1` is not published yet, which is the owner's decision and not a precondition for P8; `efcore/8.0` was cut from `efcore/9.0` the same day.

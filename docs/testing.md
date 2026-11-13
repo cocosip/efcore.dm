@@ -39,10 +39,17 @@ Every translation test places the expression in a position that requires server 
 | `efcore/10.0` (EF Core 10) | `10.0.14` | xUnit v2 (`xunit.core` 2.9.3) |
 | `dev` (EF Core 10) | `10.0.14` | xUnit v2 |
 | `efcore/9.0` | `9.0.22` | xUnit v2 |
-| `efcore/8.0` | `8.0.33` | xUnit v2 |
+| `efcore/8.0` | `8.0.34` | xUnit v2 |
 | EF Core 11 | `11.0.0-rc` | **xUnit v3** (`xunit.v3.assert` 4.x) |
 
 The specification package is built for the framework of its EF Core line, and each branch targets that framework: 9.0.22 ships `net9.0` assets and `efcore/9.0` targets `net9.0`, so the project inherits `DmTargetFramework`. A branch whose package moved ahead of the provider would set `TargetFramework` in the project instead: the test project follows the package, never the other way round.
+
+
+This document is maintained per branch, and its measured numbers describe `efcore/9.0` here. `efcore/8.0` was
+cut from it on 2026-11-13 and still carries the 9 line's project files, so the counts, the ledger and the live
+measurements below are the 9 line's until P8 rebuilds them from an EF Core 8 run. The 8 line's skeleton differs
+in three places the build answers on its own: `net8.0` instead of `net9.0`, specification package 8.0.34, and no
+migrations lock abstract members to implement.
 
 ### Dependency pinning
 

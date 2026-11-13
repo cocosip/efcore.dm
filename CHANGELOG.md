@@ -9,6 +9,10 @@ do not pass and why. This file records what changed, once per release, instead o
 
 ## [Unreleased]
 
+This branch is `efcore/8.0`, cut from `efcore/9.0` at `3e937a2` on 2026-11-13. The entries below are inherited
+from the 9 line, and the 8 line's own release waits until its specification suite and live acceptance run on
+EF Core 8; anything measured only on 9 is the 9 line's record, not this branch's.
+
 ### Added
 
 - EF Core 10 provider for Dameng (`net10.0`), package `Sharp.DM.EntityFrameworkCore`.

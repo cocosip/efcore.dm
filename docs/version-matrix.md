@@ -10,7 +10,7 @@ Used in two directions: forward when adopting a new EF Core major version, backw
 
 | EF Core | Target framework | Official support until | Branch | Specification tests |
 |---|---|---|---|---|
-| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.33 |
+| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.34 |
 | 9.0 | `net9.0` | 2026-11-10 (expired) | `efcore/9.0` | 9.0.22 |
 | 10.0 | `net10.0` | 2028-11-10 | `efcore/10.0` | 10.0.14 |
 | 11.0 | `net11.0` | not released | `efcore/11.0` (not created) | 11.0.0-rc (xUnit v3) |
@@ -54,6 +54,30 @@ The provider implements locking with a `DBMS_LOCK` named lock (D7). The implemen
 | `ToString()` returns an empty string for null | Translation semantics must match | same |
 | Parameterized collection translation becomes user-selectable (`ToConstants` / `ToParameters`) | Both rendering forms must work | [EF Core 9 what's new](https://learn.microsoft.com/ef/core/what-is-new/ef-core-9.0/whatsnew) |
 | `PropertyDiscoveryConvention.IsCandidatePrimitiveProperty` is overridable | Available hook for Dameng type discovery | same |
+
+### Reverse adaptation, EF Core 9 to 8, planned on `efcore/8.0` (2026-11-13)
+
+The 8 line was cut from `efcore/9.0` at `3e937a2` (see [Branching and Release](branching-and-release.md)), so
+the code it starts from already carries the three statement-level fixes the 9 line measured: a boolean
+`ORDER BY`, a boolean `^`, and the `JSON_TABLE` ordinality ordering. None of the three is an EF Core API, so
+all three carry over unchanged and the table below is what is left.
+
+Nothing here is measured yet. Each row is a prediction from the EF Core 8 sources and a task for the first P8
+pass; a row becomes a measured row of this section once the suite answers it, and a row that turns out not to
+matter is deleted rather than carried.
+
+| Area | Why it differs on EF Core 8 | Action |
+|---|---|---|
+| Migrations lock | `HistoryRepository` declares no lock members before EF Core 9 | Delete the `HistoryRepository` overrides, the migration database lock implementation, the `DBMS_LOCK` scripts and the acceptance step that waits on the lock |
+| Parameterized collection options | `TranslateParameterizedCollectionsToConstants()` and `...ToParameters()` are EF Core 9 API | Remove the option plumbing and its T2 cases; the one-JSON-parameter form through `JSON_TABLE` stays the only rendering |
+| `EF.Constant()` and `EF.Parameter()` | Both exist on 8; only 9 rejects them inside a compiled query | Keep the translation and re-measure the two compiled-query cases the 9 ledger skips |
+| `PropertyDiscoveryConvention.IsCandidatePrimitiveProperty` | Overridable from EF Core 9 only | Confirm the discovery hook compiles; if it does not, discover the type in the mapping source |
+| `SqlFunctionExpression` arity validation | EF Core 9 validates one nullability flag per argument | No change expected; re-check every node the translators build |
+| Primitive collection comparer types | EF Core 9 replaced `ListComparer` with `ListOfValueTypesComparer` and related types | Replace any direct use on this line |
+| JSON column store type | 9 resolves it through `FindMapping(typeof(JsonElement))`; the 8 shape is to be measured | Keep the `JsonElement` mapping and confirm the reader path on the live suite |
+| Specification case set | 8's bases name and skip cases differently again | Rewrite the overrides against the 8 signatures and rebuild the ledger from a live run, never from the 9 copy |
+| Specification package | 8.0.34 ships `net8.0` assets and pins xUnit v2 | The spec project inherits `DmTargetFramework` = `net8.0`; the xunit pin is read from the package at first restore |
+| Driver assets | `DM.DmProvider` 8.3.1.47463 ships `net8.0` assets | No packaging change; recorded so a later driver drop can be checked the same way |
 
 ## 3. EF Core 9 to 10
 
@@ -160,7 +184,13 @@ Checked for every version transition.
 
 ## 7. Reverse adaptation procedure
 
-Applied when creating a maintenance branch, newest to oldest. The branch is created from the newest line's branch at the moment this procedure starts; no other line's release tag is a precondition, and the branch's own `v` tags are placed on it when it releases.
+Applied when creating a maintenance branch, newest to oldest. The branch is created from the **adjacent newer**
+line's branch at the moment this procedure starts (`efcore/10.0` → `efcore/9.0` → `efcore/8.0`); no other
+line's release tag is a precondition, and the branch's own `v` tags are placed on it when it releases.
+
+Cutting from the newest line instead replays every already measured delta through two steps at once, and each
+step then has to be re-fixed without a measurement that separates them. The adjacent delta is the one that
+was measured, so it is the one to inherit.
 
 1. Set the EF Core dependency range, the specification test package version, and the target framework.
 2. Handle compile errors first: APIs that do not exist on the older version fail the build.
@@ -209,4 +239,4 @@ The concrete values in that layer — store type names, maximum lengths, default
 - [`TO_DAYS` returns a count that disagrees with the difference to year zero](https://eco.dameng.com/community/question/84b0feac5606c18936a18edcbab44cde)
 - [`GUID()` returns a 32-character string, reported as 31 in one version](https://eco.dameng.com/community/question/fcc917faa4035262f9c9915cf929fe2b) — which is why a `Guid` stays client generated
 
-Source verification performed directly against the `dotnet/efcore` repository (`release/8.0`, `release/9.0`, `release/10.0`, `main`) and against published package metadata for EF Core 8.0.33, 9.0.22, 10.0.14 and 11.0.0-rc.3.
+Source verification performed directly against the `dotnet/efcore` repository (`release/8.0`, `release/9.0`, `release/10.0`, `main`) and against published package metadata for EF Core 8.0.34, 9.0.22, 10.0.14 and 11.0.0-rc.3. The 8.0.34 patch was confirmed from the nuget.org package index on 2026-11-13.

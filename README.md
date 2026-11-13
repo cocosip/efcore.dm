@@ -4,15 +4,15 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 9 line. The provider builds with zero warnings, the unit and SQL shape suite passes (561 cases), the acceptance dry run declares 33 steps, the skip ledger guard passes and the package smoke test resolves and runs `Sharp.DM.EntityFrameworkCore` 9.0.1 from an isolated NuGet cache. The specification suite has not been re-measured against a live instance on this line yet, so [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) is still the ledger measured on `efcore/10.0`; the `v9.0.1` tag is pending that run. Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and not yet adapted. The branch still carries the 9 line's configuration and gates: zero-warning build, 561 unit and SQL shape cases, the 33-step acceptance dry run, the skip ledger guard, the package smoke test and the live specification suite (4034 results, 3961 passed, 73 skipped, 0 failed against DM 8.1.4.80). The EF Core 8 retarget — `net8.0`, dependency range `[8.0.0,9.0.0)`, specification package 8.0.34, the migrations lock removed — is roadmap phase P8 in the [Roadmap](docs/roadmap.md); the numbers above change with it. Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 
 | Branch | EF Core | Target framework | Package line | Role |
 |---|---|---|---|---|
 | `efcore/10.0` | 10 | `net10.0` | `10.0.x` | Development and release for the EF Core 10 line; `v10.x` tags are here |
-| `efcore/9.0` | 9 | `net9.0` | `9.0.x` | Development and release for the EF Core 9 line; `v9.x` tags are here |
-| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Development and release for the EF Core 8 line; `v8.x` tags are here |
+| `efcore/9.0` | 9 | `net9.0` | `9.0.x` | Development and release for the EF Core 9 line; code complete and verified, `v9.x` tags are here |
+| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Development and release for the EF Core 8 line; branch created, adaptation pending, `v8.x` tags are here |
 | `dev` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 integration |
 | `master` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 packaging and `v11.x` tags |
 

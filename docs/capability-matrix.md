@@ -2,6 +2,11 @@
 
 Status: **living document**. Updated in the same commit as the code it describes.
 
+
+On `efcore/8.0` this table is inherited from `efcore/9.0`: every row, count and evidence line describes the 9
+line until P8 measures the 8 line. A row is not "supported on 8" because it is supported on 9 — the
+specification suite of each line decides that, and the 8 line has not run yet.
+
 ## 1. Purpose
 
 This document answers one question at any point in time: **does the provider support capability X today, and what is the evidence?**
