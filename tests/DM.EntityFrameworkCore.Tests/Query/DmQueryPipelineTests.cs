@@ -181,7 +181,7 @@ public class DmQueryPipelineTests
             -- :__p_0='[1,2]' (Size = 5)
             SELECT "b"."Name"
             FROM "Blogs" AS "b"
-            INNER JOIN JSON_TABLE(:__p_0, '$[*]' COLUMNS ("value" INT PATH '$')) AS "p" ON "b"."Id" = "p"."value"
+            INNER JOIN JSON_TABLE(:__p_0, '$[*]' COLUMNS ("value" INT PATH '$', "rn" FOR ORDINALITY)) AS "p" ON "b"."Id" = "p"."value"
             """.Replace("\r\n", "\n", StringComparison.Ordinal),
             context.Blogs
                 .Join(ids, b => b.Id, id => id, (b, id) => b.Name)

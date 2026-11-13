@@ -71,6 +71,9 @@ do not pass and why. This file records what changed, once per release, instead o
   rendered as `COALESCE(<condition>, 0)` and rejected (`无效的ORDER BY子句`).
 - A boolean exclusive-or is translated as a comparison of its operands' `CASE` forms, because the server
   has no `^` operator (`语法分析出错`).
+- A paged primitive collection orders its `JSON_TABLE` row source by an ordinality column, so the same
+  page is asked for each time: the row source declared no ordering and the server answered a different
+  page (`FETCH FIRST` over an unordered row source).
 
 ### Changed
 

@@ -26,7 +26,7 @@ public class DmCollectionParameterTests
             FROM "Probes" AS "p"
             WHERE "p"."Id" IN (
                 SELECT "i"."value"
-                FROM JSON_TABLE(:__ids_0, '$[*]' COLUMNS ("value" INT PATH '$')) AS "i"
+                FROM JSON_TABLE(:__ids_0, '$[*]' COLUMNS ("value" INT PATH '$', "rn" FOR ORDINALITY)) AS "i"
             )
             """,
             Statement(context.Probes.Where(p => ids.Contains(p.Id)).ToQueryString()));

@@ -8,8 +8,8 @@ A case that does not pass is marked `Skip` in the test class with the same reaso
 it as skipped rather than failed; the ledger remains the record of the measurement. A skipped theory is
 reported once even though it carries the synchronous and the asynchronous form as two data rows.
 
-Current live run on this branch, 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 4032 results,
-3957 passed, 75 skipped, 0 failed. The 75 skipped results are 75 cases: 63 this project declares, 12 the
+Current live run on this branch, 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 4034 results,
+3961 passed, 73 skipped, 0 failed. The 73 skipped results are 73 cases: 61 this project declares, 12 the
 shipped EF Core 9 base skips itself. The paragraphs between here and the first section are the
 `efcore/10.0` line's measurements, kept as history: the EF Core 9 line runs the same bases with its own
 case set, so a per-set count in them is not this branch's count.
@@ -118,10 +118,10 @@ abstract product base the shared foreign key case needs, the way the SQL Server 
 
 ## Cases that do not pass (marked skipped)
 
-The fifty-six query cases and the nineteen migrations cases below are overridden with `Skip = "..."` in
+The fifty-four query cases and the nineteen migrations cases below are overridden with `Skip = "..."` in
 their test class, except the twelve the shipped EF Core 9 base skips itself, which are recorded here
 because the ledger is the record of what does not run. A skipped theory is reported once even though it
-carries the synchronous and the asynchronous form as two data rows, so the 75 cases account for the 75
+carries the synchronous and the asynchronous form as two data rows, so the 73 cases account for the 73
 skipped results in the total above.
 
 | Case | Cause | Fix |
@@ -158,16 +158,14 @@ skipped results in the total above.
 | `Parameter_collection_index_Column_equal_constant` | The same dynamic row-limiting expression | Same as the row above |
 | `Parameter_collection_with_type_inference_for_JsonScalarExpression` | The statement builds the same dynamic `LIMIT`, which the server rejects | Same as the row above |
 | `Column_collection_of_bools_Contains` | `JSON_TABLE` declares the element as `BIT`, which the server rejects with `无效的数据类型` | Server limitation: `BIT` is not a `JSON_TABLE` column type |
-| `Column_collection_Take` | The collection has no ordering, so the page the server answers differs from the expected page | Server limitation: `JSON_TABLE` rows have no defined order |
-| `Column_collection_Skip_Take` | The same unordered paging of a collection | Same as the row above |
-| `Project_collection_of_ints_ordered` | The collection is projected and the expected order is the array order, which `JSON_TABLE` does not preserve | Server limitation: `JSON_TABLE` does not promise array order |
-| `Project_collection_of_datetimes_filtered` | The filtered collection projection answers a different member because the row order is not defined | Same as the row above |
-| `Project_collection_of_nullable_ints_with_paging` | The nullable collection is paged, and the server answers a different page | Server limitation: `JSON_TABLE` paging has no defined order |
-| `Project_collection_of_nullable_ints_with_paging2` | The same nullable paging | Same as the row above |
-| `Project_collection_of_nullable_ints_with_paging3` | The same nullable paging | Same as the row above |
+| `Project_collection_of_ints_ordered` | The statement orders the row source by the ordinality column, and the projected collection still materializes in the array order: measured, the first element answered 2 where 7 was expected | Not a provider defect: the row source is ordered; how a projected collection is materialized is not |
+| `Project_collection_of_datetimes_filtered` | The filtered projection materializes a different element set: measured, one element where two were expected | Not a provider defect: the row source is ordered; how a projected collection is materialized is not |
+| `Project_collection_of_nullable_ints_with_paging` | The projected paged collection materializes a different element set although the row source is ordered and paged by the ordinality column: measured, an element answered 8 where 5 was expected | Not a provider defect: the row source is ordered; how a projected collection is materialized is not |
+| `Project_collection_of_nullable_ints_with_paging2` | The same projected paging, with an ordering before the page: measured, an element answered 2 where 5 was expected | Same as the row above |
+| `Project_collection_of_nullable_ints_with_paging3` | The same projected paging after a skip: measured, an element answered 6 where 5 was expected | Same as the row above |
 | `Project_collection_of_nullable_ints_with_distinct` | The shipped `PrimitiveCollections` base skips this case | Not a provider defect: the base declares the skip |
-| `Project_empty_collection_of_nullables_and_collection_only_containing_nulls` | The null elements and the paging are ordered differently | Server limitation: `JSON_TABLE` null-element paging has no defined order |
-| `Project_multiple_collections` | Two collections are projected without an ordering, and the rows are paired in a different order | Server limitation: `JSON_TABLE` rows have no defined order |
+| `Project_empty_collection_of_nullables_and_collection_only_containing_nulls` | The projection of an empty collection and one holding only nulls materializes a different element set: measured, an element answered 6 where 5 was expected | Same as the row above |
+| `Project_multiple_collections` | Two projected collections are paired in a different order: measured, the first element answered 2 where 7 was expected | Same as the row above |
 
 | `Contains_with_local_enumerable_inline_closure_mix` | The EF Core 9 base expects this mixed inline and closure collection to fail translation, as it does for every relational provider on that line (EF Core issue #31776); the provider translates it through `JSON_TABLE`, so no exception is thrown | Not a provider defect: the provider translates a shape the EF Core 9 base expects to fail |
 | `Where_equals_method_string_with_ignore_case` | The EF Core 9 base has no translation for a `StringComparison` overload and expects the comparison to fail; the provider translates it with `UPPER` on both sides, which is a superset of that line | Not a provider defect: the provider translates what the EF Core 9 base expects to fail |

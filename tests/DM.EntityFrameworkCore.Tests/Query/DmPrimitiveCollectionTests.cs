@@ -20,7 +20,7 @@ public class DmPrimitiveCollectionTests
             FROM "Tagged" AS "t"
             WHERE 'alpha' IN (
                 SELECT "t0"."value"
-                FROM JSON_TABLE("t"."Tags", '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "t0"
+                FROM JSON_TABLE("t"."Tags", '$[*]' COLUMNS ("value" NCLOB PATH '$', "rn" FOR ORDINALITY)) AS "t0"
             )
             """,
             Sql(context.Tagged.Where(t => t.Tags.Contains("alpha")).ToQueryString()));
@@ -37,7 +37,7 @@ public class DmPrimitiveCollectionTests
             FROM "ArrayTagged" AS "a"
             WHERE 'alpha' IN (
                 SELECT "c"."value"
-                FROM JSON_TABLE("a"."Codes", '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "c"
+                FROM JSON_TABLE("a"."Codes", '$[*]' COLUMNS ("value" NCLOB PATH '$', "rn" FOR ORDINALITY)) AS "c"
             )
             """,
             Sql(context.ArrayTagged.Where(t => t.Codes.Contains("alpha")).ToQueryString()));
@@ -59,7 +59,7 @@ public class DmPrimitiveCollectionTests
             FROM "ParameterTagged" AS "p"
             WHERE "p"."Name" IN (
                 SELECT "p0"."value"
-                FROM JSON_TABLE(:__p_0, '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "p0"
+                FROM JSON_TABLE(:__p_0, '$[*]' COLUMNS ("value" NCLOB PATH '$', "rn" FOR ORDINALITY)) AS "p0"
             )
             """,
             sql);

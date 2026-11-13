@@ -254,6 +254,12 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     /// predicate, so the rewrite happens here: on the translated tree a predicate and a projected value
     /// look alike.
     /// </summary>
+    /// <remarks>
+    /// A page over a primitive collection is the same statement: the framework writes <c>FETCH FIRST n</c>
+    /// over the <c>JSON_TABLE</c> row source without an ordering, and a page without an ordering is a
+    /// different page each time it is asked for. The ordinality column the row source declares is what
+    /// orders it, and it is written here because only the statement knows it is paged.
+    /// </remarks>
     protected override Expression VisitSelect(SelectExpression selectExpression)
     {
         var predicate = selectExpression.Predicate is null
@@ -262,8 +268,23 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         var having = selectExpression.Having is null
             ? null
             : DmSqlConditions.AsPredicate(selectExpression.Having);
+        var orderings = selectExpression.Orderings;
 
-        return predicate == selectExpression.Predicate && having == selectExpression.Having
+        if (orderings.Count == 0
+            && (selectExpression.Limit is not null || selectExpression.Offset is not null)
+            && selectExpression.Tables is [TableValuedFunctionExpression { Name: "JSON_TABLE" } table])
+        {
+            orderings =
+            [
+                new OrderingExpression(
+                    new SqlFragmentExpression($"\"{table.Alias}\".\"rn\""),
+                    ascending: true)
+            ];
+        }
+
+        return predicate == selectExpression.Predicate
+                && having == selectExpression.Having
+                && ReferenceEquals(orderings, selectExpression.Orderings)
             ? base.VisitSelect(selectExpression)
             : base.VisitSelect(
                 selectExpression.Update(
@@ -272,7 +293,7 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
                     selectExpression.GroupBy,
                     having,
                     selectExpression.Projection,
-                    selectExpression.Orderings,
+                    orderings,
                     selectExpression.Offset,
                     selectExpression.Limit));
     }
