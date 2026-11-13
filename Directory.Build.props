@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <!-- Retargeted per branch. The EF Core 8 and 9 branches use net8.0. -->
+    <!-- Retargeted per branch: the EF Core 8 line uses net8.0, the 9 line net9.0, 10 net10.0. -->
     <DmTargetFramework Condition="'$(DmTargetFramework)' == ''">net10.0</DmTargetFramework>
     <DmVersion Condition="'$(DmVersion)' == ''">10.0.1</DmVersion>
 

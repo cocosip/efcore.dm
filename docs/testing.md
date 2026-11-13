@@ -123,7 +123,7 @@ difference from a known baseline; no behaviour changed because of it.
 | Dameng server | Versions in production use. First reached on 2026-11-11: DM 8.1.4.80 |
 | Compatibility mode | The default instance and the Oracle-compatible one both ran the console on 2026-11-11, as reported by the environment's operator; the dialect does not branch on the mode (D4). PostgreSQL-compatible mode is still a P6 exit criterion and has not been exercised |
 | Operating system | Windows x64, Linux x64 |
-| Target framework | `net8.0` on the EF Core 8/9 branches, `net10.0` on EF Core 10, `net11.0` from EF Core 11 |
+| Target framework | `net8.0` on the EF Core 8 branch, `net9.0` on EF Core 9, `net10.0` on EF Core 10, `net11.0` from EF Core 11 |
 | Driver | The `DM.DmProvider` version the package depends on, which is the floor the provider is compiled against; EF Core 10 consumes its `net9.0` asset |
 
 ### What the live runs measured

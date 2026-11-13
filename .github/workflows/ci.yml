@@ -48,6 +48,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
+          # Every project of this branch targets the provider's framework, net10.0.
           dotnet-version: 10.0.x
 
       - name: Cache NuGet packages

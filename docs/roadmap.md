@@ -81,7 +81,7 @@ Largest phase, roughly 35–40% of the total effort.
 | Item | Detail |
 |---|---|
 | Precondition | P6 code complete on `efcore/10.0`. The `v10.0.x` tag is not a precondition: a tag belongs to the line that owns it, and this line's start waits for no other line's release |
-| Delivers | Branch created from `efcore/10.0` at the moment the line starts, not from a tag; target framework `net8.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md); `v9.0.x` tags stay on `efcore/9.0` |
+| Delivers | Branch created from `efcore/10.0` at the moment the line starts, not from a tag; target framework `net9.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md); `v9.0.x` tags stay on `efcore/9.0` |
 | Exit criteria | Specification tests pass for every executable case; live acceptance passes; `v9.0.x` published |
 
 ### P8 — EF Core 8 maintenance branch
