@@ -10,13 +10,13 @@ Status: EF Core 10 release candidate. The provider is feature-complete within th
 
 | Branch | EF Core | Target framework | Package line | Role |
 |---|---|---|---|---|
-| `efcore/10.0` | 10 | `net10.0` | `10.0.x` | Development for the EF Core 10 line |
-| `dev` | 10 | `net10.0` | `10.0.x` | Integration; carries the latest `efcore/10.0` code |
-| `master` | as merged | as merged | as merged | Packaging; receives `dev` when a version is complete |
-| `efcore/9.0` | 9 | `net8.0` | `9.0.x` | Created when EF Core 9 support starts |
-| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Created when EF Core 8 support starts |
+| `efcore/10.0` | 10 | `net10.0` | `10.0.x` | Development and release for the EF Core 10 line; `v10.x` tags are here |
+| `efcore/9.0` | 9 | `net8.0` | `9.0.x` | Development and release for the EF Core 9 line; `v9.x` tags are here |
+| `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Development and release for the EF Core 8 line; `v8.x` tags are here |
+| `dev` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 integration |
+| `master` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 packaging and `v11.x` tags |
 
-Changes are committed on the version branch, merged into `dev`, and reach `master` only when development for a version is complete. EF Core 8 and 9 reached end of official support on 2026-11-10, so those lines serve existing deployments: they receive defect fixes and capability backports on demand and do not track new features.
+Changes are committed on the version branch and tagged there. EF Core 8, 9 and 10 are not merged into `dev` or `master`; those branches are held for EF Core 11. EF Core 8 and 9 reached end of official support on 2026-11-10, so those lines serve existing deployments: they receive defect fixes and capability backports on demand and do not track new features.
 
 ## Usage
 

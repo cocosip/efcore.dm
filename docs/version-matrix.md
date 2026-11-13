@@ -1,6 +1,6 @@
 # Version Matrix
 
-Status: **living document**, maintained on the version branch and read from `dev` and `master` by merge.
+Status: **living document**, maintained on the branch that owns the EF Core line, with `dev` and `master` reserved for the next line (EF Core 11).
 
 Answers one question: **when moving the provider from EF Core version A to version B, what must change?**
 

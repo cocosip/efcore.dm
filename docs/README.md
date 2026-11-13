@@ -21,7 +21,7 @@
 
 ## Maintenance rules
 
-1. Documents are maintained on the version branch and reach `dev` and `master` by merge. An older version branch reads them from the newest one.
+1. Documents are maintained on the branch that owns the EF Core line. `dev` and `master` hold the documents for the next line (EF Core 11); a document is copied there on demand, not by merging an older version branch.
 2. Decisions are updated in place with a date. No supplementary or superseding documents are created.
 5. Progress is not narrated in the documents that define behaviour: a change is recorded once in the [Changelog](../CHANGELOG.md), and the matrix or the ledger gains a row only when a capability or a case changes.
 3. [Version Matrix](version-matrix.md) and [Capability Matrix](capability-matrix.md) are living documents. Every newly discovered version difference or capability gap adds a row, which keeps them usable as checklists.

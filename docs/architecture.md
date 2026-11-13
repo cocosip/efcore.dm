@@ -99,7 +99,7 @@ Each EF Core major version implements these layers independently. There is no cr
 | `Dialect/` | Same path on every branch | Allowed, one way: newest version branch to older ones |
 | L1–L6 pipeline code | Each branch | Forbidden |
 | EF Core dependency range, target framework | Each branch | Forbidden |
-| `docs/` | Version branch | Travelled by merge to `dev` and `master`; an older version branch reads the newest |
+| `docs/` | Each version branch, and `dev`/`master` for the next line | Copied on demand; an older branch does not merge into `dev` or `master` |
 | Specification test skip ledger | Each branch, separate file | Forbidden |
 | CI configuration | Each branch | As needed |
 

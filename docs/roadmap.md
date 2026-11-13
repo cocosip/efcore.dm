@@ -74,14 +74,14 @@ Largest phase, roughly 35–40% of the total effort.
 |---|---|
 | Delivers | Packaging with tag, package and assembly version agreement; consumer smoke test in an isolated NuGet cache; full live acceptance on Windows and Linux in both compatibility modes; final documentation |
 | Exit criteria | The produced package works in a fresh consumer project; the EF Core dependency range carries an upper bound; no `Known defect` ledger entries remain; `DmProviderValidation` passes every step |
-| Produces | Tag `v10.0.x`, the fork point for the maintenance branches |
+| Produces | Tag `v10.0.x` on `efcore/10.0`; that tag is the source for the EF Core 9 maintenance branch |
 
 ### P7 — EF Core 9 maintenance branch
 
 | Item | Detail |
 |---|---|
 | Precondition | P6 complete and tagged |
-| Delivers | Branch created from the tag; target framework `net8.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md) |
+| Delivers | Branch created from the EF Core 10 release tag; target framework `net8.0`; EF Core dependency `[9.0.0,10.0.0)`; specification tests at 9.0.22; reverse adaptation per [Version Matrix](version-matrix.md); `v9.0.x` tags stay on `efcore/9.0` |
 | Exit criteria | Specification tests pass for every executable case; live acceptance passes; `v9.0.x` published |
 
 ### P8 — EF Core 8 maintenance branch
@@ -89,7 +89,7 @@ Largest phase, roughly 35–40% of the total effort.
 | Item | Detail |
 |---|---|
 | Precondition | P7 complete, since branches chain |
-| Delivers | Same as P7 against EF Core 8. The migrations lock API does not exist in EF Core 8 and is not carried over. |
+| Delivers | Same as P7 against EF Core 8; `v8.0.x` tags stay on `efcore/8.0`. The migrations lock API does not exist in EF Core 8 and is not carried over. |
 | Exit criteria | Same as P7; `v8.0.x` published |
 
 ### P9 — EF Core 11
@@ -97,8 +97,8 @@ Largest phase, roughly 35–40% of the total effort.
 | Item | Detail |
 |---|---|
 | Precondition | EF Core 11 reaches general availability and a decision is taken to support it |
-| Delivers | `efcore/11.0` created from `dev` and retargeted to `net11.0`; `efcore/10.0` keeps serving the `10.0.x` line; reverse adaptation across generic type mappings, structured `JsonPath`, collation quoting, and the xUnit v3 test migration |
-| Exit criteria | Specification suite runs on xUnit v3 and passes; live acceptance passes on .NET 11; `v11.0.x` published |
+| Delivers | `dev` and `master` retargeted to `net11.0`; `efcore/10.0` keeps serving the `10.0.x` line; reverse adaptation across generic type mappings, structured `JsonPath`, collation quoting, and the xUnit v3 test migration |
+| Exit criteria | Specification suite runs on xUnit v3 and passes; live acceptance passes on .NET 11; `v11.0.x` published from `master` |
 
 ## 3. Ordering
 

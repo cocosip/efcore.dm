@@ -1,8 +1,8 @@
 name: CI/CD
 
-# Mirrors the Locus pipeline:
-#   push to master / a version branch (efcore/8.0, 9.0, 10.0) / PR to master -> build + tests
-#   push of a version tag (v10.0.1) -> build + tests + package + publish to NuGet
+# Mirrors the version-branch release model:
+#   push to master / a version branch (efcore/8.0, 9.0, 10.0) / PR to either -> build + tests
+#   push of a version tag (v10.0.1) on its owning branch -> build + tests + package + publish
 # Nothing runs on dev, and only a tag publishes.
 #
 # The version has one source, <DmVersion> in Directory.Build.props, and a tag must match it, so
@@ -19,6 +19,7 @@ on:
   pull_request:
     branches:
       - master
+      - 'efcore/**'
   workflow_dispatch:
 
 permissions:
