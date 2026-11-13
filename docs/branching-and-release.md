@@ -11,8 +11,8 @@ Governing rule:
 | Branch | Role | EF Core | Target framework | Package line | EF Core dependency |
 |---|---|---|---|---|---|
 | `efcore/10.0` | Development and release for the EF Core 10 line. Every EF Core 10 change and every `v10.x` tag is here. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
-| `efcore/9.0` | Development and release for the EF Core 9 line, created when that line starts. Its tags are here. | 9 | `net9.0` | `9.0.x` | `[9.0.0,10.0.0)` |
-| `efcore/8.0` | Development and release for the EF Core 8 line, created when that line starts. Its tags are here. | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
+| `efcore/9.0` | Development and release for the EF Core 9 line. Cut from `efcore/10.0` on 2026-11-13 at `1618c4f`. Its tags are here. | 9 | `net9.0` | `9.0.x` | `[9.0.0,10.0.0)` |
+| `efcore/8.0` | Development and release for the EF Core 8 line. Cut from `efcore/9.0` on 2026-11-13 at `3e937a2`; the adaptation has not started, so the branch still carries the 9 line's configuration. Its tags are here. | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
 | `dev` | Integration for the next line, reserved for EF Core 11. It carries no EF Core 10 release and receives no EF Core 10 changes. | 11 (reserved) | `net11.0` later | `11.0.x` later | `[11.0.0,12.0.0)` later |
 | `master` | Packaging for the next line, reserved for EF Core 11. A `v11.x` tag is made here when EF Core 11 development completes. It carries no EF Core 10 release. | 11 (reserved) | `net11.0` later | `11.0.x` later | `[11.0.0,12.0.0)` later |
 | `hotfix/X.Y.Z` | Temporary, created from a release tag | as source tag | as source tag | as source tag | as source tag |
@@ -21,7 +21,7 @@ Development happens on the version branch, and a release tag is placed on that s
 
 Branch names carry the EF Core major and minor version (`efcore/10.0`), so a branch states which EF Core release line it serves and which package line it produces.
 
-`efcore/9.0` and `efcore/8.0` are named here and created when that line starts, not before. An empty branch that receives nothing is a placeholder that rots, and the version it would serve is fixed by the EF Core release schedule rather than by this repository.
+`efcore/9.0` was created on 2026-11-13 from `efcore/10.0`, and `efcore/8.0` on the same day from `efcore/9.0`. A branch is created when its line starts, not before. An empty branch that receives nothing is a placeholder that rots, and the version it would serve is fixed by the EF Core release schedule rather than by this repository.
 
 ## 2. Creating a branch
 
@@ -36,11 +36,21 @@ dev (EF11) ----------------------------->  integration
                    +--> master ---------->  packaging -> v11.x tag (after acceptance)
 ```
 
-1. A version branch starts from the previous line's branch at the moment that line starts, so it inherits every capability the previous line already has. Creating it from an older tag would drop the difference between the lines into a single step, where it could not be attributed to EF Core 9 or EF Core 10.
+1. A version branch starts from the adjacent newer line's branch at the moment that line starts (`efcore/10.0` → `efcore/9.0` → `efcore/8.0`), so it inherits every capability the previous line already has without replaying a delta that was measured two steps ago. Creating it from an older tag would drop the difference between the lines into a single step, where it could not be attributed to one EF Core version.
 2. Tags are placed on the branch that owns the line and are never a branch source for another line. A line starts when the decision to serve it is taken, not when the line above it is released; one line's release never gates another line's start.
 3. Work is committed on the version branch, and its release tags are placed on that branch. An EF Core 8, 9 or 10 branch never merges into `dev` or `master`.
 4. `dev` is reserved for EF Core 11 integration and `master` for EF Core 11 packaging. During the transition they still contain the EF Core 10 ancestry; they receive no further EF Core 10 commits, and no `v10.x` tag is placed on either.
 5. A branch is closed when its line stops receiving changes. A line that only receives defect fixes is a tag plus a temporary `hotfix/X.Y.Z` branch, not a long-lived branch.
+
+Branch provenance, recorded so that a later line can be traced to its source:
+
+| Branch | Cut from | Source commit | Created |
+|---|---|---|---|
+| `efcore/9.0` | `efcore/10.0` | `1618c4f` | 2026-11-13 |
+| `efcore/8.0` | `efcore/9.0` | `3e937a2` | 2026-11-13 |
+
+A branch that has just been created still carries the line above it: same target framework, same dependency
+range, same ledger. The provenance record is what tells a later reader that the branch is not yet adapted.
 
 ## 3. Synchronization
 
@@ -141,7 +151,7 @@ The trigger is the decision to support that version, not its release date. Steps
 
 1. The newest line uses `dev` for integration and `master` for packaging and tags. When EF Core 11 starts, retarget `dev`/`master` to `net11.0`; no separate `efcore/11.0` branch is created while it is the newest line.
 2. When EF Core 11 is no longer the newest line, create `efcore/11.0` from its last release tag, and move `dev`/`master` to the new line. Tags for the old line stay on `efcore/11.0`.
-3. Create a maintenance branch for an older major version from the newest line's branch at the moment that line starts. Do not wait for, and do not branch from, the newer line's release tag: that tag belongs to the newer line, and the older line's own `v` tags are placed on its own branch when it releases. A line that will only receive defect fixes gets no branch; use `hotfix/X.Y.Z` from a tag.
+3. Create a maintenance branch for an older major version from the adjacent newer line's branch at the moment that line starts (`efcore/10.0` → `efcore/9.0` → `efcore/8.0`). Do not wait for, and do not branch from, the newer line's release tag: that tag belongs to the newer line, and the older line's own `v` tags are placed on its own branch when it releases. Branching from the newest line instead would replay every already measured delta through two steps at once. A line that will only receive defect fixes gets no branch; use `hotfix/X.Y.Z` from a tag.
 4. Update the branch table in this document and the support table in `README.md`.
 5. Work through [Version Matrix](version-matrix.md) for the transition.
 
@@ -168,7 +178,7 @@ These are tracked in [Version Matrix](version-matrix.md).
 
 Live-database jobs use protected variables and never run on pull requests from forks. A failing live job fails the pipeline; it is never marked optional.
 
-`.github/workflows/ci.yml` runs the offline rows: build, unit tests, the specification project build with its skip ledger guard, and the acceptance dry run on every push and pull request, and the package smoke test on a `v*` tag. The live rows are not wired yet, because the pipeline has no instance of its own (see [Roadmap](roadmap.md) section 5); until they are, this table describes what the pipeline is meant to run and the release notes state what live verification did not cover. Two live rows are run by hand against an instance someone provides: `samples/DmProviderValidation` and `scripts/design-time-smoke.ps1`. A live job that is added but skipped is worse than an absent one, so nothing here claims to run it. The job runs on Windows, the platform every command in `README.md` was verified on; a Linux job joins with the live matrix, so an unverified native asset does not turn into a red build before anyone can read the failure.
+`.github/workflows/ci.yml` runs the offline rows: build, unit tests, the specification project build with its skip ledger guard, and the acceptance dry run on every push and pull request, and the package smoke test on a `v*` tag. The live rows are not wired yet, because the pipeline has no instance of its own (see [Roadmap](roadmap.md) section 5); until they are, this table describes what the pipeline is meant to run and the release notes state what live verification did not cover. Two live rows are run by hand against an instance someone provides: `samples/DmProviderValidation` and `scripts/design-time-smoke.ps1`. A live job that is added but skipped is worse than an absent one, so nothing here claims to run it. The job runs on Windows, the platform every command in `README.md` was verified on; a Linux job joins with the live matrix, so an unverified native asset does not turn into a red build before anyone can read the failure. Each line uses the SDK its target framework needs: `10.0.x` on `efcore/10.0`, `9.0.x` on `efcore/9.0`, `8.0.x` on `efcore/8.0`.
 
 ## 10. Commit messages
 
@@ -177,4 +187,3 @@ Format: `type(scope): summary`, where type is one of `feat`, `fix`, `refactor`, 
 Scope is the layer or area touched: `query`, `storage`, `update`, `migrations`, `scaffolding`, `value-generation`, `dialect`, `docs`, `ci`.
 
 A commit that adds a skip-ledger entry includes it in the same commit as the code, so it is visible in review.
-
