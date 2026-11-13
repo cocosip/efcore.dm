@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 10 release candidate. The provider is feature-complete within the server limits recorded in the [Capability Matrix](docs/capability-matrix.md); the `v10.0.1` tag is pending. Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 10 release candidate. The provider is feature-complete within the server limits recorded in the [Capability Matrix](docs/capability-matrix.md); all EF Core 10 specification bases are inherited and the live suite passes with only the cases recorded in [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) skipped. The `v10.0.1` tag is pending the final review. Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 

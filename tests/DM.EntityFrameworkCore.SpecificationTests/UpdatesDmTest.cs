@@ -65,6 +65,7 @@ public class UpdatesDmTest : UpdatesRelationalTestBase<UpdatesDmTest.UpdatesDmFi
     /// Dameng has no filtered index: measured on 8.1.4.80, <c>CREATE INDEX ... WHERE</c> is rejected with
     /// <c>语法分析出错</c>. The case swaps two values under a filtered unique index, so it cannot run here.
     /// </summary>
+    [ConditionalFact(Skip = "Server limitation: Dameng has no filtered index")]
     public override Task Swap_filtered_unique_index_values()
         => Task.CompletedTask;
 

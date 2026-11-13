@@ -13,6 +13,8 @@
     <NoWarn>$(NoWarn);EF1001</NoWarn>
     <!-- The migrations cases compile a snapshot in memory and need the runtime reference set. -->
     <PreserveCompilationContext>true</PreserveCompilationContext>
+    <!-- The upstream cases format dates with a named culture, which invariant mode cannot resolve. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 
   <ItemGroup>

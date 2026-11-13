@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Query;
 using Microsoft.EntityFrameworkCore.TestModels.Northwind;
+using Microsoft.EntityFrameworkCore.TestUtilities;
 using Xunit.Sdk;
 using DM.EntityFrameworkCore.SpecificationTests.TestUtilities;
 
@@ -70,6 +71,21 @@ public class NorthwindAggregateOperatorsQueryDmTest : NorthwindAggregateOperator
             ss => ss.Set<Customer>().OrderBy(c => c.CustomerID).Take(3),
             selector: c => (decimal)c.Orders.Average(o => 5 + o.OrderDetails.Average(od => od.ProductID)),
             asserter: (e, a) => Assert.Equal(e, a, precision: 3));
+
+    /// <summary>
+    /// The statement composes a chained navigation into an <c>OUTER APPLY</c> whose scalar subqueries
+    /// reference the outermost row; Dameng answers <c>不支持的语句类型</c>. Measured on 8.1.4.80: the same
+    /// scalar subquery in a plain subquery answers, while inside the <c>APPLY</c> it does not. Recorded in
+    /// <c>Skipped.md</c>.
+    /// </summary>
+    [ConditionalTheory(Skip = "Server limitation: an OUTER APPLY whose scalar subqueries reference the outermost row is rejected")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public override Task Multiple_collection_navigation_with_FirstOrDefault_chained(bool async)
+    {
+        _ = async;
+        return Task.CompletedTask;
+    }
 
     public class NorthwindQueryDmFixture : NorthwindQueryDmFixtureBase
     {

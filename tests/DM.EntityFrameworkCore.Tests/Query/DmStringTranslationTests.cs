@@ -442,6 +442,17 @@ public class DmStringTranslationTests
     }
 
     [Fact]
+    public void Equals_WithCultureSensitiveComparison_IsNotTranslated()
+    {
+        using var context = new ProbeContext();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => context.Probes.Where(p => p.Name.Equals("a", StringComparison.InvariantCulture)).ToQueryString());
+
+        Assert.Contains("could not be translated", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Equals_CaseSensitiveComparison_ComparesTheValuesAsTheyAre()
     {
         using var context = new ProbeContext();

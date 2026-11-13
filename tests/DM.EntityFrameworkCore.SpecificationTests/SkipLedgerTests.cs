@@ -46,10 +46,16 @@ public class SkipLedgerTests
                 typeof(BuiltInDataTypesDmTest),
                 typeof(StoreGeneratedDmTest),
                 typeof(NorthwindWhereQueryDmTest),
+                typeof(NorthwindNavigationsQueryDmTest),
+                typeof(NorthwindMiscellaneousQueryDmTest),
+                typeof(NorthwindBulkUpdatesDmTest),
+                typeof(PrimitiveCollectionsQueryDmTest),
                 typeof(NorthwindJoinQueryDmTest),
                 typeof(NorthwindSelectQueryDmTest),
                 typeof(NorthwindGroupByQueryDmTest),
                 typeof(NorthwindAggregateOperatorsQueryDmTest),
+                typeof(NorthwindIncludeQueryDmTest),
+                typeof(UpdatesDmTest),
                 typeof(MigrationsDmTest)
             }
             .SelectMany(type => type.GetMethods(BindingFlags.Instance | BindingFlags.Public))

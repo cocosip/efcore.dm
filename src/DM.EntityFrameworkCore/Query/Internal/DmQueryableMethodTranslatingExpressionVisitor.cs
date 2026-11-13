@@ -59,10 +59,13 @@ internal sealed class DmQueryableMethodTranslatingExpressionVisitor : Relational
             return null;
         }
 
-        var elementClrType = sqlExpression.Type.GetGenericArguments()[0];
+        var elementClrType = sqlExpression.Type.IsArray
+            ? sqlExpression.Type.GetElementType()!
+            : sqlExpression.Type.GetGenericArguments()[0];
         var nullableElementType = elementClrType.IsValueType
-            ? typeof(Nullable<>).MakeGenericType(elementClrType)
-            : elementClrType;
+            && Nullable.GetUnderlyingType(elementClrType) is null
+                ? typeof(Nullable<>).MakeGenericType(elementClrType)
+                : elementClrType;
 
         // The path and the column definition are constants; the only value from outside is the store
         // type, which comes from the element's own mapping and not from user input.

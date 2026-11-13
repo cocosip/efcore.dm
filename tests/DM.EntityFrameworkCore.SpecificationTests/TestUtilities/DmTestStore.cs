@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using Dm;
 using Microsoft.EntityFrameworkCore.Infrastructure;
@@ -37,14 +38,20 @@ public sealed class DmTestStore : RelationalTestStore
     private readonly string[] _schemas;
     private readonly bool _ownsWholeSchema;
 
-    private DmTestStore(string name, bool shared, string[] schemas, bool ownsWholeSchema)
+    private DmTestStore(
+        string name,
+        bool shared,
+        string[] schemas,
+        bool ownsWholeSchema,
+        string? connectionString = null)
         : base(
             name,
             shared,
             new DmConnection(
-                schemas.Length > 0
+                connectionString
+                ?? (schemas.Length > 0
                     ? WithSchema(DmTestConnection.ConnectionString, schemas[0])
-                    : DmTestConnection.ConnectionString))
+                    : DmTestConnection.ConnectionString)))
     {
         _schemas = schemas;
         _ownsWholeSchema = ownsWholeSchema;
@@ -60,6 +67,12 @@ public sealed class DmTestStore : RelationalTestStore
     public static DmTestStore CreateForUpdates(string name)
         => new(name, shared: false, [UpdatesSchema], ownsWholeSchema: true);
 
+    public static DmTestStore CreateForPrimitiveCollections(string name)
+        => new(name, shared: false, [], ownsWholeSchema: false, DmTestConnection.FullConnectionString);
+
+    public static DmTestStore GetOrCreateForPrimitiveCollections(string name)
+        => new(name, shared: true, [], ownsWholeSchema: false, DmTestConnection.FullConnectionString);
+
     private static string WithSchema(string connectionString, string schema)
         => Regex.Replace(
             connectionString,
@@ -69,6 +82,16 @@ public sealed class DmTestStore : RelationalTestStore
 
     public override DbContextOptionsBuilder AddProviderOptions(DbContextOptionsBuilder builder)
         => builder.UseDm(Connection, options => options.CommandTimeout(CommandTimeout));
+
+    /// <summary>
+    /// The specification tests write raw SQL with SQL Server's bracket delimiters; Dameng uses double
+    /// quotes, so a bracket that reaches the server is an invalid identifier.
+    /// </summary>
+    public override string NormalizeDelimitersInRawString(string sql)
+        => sql.Replace('[', '"').Replace(']', '"');
+
+    public override FormattableString NormalizeDelimitersInInterpolatedString(FormattableString sql)
+        => FormattableStringFactory.Create(NormalizeDelimitersInRawString(sql.Format), sql.GetArguments());
 
     protected override async Task InitializeAsync(
         Func<DbContext> createContext,

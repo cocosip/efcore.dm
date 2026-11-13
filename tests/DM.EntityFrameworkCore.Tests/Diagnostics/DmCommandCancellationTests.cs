@@ -67,6 +67,20 @@ public class DmCommandCancellationTests
         Assert.Equal(1, connection.CancelCount);
     }
 
+    /// <summary>
+    /// A token that is already cancelled fails before the driver is asked to run the statement, so the
+    /// caller sees the framework's cancellation exception type rather than the driver's subclass.
+    /// </summary>
+    [Fact]
+    public async Task AlreadyCancelledToken_ThrowsOperationCanceled()
+    {
+        using var context = new ProbeContext(new FakeDmConnection());
+        var exception = await Assert.ThrowsAsync<OperationCanceledException>(
+            () => context.Probes.ToListAsync(new CancellationToken(canceled: true)));
+
+        Assert.Equal(typeof(OperationCanceledException), exception.GetType());
+    }
+
     private sealed class ProbeContext : DbContext
     {
         private readonly FakeDmConnection _connection;

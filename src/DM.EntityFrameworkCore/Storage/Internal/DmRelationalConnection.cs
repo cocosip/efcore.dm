@@ -24,6 +24,23 @@ internal class DmRelationalConnection : RelationalConnection
     protected override bool SupportsAmbientTransactions => true;
 
     /// <summary>
+    /// The driver answers a cancelled open with <see cref="TaskCanceledException" />, a subclass of the
+    /// framework's cancellation exception; a caller that asks whether the operation was cancelled, or an
+    /// upstream test that checks the exact type, expects <see cref="OperationCanceledException" />.
+    /// </summary>
+    public override async Task<bool> OpenAsync(CancellationToken cancellationToken, bool errorsExpected = false)
+    {
+        try
+        {
+            return await base.OpenAsync(cancellationToken, errorsExpected);
+        }
+        catch (TaskCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// The driver's second constructor argument is named <c>forEFCore</c>, so it is the vendor's
     /// own switch for a connection driven by Entity Framework. Leaving it off would run the
     /// provider on the path the driver keeps for other consumers.

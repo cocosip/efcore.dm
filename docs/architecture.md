@@ -169,16 +169,15 @@ src/DM.EntityFrameworkCore/                                provider
   Migrations/  Query/  Storage/  Update/  ValueGeneration/
 tests/DM.EntityFrameworkCore.Tests/                        unit and SQL-shape tests
 tests/DM.EntityFrameworkCore.PackageConsumer/              package smoke test: consumes the packed provider
-tests/DM.EntityFrameworkCore.SpecificationTests/           EF Core specification suite (planned)
+tests/DM.EntityFrameworkCore.SpecificationTests/           EF Core specification suite (live; the pipeline builds it and runs the ledger guard)
 scripts/package-smoke.ps1                                  packs, restores the consumer in an isolated cache, runs it
 scripts/design-time-smoke.ps1                              runs the `dotnet ef` tooling against a live instance
 samples/DmProviderValidation/                              live-database acceptance console (--dry-run builds the model and generates the schema without an instance)
 docs/
 ```
 
-Everything listed exists except the entries marked planned, which are created when their phase starts.
-`RepositoryLayoutTests` holds both directions: a listed entry that is missing fails, and a directory at
-the top level of the provider that is not listed fails.
+Everything listed exists. `RepositoryLayoutTests` holds both directions: a listed entry that is missing
+fails, and a directory at the top level of the provider that is not listed fails.
 
 ## 9. Cross-cutting rules
 

@@ -35,6 +35,13 @@ internal sealed class DmFullTextSearchFunctionsTranslator : IMethodCallTranslato
         IReadOnlyList<SqlExpression> arguments,
         IDiagnosticsLogger<DbLoggerCategory.Query> logger)
     {
+        // The translator is asked about every method call, including List<T>.Contains and the LINQ
+        // operators, which share the names below. Only this provider's extensions are full-text calls.
+        if (method.DeclaringType != typeof(DmDbFunctionsExtensions))
+        {
+            return null;
+        }
+
         var function = method.Name switch
         {
             nameof(DmDbFunctionsExtensions.Contains) => "CONTAINS",

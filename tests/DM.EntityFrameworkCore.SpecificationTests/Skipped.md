@@ -4,12 +4,20 @@ Status: **living document**. Every case that does not run, or does not pass, is 
 measurement that decided it. A row leaves this file when the suite passes the case, not when someone
 intends to fix it.
 
+A case that does not pass is marked `Skip` in the test class with the same reason, so a live run reports
+it as skipped rather than failed; the ledger remains the record of the measurement. A skipped theory is
+reported once even though it carries the synchronous and the asynchronous form as two data rows.
+
+Current live run on 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 3898 results, 3820 passed,
+78 skipped, 0 failed. The 78 are the 49 query cases below, the 19 migrations cases, the 9 cases the
+shipped base skips, and one `Updates` case.
+
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
 store drops the objects its model declares, and the updates and migrations fixtures own a schema of their
 own, so the database it runs against keeps every object an application already has.
 
-Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 32 cases, 31 passed, 1 failed. The
-failure is below, and it is the whole of the gap this fixture set exposes.
+Measured on 2026-11-11 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 31 cases, 30 passed, 1 skipped. The
+skipped case is below, and it is the whole of the gap this fixture set exposes.
 
 The store generated fixture set (`StoreGeneratedDmTest`, 211 cases) ran against the same instance on
 2026-11-11 and every case passed, so it adds no entry here.
@@ -20,18 +28,49 @@ compare two constructed values, which the relational pipeline does not translate
 class asserts that failure, as the SQL Server test does, so those cases pass as written (EF Core issue
 #14672).
 
-The `Join` set of the Northwind query suite (`NorthwindJoinQueryDmTest`, 132 cases) ran against the same
-instance on 2026-11-11: 126 passed, two did not (one case in its two forms), and four are skipped
-upstream (`#30677` and `#35028`). The failing case is below. Two other families failed on that run and
+The `Navigations` set of the Northwind query suite (`NorthwindNavigationsQueryDmTest`, 146 cases) ran
+against the same instance on 2026-11-13 and every case passed, so it adds no entry.
+
+The `Miscellaneous` set of the Northwind query suite (`NorthwindMiscellaneousQueryDmTest`, 930 results)
+ran against the same instance on 2026-11-13: 921 passed, 9 skipped (eight cases below covering 16 async
+executions, and one case the shipped base skips), and 0 failed. The run found and fixed provider defects
+rather than recording them: `uint.ToString` was not translated although `TO_CHAR` formats it; a
+culture-sensitive `string.Equals(..., StringComparison)` was silently compared as an ordinal one; and a
+token that was already cancelled reached the driver and surfaced as `TaskCanceledException` rather than
+the framework's `OperationCanceledException`. The test host also runs with globalization enabled now, so
+the upstream case that formats a date with `en-US` can resolve the culture. Four upstream cases whose
+base body leaves the expected exception to the provider test are asserted in the class, as the SQL Server
+test does: the empty `Max`, the composite-key entity equality, the client-code guard checks, and the DTO
+projection case recorded as EF Core issue #24478.
+
+The `BulkUpdates` set (`NorthwindBulkUpdatesDmTest`, 180 results) ran against the same instance on
+2026-11-13: 172 passed, 8 skipped (three cases the shipped base skips and five cases below), and 0
+failed. The five are two server limitations in an update source (`APPLY` and a left-joined projection)
+and two upstream assertions that expect SQL Server's empty-string coalesce where this provider preserves
+`NULL`; the raw-SQL case was corrected to the model's `OrderDetails` table name and passes.
+
+The `PrimitiveCollections` set (`PrimitiveCollectionsQueryDmTest`, 156 results) ran on the
+default-compatibility instance on 2026-11-13: 133 passed, 23 skipped (one case the shipped base skips and
+the twenty-two below), and 0 failed. The fixture uses `COMPATIBLE_MODE=0` because the upstream seed writes
+an empty string into a required column; Oracle-compatible mode stores that string as `null` and refuses
+the seed. The run found and fixed a provider defect: the collection element type was read from
+`GetGenericArguments()[0]`, which an array has none of, so every array-backed collection threw
+`IndexOutOfRangeException`; the element type is now taken from the array. The skips are the translation
+gap for an `EF.Parameter` collection, the server's refusal of a dynamic `LIMIT`/`OFFSET` expression,
+`JSON_TABLE` refusing `BIT`, and the row order the collection paging assertions expect.
+
+The `Join` set of the Northwind query suite (`NorthwindJoinQueryDmTest`, 131 results) ran against the
+same instance on 2026-11-11: 126 passed, 5 skipped (four upstream, `#30677` and `#35028`, and one case in
+its two forms), and 0 failed. The skipped case is below. Two other families failed on that run and
 are fixed rather than recorded: a collection joined in a query was rendered as a bare `VALUES` inside a
 set operation, which the server rejects with `语法分析出错`, and is now a `SELECT ... FROM DUAL` per row
 joined by `UNION ALL`; a tautological join predicate was rendered as a bare `1`, which the server
 rejects with `查询使用值表达式作为过滤条件`, and is now compared with `1` like the statement's own
 predicate.
 
-The `Select` set of the Northwind query suite (`NorthwindSelectQueryDmTest`, 372 cases) ran against the
-same instance on 2026-11-11: 364 passed, eight did not (four cases in their two forms), and the shipped
-base skips none of them. The four are below, and they are two server limitations: a nested `APPLY` whose
+The `Select` set of the Northwind query suite (`NorthwindSelectQueryDmTest`, 368 results) ran against the
+same instance on 2026-11-11: 364 passed, 4 skipped (four cases, each covering its two async forms), and
+the shipped base skips none of them. The four are below, and they are two server limitations: a nested `APPLY` whose
 inner query references the outermost table, and a row picked without an ordering. A fifth case, the one
 that asked for the first row of a keyless entity, did not pass in that run because this project's store
 left the keyless table empty; the fixture now seeds it, and the case passes. The run found three
@@ -41,17 +80,17 @@ which the server rejects at the comparison; and a difference of two dates was tr
 server answers it with a number of days, which cannot be read back as a time span, so it is now
 projected as the date and subtracted by the client.
 
-The `GroupBy` set (`NorthwindGroupByQueryDmTest`, 512 cases) ran against the same instance on 2026-11-11:
-502 passed, six did not (three cases in their two forms), and the shipped base skips four. The three are
-below, and they are the same server limitation: SQL Server accepts an outer reference where this server
+The `GroupBy` set (`NorthwindGroupByQueryDmTest`, 509 results) ran against the same instance on
+2026-11-11: 502 passed, 7 skipped (four upstream and three cases, each covering its two async forms), and
+0 failed. The three are below, and they are the same server limitation: SQL Server accepts an outer reference where this server
 needs the referenced column to be grouped, or refuses it outright. The run found one defect that was
 fixed: a null-safe comparison of an `EXTRACT` key was written `MONTH IS NULL OR "OrderDate" IS NULL`,
 because the keyword argument propagated nullability like a value, which the server rejects with
 `无效的列名[MONTH]`; a fragment no longer propagates.
 
-The `AggregateOperators` set (`NorthwindAggregateOperatorsQueryDmTest`, 422 cases) ran against the same
-instance on 2026-11-12: 420 passed, two did not (one case in its two forms), and the shipped base skips
-none of them. The case is below, and it is the same server limitation the nested `APPLY` rows record.
+The `AggregateOperators` set (`NorthwindAggregateOperatorsQueryDmTest`, 421 results) ran against the same
+instance on 2026-11-12: 420 passed, 1 skipped (one case covering its two async forms), and the shipped
+base skips none of them. The case is below, and it is the same server limitation the nested `APPLY` rows record.
 The run found no provider defect; the one case that differed from the client's arithmetic is an average
 the server computes to its own decimal scale, which the class compares at three decimal places as the
 reference provider does, and the one that read a keyless set exposed a gap in this project's store
@@ -65,16 +104,21 @@ guidance about splitting a query that loads two collections rather than a provid
 now logged by the shared fixture, as the shipped fixtures log the other guidance warnings, so it adds no
 entry here.
 
-The `Updates` set (`UpdatesDmTest`, 36 cases) ran against the same instance on 2026-11-12: 35 ran and
-passed, and one does not run because it needs a filtered unique index the server cannot create. It is
-under "Cases that do not run". The run found and fixed three defects: the identifier limit was not
+The `Updates` set (`UpdatesDmTest`, 36 results) ran against the same instance on 2026-11-12: 35 passed,
+and one is skipped because it needs a filtered unique index the server cannot create. It is under "Cases
+that do not run". The run found and fixed three defects: the identifier limit was not
 declared, so a model with a generated name past 128 characters failed while its tables were created; a
 byte array concurrency token the model leaves unbounded was mapped to a `BLOB`, which the server cannot
 compare in a statement's predicate, so updates and deletes were rejected with a data type error; and the
 provider's own concurrency message left out the framework's explanatory link. The fixture also maps the
 abstract product base the shared foreign key case needs, the way the SQL Server fixture does.
 
-## Cases that do not pass
+## Cases that do not pass (marked skipped)
+
+The forty-nine cases below are overridden with `Skip = "..."` in their test class. A skipped theory
+is reported once even though it carries the synchronous and the asynchronous form as two data rows, so
+the forty-nine rows and the nine cases the shipped base skips account for the fifty-eight query results
+in the total above.
 
 | Case | Cause | Fix |
 |---|---|---|
@@ -88,16 +132,56 @@ abstract product base the shared foreign key case needs, the way the SQL Server 
 | `GroupBy_with_aggregate_containing_complex_where` | The subquery's `WHERE` references the outer query's aggregate `MAX("o"."OrderID")`, which the server answers with `存在集函数`. Measured on 8.1.4.80: the same statement with the outer aggregate replaced by a constant answered | Not a provider defect: the framework places the outer aggregate in the subquery's predicate, which SQL Server accepts |
 | `Complex_query_with_groupBy_in_subquery4` | A scalar subquery inside an `OUTER APPLY` contains a derived table that references the outermost `Customers` row, and the server answers `引用列未找到`. Measured on 8.1.4.80: the same shape with the reference to the outermost row answered `不支持的语句类型`, while the same shape with the reference narrowed to the `APPLY`'s own row answered | Not a provider defect: a reference two scopes out, through a derived table inside an `APPLY`, is the same limitation the nested `APPLY` rows of the `Select` set record |
 | `Multiple_collection_navigation_with_FirstOrDefault_chained` | The statement has an `OUTER APPLY` whose scalar subqueries reference the outermost `Customers` row, and the server answers `不支持的语句类型`. Measured on 8.1.4.80: the statement with that scalar subquery replaced by a constant answered 8 rows, the same scalar subquery in a plain subquery answered 44 rows, while inside the `APPLY` it answered `不支持的语句类型` from both its select list and its derived table | Not a provider defect: the framework composes a chained navigation into an `APPLY` whose subqueries read the outermost row, which this server does not resolve |
+| `Projection_skip_collection_projection` | The statement selects a page of orders and then a collection of product ids; the generated shape is the same as SQL Server's (`OFFSET`, `FETCH`, then `LEFT JOIN`), but the server answered the rows of each collection in a different order. Measured: the collection for the first order started with product 49 where the expected data starts with 39; the rows are the same set | Not a provider defect: the query asks for no ordering inside the collection, so the row order is not part of the statement |
+| `Projection_take_collection_projection` | The same unordered collection projection with `FETCH FIRST 10 ROWS ONLY`; the server answered product 51 where the expected data starts with 41, and the set of rows is the same | Same as the row above |
+| `Projection_skip_take_collection_projection` | The same unordered collection projection with `OFFSET` and `FETCH NEXT`; the server answered product 39 where the expected data starts with 31, and the set of rows is the same | Same as the row above |
+| `Checked_context_with_arithmetic_does_not_fail` | The query filters on `Quantity` and orders only by `OrderID`. Measured: both sides return the same 55 rows, the same first row (`10268/72/4`) and only `Quantity = 4`; rows that share an order have no ordering key, so the server answered a different `ProductID` first (39 rather than 25) | Not a provider defect: the statement's only ordering key is not unique, so the tie order is not defined |
+| `Select_Where_Subquery_Deep_First` | The predicate is a nested `FirstOrDefault` with no ordering, and the outer query takes two rows. The generated shape is the same as SQL Server's (`FETCH FIRST 1 ROWS ONLY` at both levels), but the server selected order detail 10344 where the expected data selected 10269 | Not a provider defect: a row limiting operation without an ordering has no defined row |
+| `Entity_equality_orderby_subquery` | The query orders customers by their first order, and the first order is selected with `FETCH FIRST 1 ROWS ONLY` and no ordering. Measured: the server ordered `PARIS` first where the expected data ordered `FISSA` first; both orders contain the same customers | Not a provider defect: the first row of a subquery without an ordering is not defined |
+| `Complex_nested_query_doesnt_try_binding_to_grandparent_when_parent_returns_complex_result` | The statement contains an `OUTER APPLY` whose scalar subquery references the outermost `Customers` row; the server answers `不支持的语句类型`. The generated shape is the same as SQL Server's | Not a provider defect: the framework composes the correlated scalar subquery into the `APPLY`, and this server does not resolve a reference to the outermost row there |
+| `Where_nanosecond_and_microsecond_component` | The case asks for `DateTime.Nanosecond` and `DateTime.Microsecond`. Measured on 8.1.4.80: `DATEPART(nanosecond, ...)` is rejected with `语法分析出错`; `DATEPART(microsecond, ...)` answers, but the nanosecond component cannot be represented, so the member is left untranslated | Not a provider defect: the server has no nanosecond date part, so the case is inapplicable as written |
+| `Delete_GroupBy_Where_Select` | The shipped `BulkUpdates` base skips this case | Not a provider defect: the base declares the skip |
+| `Delete_GroupBy_Where_Select_2` | The shipped `BulkUpdates` base skips this case | Not a provider defect: the base declares the skip |
+| `Update_Where_GroupBy_First_set_constant_2` | The shipped `BulkUpdates` base skips this case | Not a provider defect: the base declares the skip |
+| `Update_with_cross_join_left_join_set_constant` | The update source projects a left join in an update statement, and the server answers `引用列未找到` | Server limitation: the projected join column is not resolved in an update source |
+| `Update_with_cross_join_cross_apply_set_constant` | The update source contains a `CROSS APPLY`, and the server answers `不支持的语句类型` | Server limitation: `APPLY` in an update source is rejected |
+| `Update_with_cross_join_outer_apply_set_constant` | The update source contains an `OUTER APPLY`, and the server answers `不支持的语句类型` | Server limitation: `APPLY` in an update source is rejected |
+| `Update_Where_Join_set_property_from_joined_single_result_table` | The upstream assertion expects SQL Server's `COALESCE(..., '')`; this provider preserves the null a customer with no order produces | Provider difference: the assertion encodes SQL Server's empty-string coalesce |
+| `Update_Where_Join_set_property_from_joined_single_result_scalar` | The same upstream empty-string coalesce assertion | Same as the row above |
+| `Inline_collection_Contains_with_EF_Parameter` | `EF.Parameter` over a collection is not expanded into a `JSON_TABLE` row source | Translation gap: a collection parameter is left to the framework default |
+| `Inline_collection_Contains_with_IEnumerable_EF_Parameter` | The same collection-parameter gap | Same as the row above |
+| `Inline_collection_Count_with_column_predicate_with_EF_Parameter` | The same collection-parameter gap | Same as the row above |
+| `Parameter_collection_of_nullable_ints_Contains_nullable_int_with_EF_Parameter` | The same collection-parameter gap | Same as the row above |
+| `Inline_collection_index_Column` | The index is an expression, and the server rejects a dynamic `LIMIT`/`OFFSET` expression with `TOP、LIMIT或OFFSET子句中的表达式无效` | Server limitation: row limiting needs a constant |
+| `Inline_collection_index_Column_with_EF_Constant` | The same dynamic row-limiting expression | Same as the row above |
+| `Inline_collection_List_value_index_Column` | The same dynamic row-limiting expression | Same as the row above |
+| `Inline_collection_value_index_Column` | The same dynamic row-limiting expression | Same as the row above |
+| `Parameter_collection_index_Column_equal_Column` | The same dynamic row-limiting expression | Same as the row above |
+| `Parameter_collection_index_Column_equal_constant` | The same dynamic row-limiting expression | Same as the row above |
+| `Parameter_collection_with_type_inference_for_JsonScalarExpression` | The statement builds the same dynamic `LIMIT`, which the server rejects | Same as the row above |
+| `Column_collection_of_bools_Contains` | `JSON_TABLE` declares the element as `BIT`, which the server rejects with `无效的数据类型` | Server limitation: `BIT` is not a `JSON_TABLE` column type |
+| `Column_collection_Take` | The collection has no ordering, so the page the server answers differs from the expected page | Server limitation: `JSON_TABLE` rows have no defined order |
+| `Column_collection_Skip_Take` | The same unordered paging of a collection | Same as the row above |
+| `Column_collection_in_subquery_Union_parameter_collection` | The same unordered paging after a union with a collection parameter | Same as the row above |
+| `Project_collection_of_ints_ordered` | The collection is projected and the expected order is the array order, which `JSON_TABLE` does not preserve | Server limitation: `JSON_TABLE` does not promise array order |
+| `Project_collection_of_datetimes_filtered` | The filtered collection projection answers a different member because the row order is not defined | Same as the row above |
+| `Project_collection_of_nullable_ints_with_paging` | The nullable collection is paged, and the server answers a different page | Server limitation: `JSON_TABLE` paging has no defined order |
+| `Project_collection_of_nullable_ints_with_paging2` | The same nullable paging | Same as the row above |
+| `Project_collection_of_nullable_ints_with_paging3` | The same nullable paging | Same as the row above |
+| `Project_collection_of_nullable_ints_with_distinct` | The shipped `PrimitiveCollections` base skips this case | Not a provider defect: the base declares the skip |
+| `Project_empty_collection_of_nullables_and_collection_only_containing_nulls` | The null elements and the paging are ordered differently | Server limitation: `JSON_TABLE` null-element paging has no defined order |
+| `Project_multiple_collections` | Two collections are projected without an ordering, and the rows are paired in a different order | Server limitation: `JSON_TABLE` rows have no defined order |
 
 `Case` names are methods of the test classes this project owns. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
 fails when a row names a case the suite does not have.
 
 ## Cases that do not run
 
-The four cases of the `Join` set and the four of the `GroupBy` set are skipped by the shipped base
-itself (`#30677`, `#35028` and `#27130`), not by this project. Every other case of the nine bases ran
-in the measurements above; the four capability answers in the `BuiltInDataTypesDmTest` fixture narrow
-what the model contains rather than skipping a case.
+The four cases of the `Join` set, the four of the `GroupBy` set, and one `Miscellaneous` case
+(`Coalesce_Correct_TypeMapping_Double`) are skipped by the shipped base itself (`#30677`, `#35028`,
+`#27130` and a type-mapping case), not by this project. Every other case of the eleven bases ran in the
+measurements above; the four capability answers in the `BuiltInDataTypesDmTest` fixture narrow what the
+model contains rather than skipping a case.
 
 `Swap_filtered_unique_index_values` does not run. The case swaps two values under a filtered unique
 index, and this server has no filtered index: measured on 8.1.4.80, `CREATE INDEX ... WHERE` is rejected

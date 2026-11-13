@@ -17,14 +17,30 @@ do not pass and why. This file records what changed, once per release, instead o
 - Migrations DDL generation and a migrations specification suite (134 cases).
 - Reverse engineering of tables, columns, indexes, foreign keys, views, comments and sequences,
   including the declared sequence start value.
-- The specification suite bases: built-in data types, store generated values, `Where`, `Join`, `Select`,
-  `GroupBy`, `AggregateOperators`, `Include`, `Updates` and `Migrations`.
+- The specification suite bases: built-in data types, store generated values, `Where`, `Navigations`,
+  `Miscellaneous`, `BulkUpdates`, `PrimitiveCollections`, `Join`, `Select`, `GroupBy`,
+  `AggregateOperators`, `Include`, `Updates` and `Migrations`.
 - Query translation for `Contains` over a mapped primitive collection, expanded through the server's
   `JSON_TABLE` table function by the provider's own subquery visitor.
 - EF Core 10 SQL compatibility surface for existing Dameng consumers.
 
 ### Fixed
 
+- The full-text translator no longer claims every method named `Contains` or `FreeText`: an entity
+  `Contains` (including `List<T>.Contains` and a navigation collection) was translated as a full-text
+  call and threw during translation. It now accepts only methods declared by `DmDbFunctionsExtensions`.
+- `uint.ToString()` and the other unsigned integer types are translated to `TO_CHAR`, as the signed
+  types already were.
+- A culture-sensitive `string.Equals(..., StringComparison)` is left to the client instead of being
+  silently compared as an ordinal one.
+- A token that is already cancelled throws `OperationCanceledException` before the driver runs the
+  command, rather than surfacing the driver's `TaskCanceledException`.
+- A primitive collection backed by an array is translated: the element type came from
+  `GetGenericArguments()[0]`, which an array has none of, so every array-backed collection threw
+  `IndexOutOfRangeException` before the `JSON_TABLE` expansion.
+- A nullable primitive-collection element is not nested in `Nullable<T>` twice.
+- Raw SQL that carries SQL Server's bracket delimiters is normalized to Dameng's double quotes in the
+  specification fixture, so `FromSql`-composed bulk commands reach the table the model maps.
 - Identifier limit declared at 128 characters, so generated names no longer fail after their tables exist.
 - An unbounded `byte[]` concurrency token is `VARBINARY(900)` rather than `BLOB`, so updates and deletes
   are not rejected by the server.

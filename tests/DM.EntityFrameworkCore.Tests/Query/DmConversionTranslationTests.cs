@@ -11,6 +11,7 @@ public class DmConversionTranslationTests
     private static readonly Dictionary<string, Func<IQueryable<Probe>, IQueryable<Probe>>> Queries = new()
     {
         ["ToStringInt"] = q => q.Where(p => p.Id.ToString() == "1"),
+        ["ToStringUInt"] = q => q.Where(p => ((uint)p.Id).ToString() == "1"),
         ["ToStringDecimal"] = q => q.Where(p => p.Amount.ToString() == "1"),
         ["ConvertToString"] = q => q.Where(p => Convert.ToString(p.Id) == "1"),
         ["ConvertToInt32"] = q => q.Where(p => Convert.ToInt32(p.Amount) == 1),
@@ -23,6 +24,7 @@ public class DmConversionTranslationTests
 
     [Theory]
     [InlineData("ToStringInt", """TO_CHAR("p"."Id") = '1'""")]
+    [InlineData("ToStringUInt", """TO_CHAR(CAST("p"."Id" AS BIGINT)) = '1'""")]
     [InlineData("ToStringDecimal", """TO_CHAR("p"."Amount") = '1'""")]
     [InlineData("ConvertToString", """TO_CHAR("p"."Id") = '1'""")]
     [InlineData("ConvertToInt32", """CAST("p"."Amount" AS INT) = 1""")]

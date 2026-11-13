@@ -20,11 +20,41 @@ internal static class DmTestConnection
 
     private static readonly Lazy<string> LazyConnectionString = new(Resolve);
 
+    private static readonly Lazy<string> LazyFullConnectionString = new(ResolveFull);
+
     public static string ConnectionString => LazyConnectionString.Value;
 
-    private static string Resolve()
+    /// <summary>
+    /// The default-compatibility instance. The primitive-collection fixture needs it because its seed
+    /// writes an empty string into a required column, and Oracle-compatible mode stores an empty string
+    /// as null, which the column refuses.
+    /// </summary>
+    public static string FullConnectionString => LazyFullConnectionString.Value;
+
+    private static string ResolveFull()
     {
-        if (Environment.GetEnvironmentVariable(Variable) is { Length: > 0 } configured)
+        if (Environment.GetEnvironmentVariable("DM_SPEC_CONNECTION_FULL") is { Length: > 0 } configured)
+        {
+            return configured;
+        }
+
+        try
+        {
+            return Resolve("ConnectionStrings:DmFull");
+        }
+        catch (InvalidOperationException)
+        {
+            return ConnectionString;
+        }
+    }
+
+    private static string Resolve()
+        => Resolve(SecretKey);
+
+    private static string Resolve(string key)
+    {
+        if (key == SecretKey
+            && Environment.GetEnvironmentVariable(Variable) is { Length: > 0 } configured)
         {
             return configured;
         }
@@ -45,11 +75,11 @@ internal static class DmTestConnection
 
         using var document = JsonDocument.Parse(File.ReadAllText(file));
 
-        if (document.RootElement.TryGetProperty(SecretKey, out var value) && value.GetString() is { Length: > 0 } secret)
+        if (document.RootElement.TryGetProperty(key, out var value) && value.GetString() is { Length: > 0 } secret)
         {
             return secret;
         }
 
-        throw new InvalidOperationException($"The user secrets do not hold {SecretKey}");
+        throw new InvalidOperationException($"The user secrets do not hold {key}");
     }
 }

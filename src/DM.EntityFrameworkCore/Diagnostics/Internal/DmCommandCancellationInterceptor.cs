@@ -30,6 +30,8 @@ internal sealed class DmCommandCancellationInterceptor : DbCommandInterceptor
         InterceptionResult<DbDataReader> result,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // A reader is cancelled while its rows are read as well, so its registration outlives this
         // event and is released when the reader closes instead.
         Register(command, cancellationToken);
@@ -43,6 +45,8 @@ internal sealed class DmCommandCancellationInterceptor : DbCommandInterceptor
         InterceptionResult<object> result,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         Register(command, cancellationToken);
 
         return new ValueTask<InterceptionResult<object>>(result);
@@ -54,6 +58,8 @@ internal sealed class DmCommandCancellationInterceptor : DbCommandInterceptor
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         Register(command, cancellationToken);
 
         return new ValueTask<InterceptionResult<int>>(result);

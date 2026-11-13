@@ -92,6 +92,26 @@ public class DmFullTextSearchTranslationTests
     }
 
     /// <summary>
+    /// A <c>Contains</c> on an entity list is the framework's identity-equality rewrite, not a full-text
+    /// call. The translator is offered every method call, so it must decline a method declared by another
+    /// type even when the name matches.
+    /// </summary>
+    [Fact]
+    public void Contains_OnAnEntityList_IsNotClaimedByTheFullTextTranslator()
+    {
+        using var context = new ProbeContext();
+        var probes = new List<Probe> { new() { Id = 1 } };
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Text"
+            FROM "Probes" AS "p"
+            WHERE "p"."Id" = :entity_equality_probes_Id1
+            """,
+            Statement(context.Probes.Where(p => probes.Contains(p)).ToQueryString()));
+    }
+
+    /// <summary>
     /// Outside a query the method throws, so a condition the provider cannot translate fails where it is
     /// written instead of quietly matching nothing.
     /// </summary>

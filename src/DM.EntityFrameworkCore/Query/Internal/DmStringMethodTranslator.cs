@@ -449,18 +449,16 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
 
     private static StringComparison? Comparison(IReadOnlyList<SqlExpression> arguments)
         => arguments[^1] is SqlConstantExpression { Value: StringComparison comparison }
-            ? comparison
-            : null;
+            && comparison is StringComparison.Ordinal or StringComparison.OrdinalIgnoreCase
+                ? comparison
+                : null;
 
     /// <summary>
-    /// An ignore-case comparison upper-cases both sides, which is what a database can express. A
-    /// culture-sensitive comparison orders by collation rules rather than by code point, so it is
-    /// compared the same way rather than rejected.
+    /// An ignore-case comparison upper-cases both sides, which is what a database can express. The
+    /// culture-sensitive comparisons are left untranslated by <see cref="Comparison" />.
     /// </summary>
     private SqlExpression Ignoring(SqlExpression expression, StringComparison comparison)
-        => comparison is StringComparison.OrdinalIgnoreCase
-                or StringComparison.InvariantCultureIgnoreCase
-                or StringComparison.CurrentCultureIgnoreCase
+        => comparison == StringComparison.OrdinalIgnoreCase
             ? StringFunction("UPPER", expression, [expression])
             : expression;
 

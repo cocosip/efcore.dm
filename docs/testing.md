@@ -14,6 +14,10 @@ Provider correctness is defined by the EF Core specification test suite, not by 
 | T4 | Differential comparison against the official provider for the same query | Diagnostic aid, not a gate | minutes |
 | T5 | Package smoke test: packs the provider, restores a consumer into an isolated NuGet cache, compares the SHA-256 of the resolved package, runs the consumer | No database; needs a pack, so it is not part of `dotnet test` | about a minute |
 
+T3 is a coverage tier, not a feature decision. A capability's own row in the [Capability Matrix](capability-matrix.md)
+says whether it is supported; not inheriting a base does not make the capability unsupported, and
+inheriting one does not prove it.
+
 ### Constraint on T2
 
 When a method is called only in the final projection, EF Core may read the column and evaluate in the client. `ToQueryString()` not throwing does **not** prove server-side translation.
@@ -124,7 +128,7 @@ difference from a known baseline; no behaviour changed because of it.
 
 ### What the live runs measured
 
-The acceptance console has 34 steps and passed on DM 8.1.4.80 in both compatibility modes on 2026-11-12.
+The acceptance console has 34 steps and passed on DM 8.1.4.80 in both compatibility modes on 2026-11-13.
 It covers the query surface, the retry and cancellation behaviour, JSON, intervals, computed columns,
 ambient transactions and the migrations steps, including four migrations started at once. The steps do
 not only re-run what the unit tests already say: they are where the server's shape is observed, and each
@@ -141,25 +145,49 @@ provider's ceiling is therefore mapped to `NCLOB`/`BLOB`, which is why the speci
 `tests/DM.EntityFrameworkCore.SpecificationTests` runs against a live instance, is not part of the
 solution and does not run in CI; the pipeline builds it and runs the skip ledger guard.
 
-| Suite | Cases | Result |
+| Suite | Results | Result |
 |---|---|---|
-| `BuiltInDataTypesDmTest` | 32 | 31 pass, 1 in the ledger |
+| `BuiltInDataTypesDmTest` | 31 | 30 pass, 1 skipped |
 | `StoreGeneratedDmTest` | 211 | all pass |
 | `NorthwindWhereQueryDmTest` | 408 | all pass |
-| `NorthwindJoinQueryDmTest` | 132 | four upstream skips, one ledger case |
-| `NorthwindSelectQueryDmTest` | 372 | four cases in the ledger |
-| `NorthwindGroupByQueryDmTest` | 512 | three cases in the ledger, four upstream |
-| `NorthwindAggregateOperatorsQueryDmTest` | 422 | one case in the ledger |
+| `NorthwindNavigationsQueryDmTest` | 146 | all pass |
+| `NorthwindMiscellaneousQueryDmTest` | 930 | 921 pass, 9 skipped (eight server-ordering/limit cases and one upstream skip) |
+| `NorthwindBulkUpdatesDmTest` | 180 | 172 pass, 8 skipped (three upstream skips and five ledger cases) |
+| `PrimitiveCollectionsQueryDmTest` | 156 | 133 pass, 23 skipped (one upstream skip and 22 ledger cases) |
+| `NorthwindJoinQueryDmTest` | 131 | 126 pass, 5 skipped (four upstream, one ledger case) |
+| `NorthwindSelectQueryDmTest` | 368 | 364 pass, 4 skipped (the four ledger cases) |
+| `NorthwindGroupByQueryDmTest` | 509 | 502 pass, 7 skipped (four upstream, three ledger cases) |
+| `NorthwindAggregateOperatorsQueryDmTest` | 421 | 420 pass, 1 skipped (the ledger case) |
 | `NorthwindIncludeQueryDmTest` | 236 | all pass |
-| `UpdatesDmTest` | 36 | one case does not run (filtered unique index) |
-| `MigrationsDmTest` | 134 | 115 pass, 19 in the ledger |
+| `UpdatesDmTest` | 36 | 35 pass, 1 skipped (filtered unique index) |
+| `MigrationsDmTest` | 134 | 115 pass, 19 skipped |
+| `SkipLedgerTests` | 1 | all pass |
 
-Whole project: 2495 cases, 2449 passed, 19 in the ledger and 27 skipped (8 upstream and 19 in the
-ledger). The store drops the objects its model declares; the updates fixture and the migrations suite own
-a schema of their own (`DM_SPEC_UPDATES`, `DM_SPEC_MIGRATIONS`), and the migrations class is serialized
-because the database is shared with an application that has 247 tables of its own. Every case that does
-not pass is in [Skipped.md](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with its
-measurement.
+Whole project: 3898 results, 3820 passed, 78 skipped, 0 failed. A skipped theory is reported once even
+though its two async forms are both data rows, so the 49 query cases in the ledger appear as 49 skipped
+results; the 78 are those 49, the 19 migrations cases, the 9 cases the shipped base skips, and the one
+Updates case. The specification project runs its collections serially (`xunit.runner.json`) because
+every fixture shares one database and a fixture that recreates the Northwind tables would otherwise race
+another class. The store drops the objects its model declares; the updates fixture and the migrations
+suite own a schema of their own (`DM_SPEC_UPDATES`, `DM_SPEC_MIGRATIONS`), and the migrations class is
+serialized because the database is shared with an application that has 247 tables of its own. The
+primitive-collection fixture runs on the default-compatibility instance because its seed writes an empty
+string into a required column, which Oracle-compatible mode stores as null and the column refuses. Every
+case that does not run or does not pass is in
+[Skipped.md](../tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) with its measurement.
+
+### Specification bases inherited
+
+All T3 specification bases are now inherited: `NorthwindBulkUpdatesRelationalTestBase` and
+`PrimitiveCollectionsQueryRelationalTestBase` were added on 2026-11-13 beside the query sets, `Updates`
+and `Migrations`. The T3 suites are green with only recorded skips, so T3 is complete as a coverage
+tier; the skips are the server boundaries and translation gaps listed in the ledger, not unrecorded
+failures. The remaining translation gap that stays open is `EF.Parameter(ids).Contains(...)` and the
+`EF.Parameter` collection cases that depend on it.
+
+The reference provider has no specification suite, and its `TranslatePrimitiveCollection` handles
+collection parameters only, so its code is a translation reference for individual gaps rather than a T3
+coverage template. This provider's mapped-collection path is ahead of it.
 
 ### Server boundaries that no provider change can move
 
@@ -187,7 +215,7 @@ The runs found these defects that no shape test could have found, and each is fi
 - A boolean column used directly as a predicate was rejected with `查询使用值表达式作为过滤条件`, and so was the same column under `NOT` or beside a comparison. The predicate is now rewritten so that every boolean it contains is compared with `1`, which the same server answered.
 - An ANSI string declared `HasMaxLength(3)` was mapped to `VARCHAR2(3)`, which counts bytes, so a non-ASCII value the model says fits overflowed. The ANSI types now name the character unit and the model factory reads it back, so the same column comes out of a scaffold as it went in.
 
-The two gaps the first run left, the byte length of an ANSI string and a boolean column used directly as a predicate, are fixed as the last two bullets record. The one case in the ledger is a server limitation rather than a provider defect, and cannot be written differently.
+The two gaps the first run left, the byte length of an ANSI string and a boolean column used directly as a predicate, are fixed as the last two bullets record. The one case in this set's ledger is a server limitation rather than a provider defect, and is now marked skipped in the test class instead of failing the run.
 
 ### When no live environment is available
 
@@ -201,7 +229,7 @@ Work is not reclassified as complete. Rules:
 
 Its `query:` steps ask the server a question and compare the answer with the value .NET computes from the rows the step wrote: the string functions, the date parts and the arithmetic (including a month end, where a clamp and a time of day are both asserted), the date differences, the math functions, paging and ordering, grouping and aggregates, null semantics, and a boolean condition in a projection. A translation that is generated but wrong passes every shape test and fails here; both defects found so far were found by these steps or by the step next to them.
 
-Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Applying a migration *down*, a custom history table and concurrent migration locking are not covered: they are exercised through the `dotnet ef` commands that the roadmap names as exit criteria of the migrations phase.
+Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Concurrent migration locking is exercised by the console's concurrent-deployment step. Applying a migration *down* and a custom history table are not covered by the console; the `dotnet ef` add/update/list/remove/scaffold path is covered by `scripts/design-time-smoke.ps1`, and the migrations specification suite has no infrastructure base yet.
 
 It reads the connection string from its first argument, from `ConnectionStrings__Dm`, or from user secrets (`dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation`), in that order of specificity, so no credential has to sit in the repository; `--secrets=<key>` reads `ConnectionStrings:<key>` for a second instance. It never prints the string. It creates its own prefixed tables through the relational database creator rather than through `EnsureCreated`, because a Dameng database is made with the `dminit` tool before a connection can reach it and the catalog may already hold tables the run does not own. Each run marks its rows with an identifier, isolates them from another run, drops only the tables it created, and returns a non-zero exit code when any step fails. `--keep` leaves the tables behind for inspection. `--dry-run` builds the model and generates the schema script without a database, prints the declared steps, and returns a non-zero exit code when the model no longer produces the tables and the sequence a run needs. It also compares the shipped migration snapshot with the model and generates the idempotent script of that migration, failing when the snapshot no longer matches or the script has lost its guards or gained a statement Dameng does not define; that is the check a build machine can run, and it is why the sample does not rot between the runs that have an instance.
 

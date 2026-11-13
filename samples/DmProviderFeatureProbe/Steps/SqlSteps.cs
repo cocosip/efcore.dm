@@ -188,9 +188,9 @@ internal static class SqlSteps
     }
 
     /// <summary>
-    /// A filtered entity's update carries the filter in the SQL, and the provider rejects the boolean
-    /// it emits there. Ledgered with the measured error; the entry goes when the rewrite reaches the
-    /// update pipeline.
+    /// A filtered entity's update carries the filter in the SQL. The update pipeline rewrites the
+    /// filter's boolean the same way the select pipeline does, so the server receives a predicate
+    /// rather than a value expression.
     /// </summary>
     private static async Task ExecuteUpdateWithFilterAsync(FeatureContext context, CancellationToken cancellationToken)
     {

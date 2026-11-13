@@ -15,7 +15,7 @@ Status: **decided**. Dates and ordering may change; exit criteria do not.
 | Phase | Status |
 |---|---|
 | P0-P5 | Complete: the offline and live gates pass and each capability is in the matrix |
-| P6 | Code complete; the package is verified, the release tag and NuGet publish are pending |
+| P6 | Code complete; the package and the Windows live matrix are verified, the Linux run, release tag and NuGet publish are pending |
 | P7-P9 | Not started |
 
 ### P0 — Walking skeleton

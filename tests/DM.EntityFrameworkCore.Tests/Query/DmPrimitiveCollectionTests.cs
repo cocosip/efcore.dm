@@ -26,6 +26,23 @@ public class DmPrimitiveCollectionTests
             Sql(context.Tagged.Where(t => t.Tags.Contains("alpha")).ToQueryString()));
     }
 
+    [Fact]
+    public void Contains_ExpandsAnArrayCollectionWithJsonTable()
+    {
+        using var context = new ArrayProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "a"."Id", "a"."Codes"
+            FROM "ArrayTagged" AS "a"
+            WHERE 'alpha' IN (
+                SELECT "c"."value"
+                FROM JSON_TABLE("a"."Codes", '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "c"
+            )
+            """,
+            Sql(context.ArrayTagged.Where(t => t.Codes.Contains("alpha")).ToQueryString()));
+    }
+
     private static string Sql(string sql)
         => string.Join(
             "\n",
@@ -47,5 +64,20 @@ public class DmPrimitiveCollectionTests
         public int Id { get; set; }
 
         public List<string> Tags { get; set; } = [];
+    }
+
+    private sealed class ArrayProbeContext : DbContext
+    {
+        public DbSet<ArrayTagged> ArrayTagged => Set<ArrayTagged>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+    }
+
+    private sealed class ArrayTagged
+    {
+        public int Id { get; set; }
+
+        public string[] Codes { get; set; } = [];
     }
 }

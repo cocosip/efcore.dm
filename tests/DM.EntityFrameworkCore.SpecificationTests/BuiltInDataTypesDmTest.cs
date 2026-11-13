@@ -27,6 +27,16 @@ public class BuiltInDataTypesDmTest : BuiltInDataTypesTestBase<BuiltInDataTypesD
         Assert.True(context.Database.CanConnect());
     }
 
+    /// <summary>
+    /// The case compares a <c>byte[9000]</c>, which is a <c>BLOB</c>, and Dameng has no equality operator
+    /// for a large object: the statement is refused with <c>字符串过长</c>. A value past the row bound
+    /// cannot be a bounded binary column either, so the case is inapplicable as written. Recorded in
+    /// <c>Skipped.md</c>.
+    /// </summary>
+    [ConditionalFact(Skip = "Server limitation: Dameng cannot compare a large object with the equality operator")]
+    public override Task Can_perform_query_with_max_length()
+        => Task.CompletedTask;
+
     public class BuiltInDataTypesDmFixture : BuiltInDataTypesFixtureBase
     {
         protected override ITestStoreFactory TestStoreFactory => DmTestStoreFactory.Instance;
