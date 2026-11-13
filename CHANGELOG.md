@@ -22,6 +22,9 @@ do not pass and why. This file records what changed, once per release, instead o
   `AggregateOperators`, `Include`, `Updates` and `Migrations`.
 - Query translation for `Contains` over a mapped primitive collection, expanded through the server's
   `JSON_TABLE` table function by the provider's own subquery visitor.
+- Query translation for an `EF.Parameter` collection: the parameter is given the collection type
+  mapping, serialized as a JSON array and read through `JSON_TABLE`, so the four specification cases
+  that depended on it now run.
 - EF Core 10 SQL compatibility surface for existing Dameng consumers.
 
 ### Fixed

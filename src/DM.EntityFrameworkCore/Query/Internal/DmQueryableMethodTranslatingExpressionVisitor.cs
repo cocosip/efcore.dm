@@ -53,15 +53,41 @@ internal sealed class DmQueryableMethodTranslatingExpressionVisitor : Relational
         string tableAlias)
     {
         var elementType = property?.GetElementType();
+        var elementClrType = sqlExpression.Type.IsArray
+            ? sqlExpression.Type.GetElementType()!
+            : sqlExpression.Type.GetGenericArguments()[0];
 
-        if (elementType?.GetTypeMapping() is not RelationalTypeMapping elementMapping)
+        // A mapped collection carries the element mapping in its metadata. A collection parameter does
+        // not, so its mapping is taken from the parameter's own mapping or, when that is not inferred,
+        // from the CLR element type.
+        RelationalTypeMapping? elementMapping = elementType?.GetTypeMapping() as RelationalTypeMapping;
+        elementMapping ??= (sqlExpression.TypeMapping as RelationalTypeMapping)?.ElementTypeMapping
+            as RelationalTypeMapping;
+        elementMapping ??= RelationalDependencies.TypeMappingSource.FindMapping(
+            elementClrType,
+            RelationalDependencies.Model) as RelationalTypeMapping;
+
+        if (elementMapping is null)
         {
             return null;
         }
 
-        var elementClrType = sqlExpression.Type.IsArray
-            ? sqlExpression.Type.GetElementType()!
-            : sqlExpression.Type.GetGenericArguments()[0];
+        // A collection parameter arrives without a mapping. Give it the collection mapping, which
+        // serializes the elements as JSON and carries the element mapping JSON_TABLE reads back.
+        if (property is null
+            && sqlExpression is SqlParameterExpression { TypeMapping: null } parameterExpression)
+        {
+            if (RelationalDependencies.TypeMappingSource.FindMapping(
+                    sqlExpression.Type,
+                    RelationalDependencies.Model,
+                    elementMapping) is not RelationalTypeMapping collectionMapping)
+            {
+                return null;
+            }
+
+            sqlExpression = parameterExpression.ApplyTypeMapping(collectionMapping);
+        }
+
         var nullableElementType = elementClrType.IsValueType
             && Nullable.GetUnderlyingType(elementClrType) is null
                 ? typeof(Nullable<>).MakeGenericType(elementClrType)
@@ -77,7 +103,8 @@ internal sealed class DmQueryableMethodTranslatingExpressionVisitor : Relational
             tableAlias,
             Nullable.GetUnderlyingType(elementClrType) ?? elementClrType,
             elementMapping,
-            elementType.IsNullable);
+            elementType?.IsNullable
+                ?? (Nullable.GetUnderlyingType(elementClrType) is not null || !elementClrType.IsValueType));
 
 #pragma warning disable EF1001 // A query root is built from a SelectExpression, as it is for every provider.
         var selectExpression = new SelectExpression(

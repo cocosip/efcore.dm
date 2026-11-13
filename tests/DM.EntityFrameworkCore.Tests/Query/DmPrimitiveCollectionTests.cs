@@ -43,6 +43,28 @@ public class DmPrimitiveCollectionTests
             Sql(context.ArrayTagged.Where(t => t.Codes.Contains("alpha")).ToQueryString()));
     }
 
+    [Fact]
+    public void Contains_ExpandsAnEfParameterCollectionWithJsonTable()
+    {
+        using var context = new ParameterProbeContext();
+
+        var sql = Sql(
+            context.ParameterTagged
+                .Where(t => EF.Parameter(new[] { "alpha", "beta" }).Contains(t.Name))
+                .ToQueryString());
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Name"
+            FROM "ParameterTagged" AS "p"
+            WHERE "p"."Name" IN (
+                SELECT "p0"."value"
+                FROM JSON_TABLE(:p, '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "p0"
+            )
+            """,
+            sql);
+    }
+
     private static string Sql(string sql)
         => string.Join(
             "\n",
@@ -79,5 +101,20 @@ public class DmPrimitiveCollectionTests
         public int Id { get; set; }
 
         public string[] Codes { get; set; } = [];
+    }
+
+    private sealed class ParameterProbeContext : DbContext
+    {
+        public DbSet<ParameterTagged> ParameterTagged => Set<ParameterTagged>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+    }
+
+    private sealed class ParameterTagged
+    {
+        public int Id { get; set; }
+
+        public string Name { get; set; } = "";
     }
 }

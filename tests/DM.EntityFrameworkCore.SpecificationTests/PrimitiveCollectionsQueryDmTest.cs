@@ -22,22 +22,6 @@ public class PrimitiveCollectionsQueryDmTest
         Fixture.TestSqlLoggerFactory.SetTestOutputHelper(testOutputHelper);
     }
 
-    [ConditionalFact(Skip = "Translation gap: a collection parameter is not expanded into a JSON_TABLE row source")]
-    public override Task Inline_collection_Contains_with_EF_Parameter()
-        => Task.CompletedTask;
-
-    [ConditionalFact(Skip = "Translation gap: a collection parameter is not expanded into a JSON_TABLE row source")]
-    public override Task Inline_collection_Contains_with_IEnumerable_EF_Parameter()
-        => Task.CompletedTask;
-
-    [ConditionalFact(Skip = "Translation gap: a collection parameter is not expanded into a JSON_TABLE row source")]
-    public override Task Inline_collection_Count_with_column_predicate_with_EF_Parameter()
-        => Task.CompletedTask;
-
-    [ConditionalFact(Skip = "Translation gap: a collection parameter is not expanded into a JSON_TABLE row source")]
-    public override Task Parameter_collection_of_nullable_ints_Contains_nullable_int_with_EF_Parameter()
-        => Task.CompletedTask;
-
     [ConditionalFact(Skip = "Server limitation: a dynamic LIMIT/OFFSET expression is rejected (TOP、LIMIT或OFFSET子句中的表达式无效)")]
     public override Task Inline_collection_index_Column()
         => Task.CompletedTask;

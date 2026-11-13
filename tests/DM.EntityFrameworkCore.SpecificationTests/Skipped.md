@@ -8,8 +8,8 @@ A case that does not pass is marked `Skip` in the test class with the same reaso
 it as skipped rather than failed; the ledger remains the record of the measurement. A skipped theory is
 reported once even though it carries the synchronous and the asynchronous form as two data rows.
 
-Current live run on 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 3898 results, 3820 passed,
-78 skipped, 0 failed. The 78 are the 49 query cases below, the 19 migrations cases, the 9 cases the
+Current live run on 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 3898 results, 3824 passed,
+74 skipped, 0 failed. The 74 are the 45 query cases below, the 19 migrations cases, the 9 cases the
 shipped base skips, and one `Updates` case.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
@@ -50,14 +50,15 @@ and two upstream assertions that expect SQL Server's empty-string coalesce where
 `NULL`; the raw-SQL case was corrected to the model's `OrderDetails` table name and passes.
 
 The `PrimitiveCollections` set (`PrimitiveCollectionsQueryDmTest`, 156 results) ran on the
-default-compatibility instance on 2026-11-13: 133 passed, 23 skipped (one case the shipped base skips and
-the twenty-two below), and 0 failed. The fixture uses `COMPATIBLE_MODE=0` because the upstream seed writes
+default-compatibility instance on 2026-11-13: 137 passed, 19 skipped (one case the shipped base skips and
+the eighteen below), and 0 failed. The fixture uses `COMPATIBLE_MODE=0` because the upstream seed writes
 an empty string into a required column; Oracle-compatible mode stores that string as `null` and refuses
 the seed. The run found and fixed a provider defect: the collection element type was read from
 `GetGenericArguments()[0]`, which an array has none of, so every array-backed collection threw
-`IndexOutOfRangeException`; the element type is now taken from the array. The skips are the translation
-gap for an `EF.Parameter` collection, the server's refusal of a dynamic `LIMIT`/`OFFSET` expression,
-`JSON_TABLE` refusing `BIT`, and the row order the collection paging assertions expect.
+`IndexOutOfRangeException`; the element type is now taken from the array. The `EF.Parameter` collection
+cases now translate through `JSON_TABLE`; the remaining skips are the server's refusal of a dynamic
+`LIMIT`/`OFFSET` expression, `JSON_TABLE` refusing `BIT`, and the row order the collection paging
+assertions expect.
 
 The `Join` set of the Northwind query suite (`NorthwindJoinQueryDmTest`, 131 results) ran against the
 same instance on 2026-11-11: 126 passed, 5 skipped (four upstream, `#30677` and `#35028`, and one case in
@@ -148,10 +149,6 @@ in the total above.
 | `Update_with_cross_join_outer_apply_set_constant` | The update source contains an `OUTER APPLY`, and the server answers `不支持的语句类型` | Server limitation: `APPLY` in an update source is rejected |
 | `Update_Where_Join_set_property_from_joined_single_result_table` | The upstream assertion expects SQL Server's `COALESCE(..., '')`; this provider preserves the null a customer with no order produces | Provider difference: the assertion encodes SQL Server's empty-string coalesce |
 | `Update_Where_Join_set_property_from_joined_single_result_scalar` | The same upstream empty-string coalesce assertion | Same as the row above |
-| `Inline_collection_Contains_with_EF_Parameter` | `EF.Parameter` over a collection is not expanded into a `JSON_TABLE` row source | Translation gap: a collection parameter is left to the framework default |
-| `Inline_collection_Contains_with_IEnumerable_EF_Parameter` | The same collection-parameter gap | Same as the row above |
-| `Inline_collection_Count_with_column_predicate_with_EF_Parameter` | The same collection-parameter gap | Same as the row above |
-| `Parameter_collection_of_nullable_ints_Contains_nullable_int_with_EF_Parameter` | The same collection-parameter gap | Same as the row above |
 | `Inline_collection_index_Column` | The index is an expression, and the server rejects a dynamic `LIMIT`/`OFFSET` expression with `TOP、LIMIT或OFFSET子句中的表达式无效` | Server limitation: row limiting needs a constant |
 | `Inline_collection_index_Column_with_EF_Constant` | The same dynamic row-limiting expression | Same as the row above |
 | `Inline_collection_List_value_index_Column` | The same dynamic row-limiting expression | Same as the row above |

@@ -153,7 +153,7 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 | `NorthwindNavigationsQueryDmTest` | 146 | all pass |
 | `NorthwindMiscellaneousQueryDmTest` | 930 | 921 pass, 9 skipped (eight server-ordering/limit cases and one upstream skip) |
 | `NorthwindBulkUpdatesDmTest` | 180 | 172 pass, 8 skipped (three upstream skips and five ledger cases) |
-| `PrimitiveCollectionsQueryDmTest` | 156 | 133 pass, 23 skipped (one upstream skip and 22 ledger cases) |
+| `PrimitiveCollectionsQueryDmTest` | 156 | 137 pass, 19 skipped (one upstream skip and 18 ledger cases) |
 | `NorthwindJoinQueryDmTest` | 131 | 126 pass, 5 skipped (four upstream, one ledger case) |
 | `NorthwindSelectQueryDmTest` | 368 | 364 pass, 4 skipped (the four ledger cases) |
 | `NorthwindGroupByQueryDmTest` | 509 | 502 pass, 7 skipped (four upstream, three ledger cases) |
@@ -163,9 +163,9 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 | `MigrationsDmTest` | 134 | 115 pass, 19 skipped |
 | `SkipLedgerTests` | 1 | all pass |
 
-Whole project: 3898 results, 3820 passed, 78 skipped, 0 failed. A skipped theory is reported once even
-though its two async forms are both data rows, so the 49 query cases in the ledger appear as 49 skipped
-results; the 78 are those 49, the 19 migrations cases, the 9 cases the shipped base skips, and the one
+Whole project: 3898 results, 3824 passed, 74 skipped, 0 failed. A skipped theory is reported once even
+though its two async forms are both data rows, so the 45 query cases in the ledger appear as 45 skipped
+results; the 74 are those 45, the 19 migrations cases, the 9 cases the shipped base skips, and the one
 Updates case. The specification project runs its collections serially (`xunit.runner.json`) because
 every fixture shares one database and a fixture that recreates the Northwind tables would otherwise race
 another class. The store drops the objects its model declares; the updates fixture and the migrations
@@ -182,8 +182,8 @@ All T3 specification bases are now inherited: `NorthwindBulkUpdatesRelationalTes
 `PrimitiveCollectionsQueryRelationalTestBase` were added on 2026-11-13 beside the query sets, `Updates`
 and `Migrations`. The T3 suites are green with only recorded skips, so T3 is complete as a coverage
 tier; the skips are the server boundaries and translation gaps listed in the ledger, not unrecorded
-failures. The remaining translation gap that stays open is `EF.Parameter(ids).Contains(...)` and the
-`EF.Parameter` collection cases that depend on it.
+failures. `EF.Parameter` collection translation is implemented and the four cases that depended on it
+now run; the remaining skips are server limits or ordering assertions.
 
 The reference provider has no specification suite, and its `TranslatePrimitiveCollection` handles
 collection parameters only, so its code is a translation reference for individual gaps rather than a T3
