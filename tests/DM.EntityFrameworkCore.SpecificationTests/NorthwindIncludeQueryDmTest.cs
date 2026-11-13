@@ -18,6 +18,32 @@ public class NorthwindIncludeQueryDmTest : NorthwindIncludeQueryRelationalTestBa
     {
     }
 
+    /// <summary>
+    /// The ordering key is a predicate over an empty list, so every row ties and the server answers the
+    /// customers in an order the statement does not define: measured on 8.1.4.80, the first customer is
+    /// <c>ALFKI</c> where the expected data starts with <c>ANATR</c>. The rows are the same set.
+    /// </summary>
+    [ConditionalTheory(Skip = "Server limitation: ordering by an empty-list predicate leaves no ordering key")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public override Task Include_collection_OrderBy_empty_list_contains(bool async)
+    {
+        _ = async;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// The same tie: the negated empty-list predicate is a constant, so the statement defines no order.
+    /// </summary>
+    [ConditionalTheory(Skip = "Server limitation: ordering by an empty-list predicate leaves no ordering key")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public override Task Include_collection_OrderBy_empty_list_does_not_contains(bool async)
+    {
+        _ = async;
+        return Task.CompletedTask;
+    }
+
     public class NorthwindQueryDmFixture : NorthwindQueryDmFixtureBase
     {
     }

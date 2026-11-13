@@ -40,18 +40,35 @@ internal sealed class DmSqlTranslatingExpressionVisitor : RelationalSqlTranslati
                 : base.VisitUnary(unaryExpression);
 
     /// <summary>
+    /// A boolean exclusive-or keeps the framework's <c>^</c> operator, which the server rejects
+    /// (<c>语法分析出错</c> at the operator, measured on 8.1.4.80). Two boolean values differ exactly when
+    /// one or the other is true, so the operator becomes a comparison, which the generator writes as the
+    /// <c>CASE</c> form of its operands.
+    /// </summary>
+    /// <remarks>
     /// A difference of two dates is answered by the client. Dameng answers <c>date - date</c> with
     /// the number of days, which the framework would then read back with a <see cref="TimeSpan" />
     /// mapping and fail to materialize ("No coercion operator is defined"); leaving the operator
     /// untranslated projects the date column and subtracts the values in memory, as the reference
     /// provider does.
-    /// </summary>
+    /// </remarks>
     protected override Expression VisitBinary(BinaryExpression binaryExpression)
-        => binaryExpression.NodeType == ExpressionType.Subtract
+    {
+        if (binaryExpression.NodeType == ExpressionType.ExclusiveOr
+            && binaryExpression.Left.Type == typeof(bool)
+            && binaryExpression.Right.Type == typeof(bool)
+            && Visit(binaryExpression.Left) is SqlExpression xorLeft
+            && Visit(binaryExpression.Right) is SqlExpression xorRight)
+        {
+            return Dependencies.SqlExpressionFactory.NotEqual(xorLeft, xorRight);
+        }
+
+        return binaryExpression.NodeType == ExpressionType.Subtract
             && IsDate(binaryExpression.Left.Type)
             && IsDate(binaryExpression.Right.Type)
                 ? binaryExpression
                 : base.VisitBinary(binaryExpression);
+    }
 
     private static bool IsDate(Type type)
         => type == typeof(DateTime) || type == typeof(DateTime?);

@@ -101,6 +101,32 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     }
 
     /// <summary>
+    /// Dameng rejects a boolean in <c>ORDER BY</c>: <c>ORDER BY COALESCE("c"."CustomerID" IN (...), 0)</c>
+    /// answered <c>无效的ORDER BY子句</c> on 8.1.4.80, while the same ordering written with the
+    /// <c>CASE</c> the operand rewrite emits is accepted.
+    /// </summary>
+    protected override Expression VisitOrdering(OrderingExpression orderingExpression)
+    {
+        var expression = orderingExpression.Expression;
+
+        if (expression.Type != typeof(bool) && expression.Type != typeof(bool?))
+        {
+            return base.VisitOrdering(orderingExpression);
+        }
+
+        Sql.Append("CASE WHEN ");
+        Visit(expression);
+        Sql.Append(" THEN 1 ELSE 0 END");
+
+        if (!orderingExpression.IsAscending)
+        {
+            Sql.Append(" DESC");
+        }
+
+        return orderingExpression;
+    }
+
+    /// <summary>
     /// Dameng has no <c>VALUES</c> row source. Measured on 8.1.4.80: neither
     /// <c>(VALUES (1), (2)) AS "t" ("x")</c> nor a bare <c>VALUES</c> inside a set operation parses
     /// (<c>语法分析出错</c>), while a <c>SELECT ... FROM DUAL</c> per row joined by <c>UNION ALL</c>

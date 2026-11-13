@@ -85,6 +85,9 @@ The direction matters: the maintenance branch is cut from the EF Core 10 line, s
 | `ExecuteUpdate` setter constant | 9 inlines it (`SET "Name" = 'y'`); 10 sends a parameter | Baseline updated; the provider renders what the framework passes |
 | Entity list `Contains` | 9 inlines the single element's key as a constant | Baseline updated |
 | Migrations lock | The abstract members exist on 9 and 10 both | `DBMS_LOCK` implementation carried unchanged |
+| Boolean in `ORDER BY` | 9 composes an ordering over a predicate as `COALESCE(<condition>, 0)`, which the server rejects with `无效的ORDER BY子句`. 10 composes the ordering itself, so the 10 line never needed the rewrite | `VisitOrdering` writes `CASE WHEN ... THEN 1 ELSE 0 END` for a boolean-typed ordering; measured by five `Include`/`Miscellaneous` cases |
+| Boolean `^` | 9 keeps the framework's `^`, which the server rejects with `语法分析出错`. The 10 line's tests pass without a translation | A boolean exclusive-or becomes a comparison of the two `CASE` forms; measured by `Where_bitwise_xor` |
+| Specification case set | 9's bases name cases differently (for example an `_3` suffix on `GroupBy_aggregate_from_multiple_query_in_same_projection` and a misspelled primitive-collection migrations case) and skip 12 cases itself, so an override list copied from 10 silently stops applying | Skip overrides rewritten against the 9 signatures (`bool async`); 5 rows the 10 ledger held now pass and left the 9 ledger |
 
 ## 4. EF Core 10 to 11
 

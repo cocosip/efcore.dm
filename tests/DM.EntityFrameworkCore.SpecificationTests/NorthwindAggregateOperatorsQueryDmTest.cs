@@ -46,12 +46,19 @@ public class NorthwindAggregateOperatorsQueryDmTest : NorthwindAggregateOperator
             () => base.Contains_with_local_enumerable_inline(async));
 
     /// <summary>
-    /// The framework fails this case for every relational provider, for the same reason as the case
-    /// above (EF Core issue #31776).
+    /// The EF Core 9 base expects this shape to fail translation, as it does for every relational
+    /// provider on that line (EF Core issue #31776). This provider translates a mixed inline and closure
+    /// collection through <c>JSON_TABLE</c>, so the expected exception is not thrown; the translation is
+    /// covered by the primitive-collection cases.
     /// </summary>
-    public override async Task Contains_with_local_enumerable_inline_closure_mix(bool async)
-        => await Assert.ThrowsAsync<InvalidOperationException>(
-            () => base.Contains_with_local_enumerable_inline_closure_mix(async));
+    [ConditionalTheory(Skip = "Not a provider defect: the provider translates the shape the EF Core 9 base expects to fail")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public override Task Contains_with_local_enumerable_inline_closure_mix(bool async)
+    {
+        _ = async;
+        return Task.CompletedTask;
+    }
 
     /// <summary>
     /// The case asserts an average the server computes to its own precision; SQL Server answers a

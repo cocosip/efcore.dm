@@ -8,9 +8,11 @@ A case that does not pass is marked `Skip` in the test class with the same reaso
 it as skipped rather than failed; the ledger remains the record of the measurement. A skipped theory is
 reported once even though it carries the synchronous and the asynchronous form as two data rows.
 
-Current live run on 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 3898 results, 3824 passed,
-74 skipped, 0 failed. The 74 are the 45 query cases below, the 19 migrations cases, the 9 cases the
-shipped base skips, and one `Updates` case.
+Current live run on this branch, 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 4032 results,
+3957 passed, 75 skipped, 0 failed. The 75 skipped results are 75 cases: 63 this project declares, 12 the
+shipped EF Core 9 base skips itself. The paragraphs between here and the first section are the
+`efcore/10.0` line's measurements, kept as history: the EF Core 9 line runs the same bases with its own
+case set, so a per-set count in them is not this branch's count.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
 store drops the objects its model declares, and the updates and migrations fixtures own a schema of their
@@ -116,10 +118,11 @@ abstract product base the shared foreign key case needs, the way the SQL Server 
 
 ## Cases that do not pass (marked skipped)
 
-The forty-nine cases below are overridden with `Skip = "..."` in their test class. A skipped theory
-is reported once even though it carries the synchronous and the asynchronous form as two data rows, so
-the forty-nine rows and the nine cases the shipped base skips account for the fifty-eight query results
-in the total above.
+The fifty-six query cases and the nineteen migrations cases below are overridden with `Skip = "..."` in
+their test class, except the twelve the shipped EF Core 9 base skips itself, which are recorded here
+because the ledger is the record of what does not run. A skipped theory is reported once even though it
+carries the synchronous and the asynchronous form as two data rows, so the 75 cases account for the 75
+skipped results in the total above.
 
 | Case | Cause | Fix |
 |---|---|---|
@@ -157,7 +160,6 @@ in the total above.
 | `Column_collection_of_bools_Contains` | `JSON_TABLE` declares the element as `BIT`, which the server rejects with `无效的数据类型` | Server limitation: `BIT` is not a `JSON_TABLE` column type |
 | `Column_collection_Take` | The collection has no ordering, so the page the server answers differs from the expected page | Server limitation: `JSON_TABLE` rows have no defined order |
 | `Column_collection_Skip_Take` | The same unordered paging of a collection | Same as the row above |
-| `Column_collection_in_subquery_Union_parameter_collection` | The same unordered paging after a union with a collection parameter | Same as the row above |
 | `Project_collection_of_ints_ordered` | The collection is projected and the expected order is the array order, which `JSON_TABLE` does not preserve | Server limitation: `JSON_TABLE` does not promise array order |
 | `Project_collection_of_datetimes_filtered` | The filtered collection projection answers a different member because the row order is not defined | Same as the row above |
 | `Project_collection_of_nullable_ints_with_paging` | The nullable collection is paged, and the server answers a different page | Server limitation: `JSON_TABLE` paging has no defined order |
@@ -167,14 +169,29 @@ in the total above.
 | `Project_empty_collection_of_nullables_and_collection_only_containing_nulls` | The null elements and the paging are ordered differently | Server limitation: `JSON_TABLE` null-element paging has no defined order |
 | `Project_multiple_collections` | Two collections are projected without an ordering, and the rows are paired in a different order | Server limitation: `JSON_TABLE` rows have no defined order |
 
+| `Contains_with_local_enumerable_inline_closure_mix` | The EF Core 9 base expects this mixed inline and closure collection to fail translation, as it does for every relational provider on that line (EF Core issue #31776); the provider translates it through `JSON_TABLE`, so no exception is thrown | Not a provider defect: the provider translates a shape the EF Core 9 base expects to fail |
+| `Where_equals_method_string_with_ignore_case` | The EF Core 9 base has no translation for a `StringComparison` overload and expects the comparison to fail; the provider translates it with `UPPER` on both sides, which is a superset of that line | Not a provider defect: the provider translates what the EF Core 9 base expects to fail |
+| `Parameter_collection_of_bools_Contains` | `JSON_TABLE` declares the element as `BIT`, which the server rejects with `无效的数据类型` | Server limitation: `BIT` is not a `JSON_TABLE` column type |
+| `Parameter_collection_in_subquery_and_Convert_as_compiled_query` | The base expects the compiled-query form to fail with a message naming the LINQ expression; the provider translates the collection, so the expected substring is not produced | Not a provider defect: the provider translates the compiled-query form |
+| `Parameter_collection_in_subquery_Union_another_parameter_collection_as_compiled_query` | The base expects the compiled-query form to throw; the provider translates the collection instead | Same as the row above |
+| `Include_collection_OrderBy_empty_list_contains` | The ordering key is a predicate over an empty list, so every row ties and the server answers the customers in an order the statement does not define: measured on 8.1.4.80, the first customer is `ALFKI` where the expected data starts with `ANATR` | Not a provider defect: the statement has no ordering key |
+| `Include_collection_OrderBy_empty_list_does_not_contains` | The same tie for the negated empty-list predicate | Same as the row above |
+| `GroupBy_aggregate_from_multiple_query_in_same_projection` | The shipped EF Core 9 `GroupBy` base declares the skip itself, and this project does not declare it | Not a provider defect: the base declares the skip |
+| `GroupBy_aggregate_from_multiple_query_in_same_projection_3` | The same base-declared skip | Same as the row above |
+| `GroupBy_aggregate_left_join_GroupBy_aggregate_left_join` | The same base-declared skip | Same as the row above |
+| `GroupBy_with_group_key_being_navigation_with_complex_projection` | The same base-declared skip | Same as the row above |
+| `Join_local_bytes_closure_is_cached_correctly` | The shipped EF Core 9 `Join` base declares the skip itself (EF Core issue #30677), and this project does not declare it | Not a provider defect: the base declares the skip |
+| `Join_local_string_closure_is_cached_correctly` | The same base-declared skip | Same as the row above |
+| `Swap_filtered_unique_index_values` | The case swaps two values under a filtered unique index, and the server has no filtered index: `CREATE INDEX ... WHERE` answered `语法分析出错`, and the shared model's plain unique index cannot swap both values in one save | Server limitation: Dameng has no filtered index |
+
 `Case` names are methods of the test classes this project owns. `DM.EntityFrameworkCore.SpecificationTests.SkipLedgerTests`
 fails when a row names a case the suite does not have.
 
 ## Cases that do not run
 
-The four cases of the `Join` set, the four of the `GroupBy` set, and one `Miscellaneous` case
-(`Coalesce_Correct_TypeMapping_Double`) are skipped by the shipped base itself (`#30677`, `#35028`,
-`#27130` and a type-mapping case), not by this project. Every other case of the eleven bases ran in the
+The twelve cases the shipped EF Core 9 base skips itself are listed in the tables with that cause: four of
+the `GroupBy` set (`#35028`), two of the `Join` set (`#30677`), three of the `BulkUpdates` set, one
+`PrimitiveCollections` case, and two migrations cases. Every other case of the bases ran in the
 measurements above; the four capability answers in the `BuiltInDataTypesDmTest` fixture narrow what the
 model contains rather than skipping a case.
 
@@ -189,17 +206,13 @@ that carries a filter, so a migration cannot silently create an index with diffe
 rather than the suite. Each answer is a measured fact and the reason is beside the property.
 ## Migrations cases that do not run
 
-The migrations suite (`MigrationsDmTest`, 134 cases) builds a model, generates the migration and applies it
-to the live store. Measured on 2026-11-12 against DM 8.1.4.80: 115 passed, 19 skipped, and the cases below
-either do not run or run without their assertion. The migrations store owns `DM_SPEC_MIGRATIONS` and the
+The migrations suite (`MigrationsDmTest`, 131 cases) builds a model, generates the migration and applies it
+to the live store. Measured on this branch, 2026-11-13 against DM 8.1.4.80: 112 passed, 19 skipped, and the
+cases below either do not run or run without their assertion. The migrations store owns `DM_SPEC_MIGRATIONS` and the
 named schemas below, so the rest of the shared database is untouched.
 
 | Case | Cause | Fix |
 |---|---|---|
-| `Add_column_with_computedSql` | The case adds a virtual computed column and scaffolds it back. The server writes the virtual expression into the same catalog field as a default (`(A * 2)` and a default `(1 + 2)` are both `DATA_DEFAULT`), so a scaffolded model cannot name it as computed; a stored computed column is refused by the server (`GENERATED ALWAYS AS (...) STORED` answered `语法分析出错`) | Not a provider defect: the catalog does not distinguish a virtual column from a defaulted one. The DDL itself is verified by the cases that create the column |
-| `Alter_column_make_computed` | The same catalog gap as `Add_column_with_computedSql`: the altered column cannot be read back as computed | Same |
-| `Add_column_computed_with_collation` | The same catalog gap, plus the column collation gap below | Same |
-| `Create_table_with_computed_column` | The `stored: true` row asserts the refusal and passes; the `false`/`null` rows cannot read the virtual expression back, for the reason above | Same |
 | `Alter_column_change_computed` | The expression is changed in place; the scaffolded column still reads as a default | Same |
 | `Alter_column_change_computed_type` | The type of a virtual column is changed instead of the expression; the scaffolded column still reads as a default | Same |
 | `Alter_column_change_computed_recreates_indexes` | The column carries a function index, and the server refuses to modify it (`在要修改的列上已定义函数索引`) | Server limitation |
@@ -219,3 +232,5 @@ named schemas below, so the rest of the shared database is untouched.
 | `Convert_string_column_to_a_json_column_containing_required_reference` | The same JSON alteration limitation | Same |
 
 
+| `Add_required_primitive_collection_with_custom_converter_to_existing_table` | The shipped EF Core 9 migrations base declares the skip itself | Not a provider defect: the base declares the skip |
+| `Add_required_primitve_collection_with_custom_converter_to_existing_table` | The same case under the base's misspelled name, declared skipped by the base | Same as the row above |

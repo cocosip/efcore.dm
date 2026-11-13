@@ -48,6 +48,21 @@ public class NorthwindWhereQueryDmTest : NorthwindWhereQueryRelationalTestBase<N
     public override async Task Where_compare_tuple_create_constructed_multi_value_not_equal(bool async)
         => await AssertTranslationFailed(() => base.Where_compare_tuple_create_constructed_multi_value_not_equal(async));
 
+    /// <summary>
+    /// The EF Core 9 base expects this comparison to stay untranslated, because that line has no
+    /// translation for a <see cref="StringComparison" /> overload. This provider translates it with
+    /// <c>UPPER</c> on both sides, so the expected exception is not thrown; the translation is covered by
+    /// the string translation cases.
+    /// </summary>
+    [ConditionalTheory(Skip = "Not a provider defect: the provider translates the comparison the EF Core 9 base expects to fail")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public override Task Where_equals_method_string_with_ignore_case(bool async)
+    {
+        _ = async;
+        return Task.CompletedTask;
+    }
+
     public class NorthwindQueryDmFixture : NorthwindQueryDmFixtureBase
     {
     }
