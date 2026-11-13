@@ -3,30 +3,32 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
 
     <!--
+      A floating version is not the default under central package management; this is what lets the
+      tooling below follow the line instead of a fixed patch.
+    -->
+    <CentralPackageFloatingVersionsEnabled>true</CentralPackageFloatingVersionsEnabled>
+
+    <!--
       The EF Core dependency must carry an upper bound: the provider is built against
       internal API shapes that are not guaranteed across major versions (architecture D5).
-      NuGet writes this range into the packed nuspec.
+      NuGet writes this range into the packed nuspec, and it is a range rather than a floating
+      version because a consumer on any patch of the major has to be able to install the package.
     -->
     <EfCoreVersionRange>[9.0.0,10.0.0)</EfCoreVersionRange>
     <DmProviderVersionRange>[8.3.1.47463,)</DmProviderVersionRange>
 
     <!--
-      Design is build and test tooling, never part of the package, so it is pinned to a current
-      patch instead of the range: resolving the 9.0.0 floor for it also pulls transitive
-      packages that NuGet audit reports as vulnerable.
+      Design and user secrets are build and test tooling, never part of the package, so they follow
+      the highest patch of the line instead of a fixed one: the range cannot be used for them, because
+      a range resolves its floor and the 9.0.0 tooling pulls transitive packages NuGet audit reports as
+      vulnerable. A floating version is answered by the restore, so the current patch is what compiles.
     -->
-    <EfCoreDesignVersion>9.0.22</EfCoreDesignVersion>
-
-    <!--
-      The acceptance console reads a live instance's connection string from user secrets, which keeps
-      credentials out of the repository. It is the only project that takes this package.
-    -->
-    <UserSecretsVersion>9.0.22</UserSecretsVersion>
+    <EfCoreToolingVersion>9.0.*</EfCoreToolingVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="$(EfCoreVersionRange)" />
-    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreDesignVersion)" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="$(EfCoreToolingVersion)" />
     <PackageVersion Include="DM.DmProvider" Version="$(DmProviderVersionRange)" />
   </ItemGroup>
 
@@ -34,6 +36,6 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
     <PackageVersion Include="xunit" Version="2.9.3" />
     <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="$(UserSecretsVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.UserSecrets" Version="$(EfCoreToolingVersion)" />
   </ItemGroup>
 </Project>
