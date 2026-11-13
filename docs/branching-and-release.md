@@ -11,7 +11,7 @@ Governing rule:
 | Branch | Role | EF Core | Target framework | Package line | EF Core dependency |
 |---|---|---|---|---|---|
 | `efcore/10.0` | Development and release for the EF Core 10 line. Every EF Core 10 change and every `v10.x` tag is here. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
-| `efcore/9.0` | Development and release for the EF Core 9 line, created when that line starts. Its tags are here. | 9 | `net8.0` | `9.0.x` | `[9.0.0,10.0.0)` |
+| `efcore/9.0` | Development and release for the EF Core 9 line, created when that line starts. Its tags are here. | 9 | `net9.0` | `9.0.x` | `[9.0.0,10.0.0)` |
 | `efcore/8.0` | Development and release for the EF Core 8 line, created when that line starts. Its tags are here. | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
 | `dev` | Integration for the next line, reserved for EF Core 11. It carries no EF Core 10 release and receives no EF Core 10 changes. | 11 (reserved) | `net11.0` later | `11.0.x` later | `[11.0.0,12.0.0)` later |
 | `master` | Packaging for the next line, reserved for EF Core 11. A `v11.x` tag is made here when EF Core 11 development completes. It carries no EF Core 10 release. | 11 (reserved) | `net11.0` later | `11.0.x` later | `[11.0.0,12.0.0)` later |

@@ -48,11 +48,8 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          # The unit and acceptance projects target the provider's framework, net8.0, while the
-          # specification project runs on net9.0 because that is the asset EF Core 9 publishes.
-          dotnet-version: |
-            8.0.x
-            9.0.x
+          # Every project of this branch targets the provider's framework, net9.0.
+          dotnet-version: 9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4

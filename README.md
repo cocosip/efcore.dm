@@ -11,7 +11,7 @@ Status: EF Core 9 line. The provider builds with zero warnings, the unit and SQL
 | Branch | EF Core | Target framework | Package line | Role |
 |---|---|---|---|---|
 | `efcore/10.0` | 10 | `net10.0` | `10.0.x` | Development and release for the EF Core 10 line; `v10.x` tags are here |
-| `efcore/9.0` | 9 | `net8.0` | `9.0.x` | Development and release for the EF Core 9 line; `v9.x` tags are here |
+| `efcore/9.0` | 9 | `net9.0` | `9.0.x` | Development and release for the EF Core 9 line; `v9.x` tags are here |
 | `efcore/8.0` | 8 | `net8.0` | `8.0.x` | Development and release for the EF Core 8 line; `v8.x` tags are here |
 | `dev` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 integration |
 | `master` | 11 | `net11.0` (planned) | `11.0.x` (planned) | Reserved for EF Core 11 packaging and `v11.x` tags |

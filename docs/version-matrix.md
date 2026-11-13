@@ -11,11 +11,11 @@ Used in two directions: forward when adopting a new EF Core major version, backw
 | EF Core | Target framework | Official support until | Branch | Specification tests |
 |---|---|---|---|---|
 | 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.33 |
-| 9.0 | `net8.0` | 2026-11-10 (expired) | `efcore/9.0` | 9.0.22 |
+| 9.0 | `net9.0` | 2026-11-10 (expired) | `efcore/9.0` | 9.0.22 |
 | 10.0 | `net10.0` | 2028-11-10 | `efcore/10.0` | 10.0.14 |
 | 11.0 | `net11.0` | not released | `efcore/11.0` (not created) | 11.0.0-rc (xUnit v3) |
 
-EF Core 8 and 9 both ship `net8.0` assets only, so one package cannot carry distinct dependency ranges for them. EF Core 10 ships `net10.0` only and EF Core 11 ships `net11.0` only, so adoption of each major version is a separate build and, from EF Core 11 onward, a runtime cutover.
+EF Core 8 and 9 both ship `net8.0` assets, so one package cannot carry distinct dependency ranges for them, and each line targets the framework it is built and tested on: `net8.0` for 8, `net9.0` for 9. EF Core 10 ships `net10.0` only and EF Core 11 ships `net11.0` only, so adoption of each major version is a separate build and, from EF Core 11 onward, a runtime cutover.
 
 EF Core 8 and 9 both reached end of support on 2026-11-10. Their branches exist to serve existing deployments and are not committed to tracking new capabilities.
 
@@ -77,7 +77,7 @@ The direction matters: the maintenance branch is cut from the EF Core 10 line, s
 |---|---|---|
 | `RightJoinExpression` | Absent in 9; the `RightJoin` and `LeftJoin` LINQ operators are EF Core 10 additions | `VisitRightJoin` deleted, `right join` acceptance step deleted, pipeline case deleted. `LEFT JOIN` is expressed as `GroupJoin` + `DefaultIfEmpty` and keeps its shape |
 | JSON column mapping | `JsonTypePlaceholder` is an EF Core 10 type. In 9, `JsonColumnBase.GetDefaultStoreTypeMapping()` resolves the column through `FindMapping(typeof(JsonElement))` | The mapping is registered for `JsonElement`; JSON column shape tests pass. The live suite still has to confirm the reader path |
-| Specification test package | 9.0.22 ships `net9.0` assets only (10.0.14 ships `net10.0`) | The provider stays `net8.0`; the specification project targets `net9.0` |
+| Specification test package | 9.0.22 ships `net9.0` assets only (10.0.14 ships `net10.0`) | The provider targets `net9.0`, so the specification project inherits it; the 10 line inherits `net10.0` the same way |
 | Specification base classes | 19 overrides named cases that exist only in the 10 bases | Deleted. The skip ledger guard then reported 2 names that no longer exist and both rows left the ledger |
 | SQL parameter names | 9 writes `:__value_0`, 10 writes `:value` | Every T2 baseline on this branch carries the 9 form |
 | Parameterized collections | 9 default: one JSON parameter expanded by the provider through `JSON_TABLE`. 10 default: one scalar parameter per element, with padding. The 9 option names are `TranslateParameterizedCollectionsToConstants()` / `TranslateParameterizedCollectionsToParameters()`; `UseParameterizedCollectionMode` is 10 API | Constants mode renders `IN (1, 2)`; the default renders `IN (SELECT ... FROM JSON_TABLE(:__ids_0, ...))` |
