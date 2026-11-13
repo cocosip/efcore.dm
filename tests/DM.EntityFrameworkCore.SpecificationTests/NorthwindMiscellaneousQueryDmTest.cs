@@ -115,19 +115,6 @@ public class NorthwindMiscellaneousQueryDmTest
     }
 
     /// <summary>
-    /// This server has no nanosecond date part: <c>DATEPART(nanosecond, ...)</c> is a syntax error on
-    /// 8.1.4.80, so the member is left untranslated rather than answered with a guessed value.
-    /// </summary>
-    [ConditionalTheory(Skip = "Server limitation: 8.1.4.80 has no nanosecond date part")]
-    [InlineData(true)]
-    [InlineData(false)]
-    public override Task Where_nanosecond_and_microsecond_component(bool async)
-    {
-        _ = async;
-        return Task.CompletedTask;
-    }
-
-    /// <summary>
     /// The base case expects the framework's composite-key message; the provider has no role in it.
     /// </summary>
     public override async Task Entity_equality_through_subquery_composite_key(bool async)

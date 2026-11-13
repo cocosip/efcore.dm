@@ -42,7 +42,7 @@ public class DmQuerySqlGenerationTests
             """
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
-            WHERE "p"."Id" > :threshold
+            WHERE "p"."Id" > :__threshold_0
             """,
             Statement(sql));
     }
@@ -61,7 +61,7 @@ public class DmQuerySqlGenerationTests
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
             ORDER BY "p"."Id"
-            OFFSET :p ROWS FETCH NEXT :p1 ROWS ONLY
+            OFFSET :__p_0 ROWS FETCH NEXT :__p_1 ROWS ONLY
             """,
             Statement(sql));
     }

@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 10 release candidate. The provider is feature-complete within the server limits recorded in the [Capability Matrix](docs/capability-matrix.md); all EF Core 10 specification bases are inherited and the live suite passes with only the cases recorded in [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) skipped. The `v10.0.1` tag is pending the final review. Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 9 line. The provider builds with zero warnings, the unit and SQL shape suite passes (561 cases), the acceptance dry run declares 33 steps, the skip ledger guard passes and the package smoke test resolves and runs `Sharp.DM.EntityFrameworkCore` 9.0.1 from an isolated NuGet cache. The specification suite has not been re-measured against a live instance on this line yet, so [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) is still the ledger measured on `efcore/10.0`; the `v9.0.1` tag is pending that run. Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 

@@ -4,6 +4,11 @@
     <RootNamespace>DM.EntityFrameworkCore.SpecificationTests</RootNamespace>
     <IsTestProject>true</IsTestProject>
     <!--
+      The provider targets net8.0 because EF Core 9 does, but the specification assembly EF Core 9
+      publishes carries net9.0 assets only, so this project runs on .NET 9.
+    -->
+    <TargetFramework>net9.0</TargetFramework>
+    <!--
       The EF Core specification package pins xunit.core, xunit.assert and its own analysis and
       templating versions, so this project is exempt from central package management. Do not raise
       its xunit versions independently of the EF Core version: they move together.
@@ -19,7 +24,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational.Specification.Tests" Version="10.0.14" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational.Specification.Tests" Version="9.0.22" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.3" />
   </ItemGroup>

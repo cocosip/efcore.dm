@@ -61,7 +61,7 @@ public class DmStringTranslationTests
             """
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
-            WHERE "p"."Name" LIKE CONCAT(CONCAT('%', :term), '%') ESCAPE '\'
+            WHERE "p"."Name" LIKE CONCAT(CONCAT('%', :__term_0), '%') ESCAPE '\'
             """);
     }
 
@@ -182,7 +182,7 @@ public class DmStringTranslationTests
             """
             SELECT "p"."Id", "p"."Name"
             FROM "Probes" AS "p"
-            WHERE (INSTR("p"."Name", :term, -1) - 1) > 0
+            WHERE (INSTR("p"."Name", :__term_0, -1) - 1) > 0
             """);
     }
 

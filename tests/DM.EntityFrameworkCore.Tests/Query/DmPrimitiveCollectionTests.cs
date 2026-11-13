@@ -59,7 +59,7 @@ public class DmPrimitiveCollectionTests
             FROM "ParameterTagged" AS "p"
             WHERE "p"."Name" IN (
                 SELECT "p0"."value"
-                FROM JSON_TABLE(:p, '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "p0"
+                FROM JSON_TABLE(:__p_0, '$[*]' COLUMNS ("value" NCLOB PATH '$')) AS "p0"
             )
             """,
             sql);

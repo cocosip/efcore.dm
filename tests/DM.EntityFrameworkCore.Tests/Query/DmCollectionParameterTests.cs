@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 namespace DM.EntityFrameworkCore.Tests.Query;
 
 /// <summary>
-/// T2 SQL shape tests for a collection parameter. EF Core translates the collection itself, so what is
-/// pinned here is that the provider renders both modes the relational layer offers: one parameter per
-/// element, and the values written as literals. The predicate is the only place the collection is used,
+/// T2 SQL shape tests for a collection parameter. On this line EF Core translates the collection to a
+/// single JSON parameter, which the provider expands with the server's <c>JSON_TABLE</c>; the constant
+/// mode writes the values as literals instead. The predicate is the only place the collection is used,
 /// so the test fails if the values are pulled to the client.
 /// </summary>
 /// <remarks>
@@ -15,7 +15,7 @@ namespace DM.EntityFrameworkCore.Tests.Query;
 public class DmCollectionParameterTests
 {
     [Fact]
-    public void Contains_WithTheDefaultMode_RendersOneParameterPerElement()
+    public void Contains_WithTheDefaultMode_ExpandsTheCollectionThroughJsonTable()
     {
         using var context = new ParameterContext();
         var ids = new[] { 1, 2 };
@@ -24,7 +24,10 @@ public class DmCollectionParameterTests
             """
             SELECT "p"."Id", "p"."Text"
             FROM "Probes" AS "p"
-            WHERE "p"."Id" IN (:ids1, :ids2)
+            WHERE "p"."Id" IN (
+                SELECT "i"."value"
+                FROM JSON_TABLE(:__ids_0, '$[*]' COLUMNS ("value" INT PATH '$')) AS "i"
+            )
             """,
             Statement(context.Probes.Where(p => ids.Contains(p.Id)).ToQueryString()));
     }
@@ -85,7 +88,7 @@ public class DmCollectionParameterTests
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
             => optionsBuilder.UseDm(
                 "Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;",
-                options => options.UseParameterizedCollectionMode(ParameterTranslationMode.Constant));
+                options => options.TranslateParameterizedCollectionsToConstants());
     }
 
     private sealed class Probe

@@ -1,4 +1,5 @@
 using System.Data;
+using System.Text.Json;
 using DM.EntityFrameworkCore.Dialect;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
@@ -204,9 +205,9 @@ internal sealed class DmTypeMappingSource : RelationalTypeMappingSource
             return Binary(storeType, size, keyOrIndex);
         }
 
-        // The framework asks for the column a JSON entity is stored in by this placeholder type, and
-        // refuses the model when the provider answers nothing.
-        if (clrType == typeof(JsonTypePlaceholder))
+        // The framework asks for the column a JSON entity is stored in by the CLR type it parses the
+        // document into, and refuses the model when the provider answers nothing.
+        if (clrType == typeof(JsonElement))
         {
             return new DmJsonTypeMapping(storeType ?? DmStoreTypes.Json);
         }

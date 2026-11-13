@@ -34,7 +34,6 @@ internal static class Steps
         ("execute update", ExecuteUpdateAsync),
         ("execute delete", ExecuteDeleteAsync),
         ("left join", LeftJoinAsync),
-        ("right join", RightJoinAsync),
         .. QuerySteps.All,
         ("cancellation", CancellationAsync),
         ("migrations: apply, read back and apply again", MigrationsAsync),
@@ -483,35 +482,6 @@ internal static class Steps
         Expect(rows.Count == 2, "a left join must keep the parent without children");
         Expect(rows.Any(row => row.ChildId is null), "the parent without children must have no child");
         Expect(rows.Any(row => row.ChildId is not null), "the parent with a child must have one");
-    }
-
-    private static async Task RightJoinAsync(ValidationContext context, CancellationToken cancellationToken)
-    {
-        await ResetJoinTablesAsync(context, cancellationToken);
-
-        var parent = new Parent { Name = "right" };
-
-        context.Parents.Add(parent);
-        await context.SaveChangesAsync(cancellationToken);
-
-        context.Children.AddRange(
-            new Child { ParentId = parent.Id, Name = "matched" },
-            new Child { Name = "orphan" });
-
-        await context.SaveChangesAsync(cancellationToken);
-        context.ChangeTracker.Clear();
-
-        var rows = await context.Parents
-            .RightJoin(
-                context.Children,
-                candidate => candidate.Id,
-                child => child.ParentId,
-                (candidate, child) => new { ParentName = candidate != null ? candidate.Name : null, child.Name })
-            .ToListAsync(cancellationToken);
-
-        Expect(rows.Count == 2, "a right join must keep the child without a parent");
-        Expect(rows.Any(row => row.ParentName is null), "the orphan child must have no parent");
-        Expect(rows.Any(row => row.ParentName is not null), "the matched child must have a parent");
     }
 
     private static async Task ResetJoinTablesAsync(ValidationContext context, CancellationToken cancellationToken)

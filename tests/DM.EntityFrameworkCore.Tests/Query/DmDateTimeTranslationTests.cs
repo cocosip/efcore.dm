@@ -36,7 +36,7 @@ public class DmDateTimeTranslationTests
             $"""
              SELECT "p"."Id", "p"."CreatedAt"
              FROM "Probes" AS "p"
-             WHERE EXTRACT({part} FROM "p"."CreatedAt") = :value
+             WHERE EXTRACT({part} FROM "p"."CreatedAt") = :__value_0
              """);
     }
 

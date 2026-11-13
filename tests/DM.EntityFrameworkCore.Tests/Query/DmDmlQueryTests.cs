@@ -64,7 +64,7 @@ public class DmDmlQueryTests
         Assert.Equal(
             """
             UPDATE "Blogs" AS "b"
-            SET "Name" = :p
+            SET "Name" = 'y'
             WHERE "b"."Name" = 'x'
             """,
             Sql(Assert.Single(connection.Commands)));
@@ -101,7 +101,7 @@ public class DmDmlQueryTests
         Assert.Equal(
             """
             UPDATE "Filtereds" AS "f"
-            SET "Name" = :p
+            SET "Name" = 'y'
             WHERE NOT ("f"."IsDeleted" = 1)
             """,
             Sql(Assert.Single(connection.Commands)));

@@ -19,7 +19,7 @@ public class DmFullTextSearchTranslationTests
             """
             SELECT "p"."Id", "p"."Text"
             FROM "Probes" AS "p"
-            WHERE CONTAINS("p"."Text", :term) = 1
+            WHERE CONTAINS("p"."Text", :__term_1) = 1
             """,
             Statement(context.Probes.Where(p => EF.Functions.Contains(p.Text, term)).ToQueryString()));
     }
@@ -53,7 +53,7 @@ public class DmFullTextSearchTranslationTests
             """
             SELECT "p"."Id", "p"."Text"
             FROM "Probes" AS "p"
-            WHERE CONTAINS("p"."Text", :term, LANGUAGE 1033) = 1
+            WHERE CONTAINS("p"."Text", :__term_1, LANGUAGE 1033) = 1
             """,
             Statement(context.Probes.Where(p => EF.Functions.Contains(p.Text, term, 1033)).ToQueryString()));
     }
@@ -71,7 +71,7 @@ public class DmFullTextSearchTranslationTests
             """
             SELECT "p"."Id", "p"."Text"
             FROM "Probes" AS "p"
-            WHERE FREETEXT("p"."Text", :term) = 1
+            WHERE FREETEXT("p"."Text", :__term_1) = 1
             """,
             Statement(context.Probes.Where(p => EF.Functions.FreeText(p.Text, term)).ToQueryString()));
     }
@@ -106,7 +106,7 @@ public class DmFullTextSearchTranslationTests
             """
             SELECT "p"."Id", "p"."Text"
             FROM "Probes" AS "p"
-            WHERE "p"."Id" = :entity_equality_probes_Id1
+            WHERE "p"."Id" = 1
             """,
             Statement(context.Probes.Where(p => probes.Contains(p)).ToQueryString()));
     }

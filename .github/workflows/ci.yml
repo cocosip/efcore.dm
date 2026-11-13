@@ -48,7 +48,11 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          # The unit and acceptance projects target the provider's framework, net8.0, while the
+          # specification project runs on net9.0 because that is the asset EF Core 9 publishes.
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -109,7 +113,7 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 9.0.x
 
       - name: Pack, restore in an isolated cache and run the consumer
         shell: pwsh
@@ -147,7 +151,7 @@ jobs:
     steps:
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: 9.0.x
 
       - uses: actions/download-artifact@v4
         with:

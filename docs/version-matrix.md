@@ -66,8 +66,25 @@ The provider implements locking with a `DBMS_LOCK` named lock (D7). The implemen
 | `ExecuteUpdateAsync` accepts a regular, non-expression lambda | Update pipeline entry shape | same |
 | `IDiscriminatorPropertySetConvention` takes `IConventionTypeBaseBuilder` | Custom convention implementations | same |
 | `RelationalMethodCallTranslatorProvider` and `RelationalMemberTranslatorProvider` no longer call `AddTranslators` from their constructors; `AddTranslators` is only defined, never invoked | A derived provider that relied on overriding `AddTranslators` silently loses its translators. Call `AddTranslators` in the derived constructor instead. Measured: overriding it compiles and does nothing. | `release/10.0` sources of both classes |
-| `IMethodCallTranslator.Translate` and `IMemberTranslator.Translate` take `IDiagnosticsLogger<DbLoggerCategory.Query>` instead of a type mapping | Every translator signature changes | same |
+| `IMethodCallTranslator.Translate` and `IMemberTranslator.Translate` take `IDiagnosticsLogger<DbLoggerCategory.Query>` instead of a type mapping | Measured on 9.0.22: the logger-based signature is already the one EF Core 9 declares, so the 14 translators compile on both lines without a change. The row is not a 9→10 task | `release/9.0` and `release/10.0` sources; provider build |
 | `net10.0` only | Target framework switch | package metadata |
+
+### Reverse adaptation, EF Core 10 to 9, measured on `efcore/9.0` (2026-11-13)
+
+The direction matters: the maintenance branch is cut from the EF Core 10 line, so these are the changes the newer line's code needed to become the 9 line. Anything marked *absent* was removed rather than shimmed.
+
+| Area | Measured | Action taken |
+|---|---|---|
+| `RightJoinExpression` | Absent in 9; the `RightJoin` and `LeftJoin` LINQ operators are EF Core 10 additions | `VisitRightJoin` deleted, `right join` acceptance step deleted, pipeline case deleted. `LEFT JOIN` is expressed as `GroupJoin` + `DefaultIfEmpty` and keeps its shape |
+| JSON column mapping | `JsonTypePlaceholder` is an EF Core 10 type. In 9, `JsonColumnBase.GetDefaultStoreTypeMapping()` resolves the column through `FindMapping(typeof(JsonElement))` | The mapping is registered for `JsonElement`; JSON column shape tests pass. The live suite still has to confirm the reader path |
+| Specification test package | 9.0.22 ships `net9.0` assets only (10.0.14 ships `net10.0`) | The provider stays `net8.0`; the specification project targets `net9.0` |
+| Specification base classes | 19 overrides named cases that exist only in the 10 bases | Deleted. The skip ledger guard then reported 2 names that no longer exist and both rows left the ledger |
+| SQL parameter names | 9 writes `:__value_0`, 10 writes `:value` | Every T2 baseline on this branch carries the 9 form |
+| Parameterized collections | 9 default: one JSON parameter expanded by the provider through `JSON_TABLE`. 10 default: one scalar parameter per element, with padding. The 9 option names are `TranslateParameterizedCollectionsToConstants()` / `TranslateParameterizedCollectionsToParameters()`; `UseParameterizedCollectionMode` is 10 API | Constants mode renders `IN (1, 2)`; the default renders `IN (SELECT ... FROM JSON_TABLE(:__ids_0, ...))` |
+| Nested `Take` | 9 keeps a subquery with two `FETCH FIRST` clauses; 10 folds them into `FETCH FIRST LEAST(:p, :p1) ROWS ONLY` | The pipeline case pins the 9 shape |
+| `ExecuteUpdate` setter constant | 9 inlines it (`SET "Name" = 'y'`); 10 sends a parameter | Baseline updated; the provider renders what the framework passes |
+| Entity list `Contains` | 9 inlines the single element's key as a constant | Baseline updated |
+| Migrations lock | The abstract members exist on 9 and 10 both | `DBMS_LOCK` implementation carried unchanged |
 
 ## 4. EF Core 10 to 11
 

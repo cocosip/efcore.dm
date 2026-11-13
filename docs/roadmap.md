@@ -16,7 +16,8 @@ Status: **decided**. Dates and ordering may change; exit criteria do not.
 |---|---|
 | P0-P5 | Complete: the offline and live gates pass and each capability is in the matrix |
 | P6 | Code complete; the package and the Windows live matrix are verified, the Linux run, release tag and NuGet publish are pending |
-| P7-P9 | Not started |
+| P7 | In progress on `efcore/9.0`. The offline gate passes on 2026-11-13: zero-warning build, the unit and SQL shape suite, the acceptance dry run, the package smoke test and the skip ledger guard. The live specification run, the ledger re-measurement and `v9.0.1` are pending |
+| P8-P9 | Not started |
 
 ### P0 — Walking skeleton
 

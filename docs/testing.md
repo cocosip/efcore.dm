@@ -42,6 +42,8 @@ Every translation test places the expression in a position that requires server 
 | `efcore/8.0` | `8.0.33` | xUnit v2 |
 | EF Core 11 | `11.0.0-rc` | **xUnit v3** (`xunit.v3.assert` 4.x) |
 
+The specification package is built for the framework of its EF Core line, which is not always the provider's: 9.0.22 ships `net9.0` assets while the provider targets `net8.0`, so on `efcore/9.0` the specification project sets its own `TargetFramework` to `net9.0`. The test project follows the package, never the other way round.
+
 ### Dependency pinning
 
 The specification test package pins its own dependency versions, which must be honoured:
@@ -123,12 +125,13 @@ difference from a known baseline; no behaviour changed because of it.
 | Dameng server | Versions in production use. First reached on 2026-11-11: DM 8.1.4.80 |
 | Compatibility mode | The default instance and the Oracle-compatible one both ran the console on 2026-11-11, as reported by the environment's operator; the dialect does not branch on the mode (D4). PostgreSQL-compatible mode is still a P6 exit criterion and has not been exercised |
 | Operating system | Windows x64, Linux x64 |
-| Target framework | `net8.0` on the EF Core 8/9 branches, `net10.0` on EF Core 10, `net11.0` from EF Core 11 |
+| Target framework | `net8.0` on the EF Core 8/9 branches, `net10.0` on EF Core 10, `net11.0` from EF Core 11. The specification project runs on the framework its package ships: `net9.0` on `efcore/9.0` |
 | Driver | The `DM.DmProvider` version the package depends on, which is the floor the provider is compiled against; EF Core 10 consumes its `net9.0` asset |
 
 ### What the live runs measured
 
-The acceptance console has 34 steps and passed on DM 8.1.4.80 in both compatibility modes on 2026-11-13.
+The acceptance console has 33 steps on the EF Core 9 branch (34 before the `right join` step was dropped, because
+`RightJoinExpression` does not exist on this line) and passed on DM 8.1.4.80 in both compatibility modes on 2026-11-13.
 It covers the query surface, the retry and cancellation behaviour, JSON, intervals, computed columns,
 ambient transactions and the migrations steps, including four migrations started at once. The steps do
 not only re-run what the unit tests already say: they are where the server's shape is observed, and each
@@ -225,7 +228,7 @@ Work is not reclassified as complete. Rules:
 - The release decision is made by a human, and the release notes state what was not covered.
 - Live CI jobs are never marked optional or allowed to fail silently.
 
-`samples/DmProviderValidation` is the end-to-end acceptance program. It covers connection open and close, synchronous and asynchronous commands, cancellation, CRUD, transaction commit and rollback, savepoints, optimistic concurrency, identity and sequence readback, `ExecuteUpdate` and `ExecuteDelete`, type round trips, and left and right joins, and one migration applied twice. Each step reports on its own, so one failure does not hide the rest.
+`samples/DmProviderValidation` is the end-to-end acceptance program. It covers connection open and close, synchronous and asynchronous commands, cancellation, CRUD, transaction commit and rollback, savepoints, optimistic concurrency, identity and sequence readback, `ExecuteUpdate` and `ExecuteDelete`, type round trips, and the left join, and one migration applied twice. Each step reports on its own, so one failure does not hide the rest.
 
 Its `query:` steps ask the server a question and compare the answer with the value .NET computes from the rows the step wrote: the string functions, the date parts and the arithmetic (including a month end, where a clamp and a time of day are both asserted), the date differences, the math functions, paging and ordering, grouping and aggregates, null semantics, and a boolean condition in a projection. A translation that is generated but wrong passes every shape test and fails here; both defects found so far were found by these steps or by the step next to them.
 

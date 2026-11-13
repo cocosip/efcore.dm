@@ -47,11 +47,11 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
         }
 
         var columnType = operation.ColumnType ?? GetColumnType(schema, table, name, operation, model);
-
+        // On a column the model did not type, the framework would have refused the model already.
         builder
             .Append(Helper.DelimitIdentifier(name))
             .Append(" ")
-            .Append(columnType);
+            .Append(columnType!);
 
         if (operation.Collation is not null)
         {

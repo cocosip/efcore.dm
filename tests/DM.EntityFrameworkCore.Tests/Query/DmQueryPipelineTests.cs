@@ -34,11 +34,10 @@ public class DmQueryPipelineTests
         ["SkipTake"] = c => c.Blogs.OrderBy(b => b.Id).Skip(10).Take(5).ToQueryString(),
         ["Take"] = c => c.Blogs.OrderBy(b => b.Id).Take(5).ToQueryString(),
         ["Skip"] = c => c.Blogs.OrderBy(b => b.Id).Skip(10).ToQueryString(),
-        ["LeftJoin"] = c => c.Blogs
-            .LeftJoin(c.Posts, b => b.Id, p => p.BlogId, (b, p) => new { b.Name, Title = p != null ? p.Title : null })
-            .ToQueryString(),
-        ["RightJoin"] = c => c.Blogs
-            .RightJoin(c.Posts, b => b.Id, p => p.BlogId, (b, p) => new { Name = b != null ? b.Name : null, p.Title })
+        ["LeftJoin"] = c => (from b in c.Blogs
+                             join p in c.Posts on b.Id equals p.BlogId into posts
+                             from p in posts.DefaultIfEmpty()
+                             select new { b.Name, p.Title })
             .ToQueryString(),
         ["Union"] = c => c.Blogs.Select(b => b.Id).Union(c.Posts.Select(p => p.Id)).ToQueryString(),
         ["OrderByDescending"] = c => c.Blogs.OrderByDescending(b => b.Id).ToQueryString()
@@ -97,12 +96,12 @@ public class DmQueryPipelineTests
     // Dameng's grammar has a ROW_LIMIT clause, `[OFFSET n ROW] [FETCH NEXT n ROW ONLY]`, so the
     // ANSI shape the relational layer emits is the documented one.
     [InlineData("SkipTake", """
-        -- :p='10'
-        -- :p1='5'
+        -- :__p_0='10'
+        -- :__p_1='5'
         SELECT "b"."Id", "b"."Name"
         FROM "Blogs" AS "b"
         ORDER BY "b"."Id"
-        OFFSET :p ROWS FETCH NEXT :p1 ROWS ONLY
+        OFFSET :__p_0 ROWS FETCH NEXT :__p_1 ROWS ONLY
         """)]
     [InlineData("OrderByDescending", """
         SELECT "b"."Id", "b"."Name"
@@ -110,28 +109,23 @@ public class DmQueryPipelineTests
         ORDER BY "b"."Id" DESC
         """)]
     [InlineData("Take", """
-        -- :p='5'
+        -- :__p_0='5'
         SELECT "b"."Id", "b"."Name"
         FROM "Blogs" AS "b"
         ORDER BY "b"."Id"
-        FETCH FIRST :p ROWS ONLY
+        FETCH FIRST :__p_0 ROWS ONLY
         """)]
     [InlineData("Skip", """
-        -- :p='10'
+        -- :__p_0='10'
         SELECT "b"."Id", "b"."Name"
         FROM "Blogs" AS "b"
         ORDER BY "b"."Id"
-        OFFSET :p ROWS
+        OFFSET :__p_0 ROWS
         """)]
     [InlineData("LeftJoin", """
         SELECT "b"."Name", "p"."Title"
         FROM "Blogs" AS "b"
         LEFT JOIN "Posts" AS "p" ON "b"."Id" = "p"."BlogId"
-        """)]
-    [InlineData("RightJoin", """
-        SELECT "b"."Name", "p"."Title"
-        FROM "Blogs" AS "b"
-        RIGHT JOIN "Posts" AS "p" ON "b"."Id" = "p"."BlogId"
         """)]
     [InlineData("Union", """
         SELECT "b"."Id"
@@ -171,13 +165,12 @@ public class DmQueryPipelineTests
     }
 
     /// <summary>
-    /// A collection joined in the query is rendered by the framework as a row source of values, which
-    /// Dameng spells as a <c>SELECT</c> from <c>DUAL</c> per row because it has no <c>VALUES</c> row
-    /// source: measured on 8.1.4.80, both <c>(VALUES ...) AS t(x)</c> and a bare <c>VALUES</c> in a set
-    /// operation answered <c>语法分析出错</c>.
+    /// A collection joined in the query arrives as a single JSON parameter on this line, which the
+    /// provider expands with the server's <c>JSON_TABLE</c> table function. The values are not pulled to
+    /// the client and the server sees one row per element.
     /// </summary>
     [Fact]
-    public void JoinOverACollection_BecomesSelectsFromDual()
+    public void JoinOverACollection_BecomesAJsonTableJoin()
     {
         using var context = new ProbeContext();
 
@@ -185,11 +178,10 @@ public class DmQueryPipelineTests
 
         Assert.Equal(
             """
-            -- :p1='1'
-            -- :p2='2'
+            -- :__p_0='[1,2]' (Size = 5)
             SELECT "b"."Name"
             FROM "Blogs" AS "b"
-            INNER JOIN (SELECT :p1 AS "Value" FROM DUAL UNION ALL SELECT :p2 FROM DUAL) AS "p" ON "b"."Id" = "p"."Value"
+            INNER JOIN JSON_TABLE(:__p_0, '$[*]' COLUMNS ("value" INT PATH '$')) AS "p" ON "b"."Id" = "p"."value"
             """.Replace("\r\n", "\n", StringComparison.Ordinal),
             context.Blogs
                 .Join(ids, b => b.Id, id => id, (b, id) => b.Name)

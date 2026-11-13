@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Storage.Internal;
@@ -13,11 +14,11 @@ namespace DM.EntityFrameworkCore.Storage.Internal;
 /// <remarks>
 /// Dameng has a <c>JSON</c> type, measured on 8.1.4.80: a table accepts a <c>JSON</c> column, the driver
 /// reads and writes it as text, and the server normalizes the document it stores. The framework looks a
-/// mapping up by <see cref="JsonTypePlaceholder" /> when it needs the store type of such a column, and
-/// refuses the model when the provider answers nothing.
+/// mapping up by the CLR type it parses the document into, <see cref="JsonElement" />, when it needs the
+/// store type of such a column, and refuses the model when the provider answers nothing.
 /// <para>
-/// The placeholder is not a type a reader produces, so the reader path is the string one, turned into the
-/// UTF-8 stream the framework parses the document from.
+/// The document is not a value a reader produces as a typed value, so the reader path is the string one,
+/// turned into the UTF-8 stream the framework parses the document from.
 /// </para>
 /// </remarks>
 internal sealed class DmJsonTypeMapping : JsonTypeMapping
@@ -26,7 +27,7 @@ internal sealed class DmJsonTypeMapping : JsonTypeMapping
         = typeof(DmJsonTypeMapping).GetMethod(nameof(CreateUtf8Stream), BindingFlags.NonPublic | BindingFlags.Static)!;
 
     public DmJsonTypeMapping(string storeType)
-        : base(storeType, typeof(JsonTypePlaceholder), System.Data.DbType.String)
+        : base(storeType, typeof(JsonElement), System.Data.DbType.String)
     {
     }
 

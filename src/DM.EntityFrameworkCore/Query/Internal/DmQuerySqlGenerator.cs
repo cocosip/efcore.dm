@@ -172,16 +172,6 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         return leftJoinExpression;
     }
 
-    protected override Expression VisitRightJoin(RightJoinExpression rightJoinExpression)
-    {
-        Sql.Append("RIGHT JOIN ");
-        Visit(rightJoinExpression.Table);
-        Sql.Append(" ON ");
-        Visit(DmSqlConditions.AsPredicate(rightJoinExpression.JoinPredicate));
-
-        return rightJoinExpression;
-    }
-
     /// <summary>
     /// A <c>CASE</c> result is a value position, and Dameng rejects a condition there the same way it
     /// rejects one in an operand: <c>CASE WHEN "a" IS NULL THEN 1 ELSE "b" &lt; 100 END</c> answered

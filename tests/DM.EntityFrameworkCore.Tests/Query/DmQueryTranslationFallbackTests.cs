@@ -10,12 +10,12 @@ namespace DM.EntityFrameworkCore.Tests.Query;
 public class DmQueryTranslationFallbackTests
 {
     /// <summary>
-    /// Nested <c>Take</c> calls are composed as <c>LEAST</c>. A parameter there used to leave the
-    /// function without a type mapping, which fails the statement with "does not have a type mapping
-    /// assigned" before any SQL is sent.
+    /// Nested <c>Take</c> calls keep the inner query as a subquery on this line: the framework folds them
+    /// into one <c>LEAST</c> only from the next major version, so what is pinned here is the two
+    /// statements-shape the server accepts.
     /// </summary>
     [Fact]
-    public void NestedTake_AnswersLeastWithAMapping()
+    public void NestedTake_KeepsTheSubqueryWithTwoFetches()
     {
         using var context = new StampedContext();
 
@@ -23,12 +23,17 @@ public class DmQueryTranslationFallbackTests
 
         Assert.Equal(
             """
-            -- :p='5'
-            -- :p1='3'
-            SELECT "i"."Id", "i"."CreatedAt", "i"."Name"
-            FROM "Items" AS "i"
-            ORDER BY "i"."Id"
-            FETCH FIRST LEAST(:p, :p1) ROWS ONLY
+            -- :__p_0='5'
+            -- :__p_1='3'
+            SELECT "i0"."Id", "i0"."CreatedAt", "i0"."Name"
+            FROM (
+                SELECT "i"."Id", "i"."CreatedAt", "i"."Name"
+                FROM "Items" AS "i"
+                ORDER BY "i"."Id"
+                FETCH FIRST :__p_0 ROWS ONLY
+            ) AS "i0"
+            ORDER BY "i0"."Id"
+            FETCH FIRST :__p_1 ROWS ONLY
             """,
             actual);
     }
