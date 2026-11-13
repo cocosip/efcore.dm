@@ -153,7 +153,7 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 | `NorthwindNavigationsQueryDmTest` | 146 | all pass |
 | `NorthwindMiscellaneousQueryDmTest` | 930 | 921 pass, 9 skipped (eight server-ordering/limit cases and one upstream skip) |
 | `NorthwindBulkUpdatesDmTest` | 180 | 172 pass, 8 skipped (three upstream skips and five ledger cases) |
-| `PrimitiveCollectionsQueryDmTest` | 156 | 137 pass, 19 skipped (one upstream skip and 18 ledger cases) |
+| `PrimitiveCollectionsQueryDmTest` | 156 | 139 pass, 17 skipped (one upstream skip and 16 ledger cases) |
 | `NorthwindJoinQueryDmTest` | 131 | 126 pass, 5 skipped (four upstream, one ledger case) |
 | `NorthwindSelectQueryDmTest` | 368 | 364 pass, 4 skipped (the four ledger cases) |
 | `NorthwindGroupByQueryDmTest` | 509 | 502 pass, 7 skipped (four upstream, three ledger cases) |
@@ -163,10 +163,9 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 | `MigrationsDmTest` | 134 | 115 pass, 19 skipped |
 | `SkipLedgerTests` | 1 | all pass |
 
-Whole project: 3898 results, 3824 passed, 74 skipped, 0 failed. A skipped theory is reported once even
-though its two async forms are both data rows, so the 45 query cases in the ledger appear as 45 skipped
-results; the 74 are those 45, the 19 migrations cases, the 9 cases the shipped base skips, and the one
-Updates case. The specification project runs its collections serially (`xunit.runner.json`) because
+Whole project: 3898 results, 3826 passed, 72 skipped, 0 failed. A skipped theory is reported once even
+though its two async forms are both data rows, so the 72 cases in the ledger appear as 72 skipped
+results: 61 this project declares, plus the 11 the shipped EF Core 10 base skips. The specification project runs its collections serially (`xunit.runner.json`) because
 every fixture shares one database and a fixture that recreates the Northwind tables would otherwise race
 another class. The store drops the objects its model declares; the updates fixture and the migrations
 suite own a schema of their own (`DM_SPEC_UPDATES`, `DM_SPEC_MIGRATIONS`), and the migrations class is

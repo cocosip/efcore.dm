@@ -67,6 +67,9 @@ do not pass and why. This file records what changed, once per release, instead o
 - `ExecuteUpdate` and `ExecuteDelete` rewrite a boolean predicate, including a query filter's, the way the
   select pipeline does; the update commands are built outside `VisitSelect`, so the filter used to reach the
   server as a value expression (`查询使用值表达式作为过滤条件`).
+- A paged primitive collection orders its `JSON_TABLE` row source by an ordinality column, so the same
+  page is asked for each time: the row source declared no ordering and the server answered a different
+  page (`FETCH FIRST` over an unordered row source).
 
 ### Changed
 

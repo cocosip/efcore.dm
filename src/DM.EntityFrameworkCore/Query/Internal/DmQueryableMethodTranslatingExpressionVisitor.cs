@@ -94,9 +94,12 @@ internal sealed class DmQueryableMethodTranslatingExpressionVisitor : Relational
                 : elementClrType;
 
         // The path and the column definition are constants; the only value from outside is the store
-        // type, which comes from the element's own mapping and not from user input.
+        // type, which comes from the element's own mapping and not from user input. The ordinality column
+        // is not projected: it gives a paged row source the ordering a page needs, and the generator
+        // writes that ordering (measured on 8.1.4.80: `FOR ORDINALITY` parses and answers 1..n in array
+        // order).
         var columns = new SqlFragmentExpression(
-            $"'$[*]' COLUMNS (\"value\" {elementMapping.StoreType} PATH '$')");
+            $"'$[*]' COLUMNS (\"value\" {elementMapping.StoreType} PATH '$', \"rn\" FOR ORDINALITY)");
         var table = new TableValuedFunctionExpression(tableAlias, "JSON_TABLE", [sqlExpression, columns]);
         var value = new ColumnExpression(
             "value",
