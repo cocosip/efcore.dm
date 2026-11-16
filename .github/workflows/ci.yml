@@ -190,6 +190,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" --verify-tag \
             --title "DM.EntityFrameworkCore $VERSION" \
             --generate-notes \
-            "${flags[@]}" ./packages/*.nupkg ./packages/*.snupkg
+            "${flags[@]}" ./packages/*.nupkg
 
 

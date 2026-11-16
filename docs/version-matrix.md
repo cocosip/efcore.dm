@@ -10,7 +10,7 @@ Used in two directions: forward when adopting a new EF Core major version, backw
 
 | EF Core | Target framework | Official support until | Branch | Specification tests |
 |---|---|---|---|---|
-| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.33 |
+| 8.0 | `net8.0` | 2026-11-10 (expired) | `efcore/8.0` | 8.0.0 (range floor of `[8.0.0,9.0.0)`) |
 | 9.0 | `net9.0` | 2026-11-10 (expired) | `efcore/9.0` | 9.0.22 |
 | 10.0 | `net10.0` | 2028-11-10 | `efcore/10.0` | 10.0.14 |
 | 11.0 | `net11.0` | not released | `efcore/11.0` (not created) | 11.0.0-rc (xUnit v3) |
@@ -36,7 +36,7 @@ In `release/8.0` none of these members exist.
 | Item | EF Core 8 | EF Core 9 | EF Core 10 |
 |---|---|---|---|
 | Lock members | absent | must implement both | same contract |
-| `LockReleaseBehavior` | not applicable | `Transaction` | `Transaction` |
+| `LockReleaseBehavior` | not applicable | `Connection` | `Connection` |
 
 The provider implements locking with a `DBMS_LOCK` named lock (D7). The implementation is written once for EF Core 9 and reused on 10. It does not exist on the EF Core 8 branch.
 

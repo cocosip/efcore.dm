@@ -39,7 +39,7 @@ Every translation test places the expression in a position that requires server 
 | `efcore/10.0` (EF Core 10) | `10.0.14` | xUnit v2 (`xunit.core` 2.9.3) |
 | `dev` (EF Core 10) | `10.0.14` | xUnit v2 |
 | `efcore/9.0` | `9.0.22` | xUnit v2 |
-| `efcore/8.0` | `8.0.33` | xUnit v2 |
+| `efcore/8.0` | `8.0.0` (floor of `[8.0.0,9.0.0)`) | xUnit v2 |
 | EF Core 11 | `11.0.0-rc` | **xUnit v3** (`xunit.v3.assert` 4.x) |
 
 ### Dependency pinning
@@ -165,7 +165,7 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 
 Whole project: 3898 results, 3826 passed, 72 skipped, 0 failed. A skipped theory is reported once even
 though its two async forms are both data rows, so the 72 cases in the ledger appear as 72 skipped
-results: 61 this project declares, plus the 11 the shipped EF Core 10 base skips. The specification project runs its collections serially (`xunit.runner.json`) because
+results: 57 this project declares, plus the 15 the shipped EF Core 10 base skips. The specification project runs its collections serially (`xunit.runner.json`) because
 every fixture shares one database and a fixture that recreates the Northwind tables would otherwise race
 another class. The store drops the objects its model declares; the updates fixture and the migrations
 suite own a schema of their own (`DM_SPEC_UPDATES`, `DM_SPEC_MIGRATIONS`), and the migrations class is
@@ -228,7 +228,7 @@ Work is not reclassified as complete. Rules:
 
 Its `query:` steps ask the server a question and compare the answer with the value .NET computes from the rows the step wrote: the string functions, the date parts and the arithmetic (including a month end, where a clamp and a time of day are both asserted), the date differences, the math functions, paging and ordering, grouping and aggregates, null semantics, and a boolean condition in a projection. A translation that is generated but wrong passes every shape test and fails here; both defects found so far were found by these steps or by the step next to them.
 
-Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Concurrent migration locking is exercised by the console's concurrent-deployment step. Applying a migration *down* and a custom history table are not covered by the console; the `dotnet ef` add/update/list/remove/scaffold path is covered by `scripts/design-time-smoke.ps1`, and the migrations specification suite has no infrastructure base yet.
+Migrations are part of it as far as one migration can be applied and applied again: the sample ships a migration and its snapshot for a table of its own, applies it, reads a row back through the model, and applies it a second time against a database where every statement has already run. Concurrent migration locking is exercised by the console's concurrent-deployment step. Applying a migration *down* and a custom history table are not covered by the console; the `dotnet ef` add/update/list/remove/scaffold path is covered by `scripts/design-time-smoke.ps1`, and the migrations specification suite runs its cases against the server as the results above record.
 
 It reads the connection string from its first argument, from `ConnectionStrings__Dm`, or from user secrets (`dotnet user-secrets set "ConnectionStrings:Dm" "<connection string>" --project samples/DmProviderValidation`), in that order of specificity, so no credential has to sit in the repository; `--secrets=<key>` reads `ConnectionStrings:<key>` for a second instance. It never prints the string. It creates its own prefixed tables through the relational database creator rather than through `EnsureCreated`, because a Dameng database is made with the `dminit` tool before a connection can reach it and the catalog may already hold tables the run does not own. Each run marks its rows with an identifier, isolates them from another run, drops only the tables it created, and returns a non-zero exit code when any step fails. `--keep` leaves the tables behind for inspection. `--dry-run` builds the model and generates the schema script without a database, prints the declared steps, and returns a non-zero exit code when the model no longer produces the tables and the sequence a run needs. It also compares the shipped migration snapshot with the model and generates the idempotent script of that migration, failing when the snapshot no longer matches or the script has lost its guards or gained a statement Dameng does not define; that is the check a build machine can run, and it is why the sample does not rot between the runs that have an instance.
 

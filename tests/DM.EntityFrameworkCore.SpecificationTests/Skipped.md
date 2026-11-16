@@ -9,7 +9,7 @@ it as skipped rather than failed; the ledger remains the record of the measureme
 reported once even though it carries the synchronous and the asynchronous form as two data rows.
 
 Current live run on 2026-11-13 against DM 8.1.4.80, `COMPATIBLE_MODE` 2: 3898 results, 3826 passed,
-72 skipped, 0 failed. The 72 skipped results are 72 cases: 61 this project declares, 11 the
+72 skipped, 0 failed. The 72 skipped results are 72 cases: 57 this project declares, 15 the
 shipped EF Core 10 base skips itself.
 
 The suite is not part of the offline gate: `BuiltInDataTypesDmTest` needs a running Dameng instance. The
