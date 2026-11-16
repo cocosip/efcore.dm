@@ -199,6 +199,11 @@ internal class DmDatabaseModelFactory : IDatabaseModelFactory
         }
     }
 
+    /// <summary>
+    /// Whether the index is the one the server creates for a key: its name is <c>INDEX</c> followed only
+    /// by digits. That is the server's shape, measured on 8.1.4.80; a user index named the same way
+    /// would be skipped as well, which the catalog query does not let this method tell apart.
+    /// </summary>
     private static bool IsSystemIndex(string name)
         => name.StartsWith("INDEX", StringComparison.OrdinalIgnoreCase)
             && name.Length > 5
@@ -548,9 +553,19 @@ internal class DmDatabaseModelFactory : IDatabaseModelFactory
 
             builder.Append(')');
         }
-        else if (name.StartsWith(DmStoreTypes.Timestamp, StringComparison.OrdinalIgnoreCase) && scaleValue is > 0)
+        else if (scaleValue is > 0
+            && name.StartsWith(DmStoreTypes.Timestamp, StringComparison.OrdinalIgnoreCase))
         {
-            builder.Append('(').Append(Literal(scaleValue.Value)).Append(')');
+            // The fractional-seconds precision belongs between TIMESTAMP and its time-zone clause:
+            // TIMESTAMP(7) WITH TIME ZONE is the spelling the manual defines, while appending the
+            // precision after the whole name puts it where the parser no longer expects it.
+            var suffix = name[DmStoreTypes.Timestamp.Length..];
+
+            builder
+                .Clear()
+                .Append(DmStoreTypes.Timestamp)
+                .Append('(').Append(Literal(scaleValue.Value)).Append(')')
+                .Append(suffix);
         }
 
         return builder.ToString();
