@@ -100,8 +100,8 @@ mode. `v8.0.1` is not published yet.
 - `ExecuteUpdate` and `ExecuteDelete` rewrite a boolean predicate, including a query filter's, the way the
   select pipeline does; the update commands are built outside `VisitSelect`, so the filter used to reach the
   server as a value expression (`查询使用值表达式作为过滤条件`).
-- A boolean ordering is written as `CASE WHEN ... THEN 1 ELSE 0 END`: an ordering over a predicate was
-  rendered as `COALESCE(<condition>, 0)` and rejected (`无效的ORDER BY子句`).
+- A boolean ordering is written as `CASE WHEN ... THEN 1 ELSE 0 END`, including when the framework
+  wrapped the key in `COALESCE`: the wrapper was rejected (`无效的ORDER BY子句`).
 - A boolean exclusive-or is translated as a comparison of its operands' `CASE` forms, because the server
   has no `^` operator (`语法分析出错`).
 - A paged primitive collection orders its `JSON_TABLE` row source by an ordinality column, so the same
@@ -138,4 +138,5 @@ mode. `v8.0.1` is not published yet.
   are the same value under mode 2 and different under the default mode.
 
 [Unreleased]: https://github.com/cocosip/efcore.dm/commits/master
+
 

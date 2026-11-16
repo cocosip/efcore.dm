@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and adapted to EF Core 8 the same day. Everything measured passes on SDK 8.0.404: zero-warning build, 574 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0 with its skip ledger guard, the package smoke test, which restores and runs a consumer of `Sharp.DM.EntityFrameworkCore` 8.0.1 on `net8.0`, and the live gates against DM 8.1.4.80 — the acceptance console (32 of 32 steps in both compatibility modes), the design-time smoke test, the feature probe (44 steps in each mode) and the specification suite (3780 results, 3711 passed, 69 skipped, 0 failed). `v8.0.1` is not published yet. The adaptation is roadmap phase P8 in the [Roadmap](docs/roadmap.md). Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and adapted to EF Core 8 the same day. Everything measured passes on SDK 8.0.404: zero-warning build, 575 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0 with its skip ledger guard, the package smoke test, which restores and runs a consumer of `Sharp.DM.EntityFrameworkCore` 8.0.1 on `net8.0`, and the live gates against DM 8.1.4.80 — the acceptance console (32 of 32 steps in both compatibility modes), the design-time smoke test, the feature probe (44 steps in each mode) and the specification suite (3780 results, 3711 passed, 69 skipped, 0 failed). `v8.0.1` is not published yet. The adaptation is roadmap phase P8 in the [Roadmap](docs/roadmap.md). Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 
@@ -93,6 +93,7 @@ The functional probe is the second live program and is not part of CI: `dotnet r
 ## Licence
 
 [MIT](LICENSE). MIT covers original code in this repository only. Third-party fragments are registered separately in [Provenance](docs/provenance.md).
+
 
 
 

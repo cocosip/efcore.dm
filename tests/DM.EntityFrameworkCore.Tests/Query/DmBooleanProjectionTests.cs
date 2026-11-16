@@ -134,6 +134,27 @@ public class DmBooleanProjectionTests
             Statement(context.Probes.OrderBy(p => p.Flag).Select(p => p.Id).ToQueryString()));
     }
 
+    /// <summary>
+    /// A parameter-list key can arrive wrapped in <c>COALESCE(key, false)</c>, which the server rejects
+    /// in <c>ORDER BY</c>; opening the wrapper leaves the predicate the CASE states as a value.
+    /// </summary>
+    [Fact]
+    public void ACoalescedConditionAsAnOrderingKey_BecomesACaseExpression()
+    {
+        using var context = new CustomerContext();
+        var list = new List<string> { "a", "b" };
+
+        Assert.Equal(
+            """
+            SELECT "c"."CustomerID"
+            FROM "Customers" AS "c"
+            ORDER BY CASE WHEN "c"."CustomerID" IN (
+                SELECT "l"."value"
+                FROM JSON_TABLE(:__list_0, '$[*]' COLUMNS ("value" NCLOB PATH '$', "rn" FOR ORDINALITY)) AS "l"
+            ) THEN 1 ELSE 0 END
+            """,
+            Statement(context.Customers.OrderBy(c => list.Contains(c.CustomerID)).Select(c => c.CustomerID).ToQueryString()));
+    }
     private static string Statement(string sql)
         => string.Join(
             "\n",
@@ -142,6 +163,20 @@ public class DmBooleanProjectionTests
                 .Where(line => !line.StartsWith("--", StringComparison.Ordinal))
                 .Select(line => line.TrimEnd()));
 
+    private sealed class CustomerContext : DbContext
+    {
+        public DbSet<Customer> Customers => Set<Customer>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm("Server=127.0.0.1:5236;User Id=SYSDBA;PWD=SYSDBA;");
+    }
+
+    private sealed class Customer
+    {
+        public string CustomerID { get; set; } = string.Empty;
+
+        public string? Region { get; set; }
+    }
     private sealed class ProbeContext : DbContext
     {
         public DbSet<Probe> Probes => Set<Probe>();
@@ -159,3 +194,5 @@ public class DmBooleanProjectionTests
         public bool Flag { get; set; }
     }
 }
+
+
