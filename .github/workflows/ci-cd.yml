@@ -134,9 +134,10 @@ jobs:
           retention-days: 30
 
   # Publishing consumes the verified artifact only: no checkout, restore or build.
-  # NuGet trusted publishing exchanges this workflow's GitHub OIDC token for a one-hour API key,
+  # nuget.org trusted publishing exchanges this workflow's GitHub OIDC token for a one-hour API key,
   # so no long-lived NuGet API key is stored in the repository. The nuget.org trusted publishing
-  # policy must name this repository and this workflow file.
+  # policy must name this repository and this workflow file (ci-cd.yml), and the key is requested
+  # immediately before the push because it expires after one hour.
   publish:
     name: Publish NuGet
     if: startsWith(github.ref, 'refs/tags/')
@@ -155,7 +156,7 @@ jobs:
           name: nuget-packages
           path: ./packages
 
-      - name: NuGet login (OIDC -> temporary API key)
+      - name: NuGet login (OIDC to a one-hour API key)
         id: login
         uses: NuGet/login@v1
         with:
@@ -191,5 +192,6 @@ jobs:
             --title "DM.EntityFrameworkCore $VERSION" \
             --generate-notes \
             "${flags[@]}" ./packages/*.nupkg ./packages/*.snupkg
+
 
 
