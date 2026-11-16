@@ -90,6 +90,8 @@ do not pass and why. This file records what changed, once per release, instead o
   carry a held lock into the next deployment.
 - A sequence start value is read from the sequence object of the same schema; a `NUMERIC` column keeps its
   precision and scale when scaffolded.
+- A time-zone timestamp keeps its fractional-seconds precision as `TIMESTAMP(7) WITH TIME ZONE`, the
+  spelling the manual defines, rather than `TIMESTAMP WITH TIME ZONE(7)`.
 
 ### Changed
 
