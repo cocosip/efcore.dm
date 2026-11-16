@@ -111,6 +111,34 @@ public class DmDatabaseModelFactoryTests
             model.Tables.Single().Columns.Select(column => column.StoreType));
     }
 
+    /// <summary>
+    /// A time-zone timestamp carries its fractional-seconds precision before the zone clause:
+    /// <c>TIMESTAMP(7) WITH TIME ZONE</c> is the manual's spelling, and the catalog's type name plus
+    /// its scale has to be composed that way rather than as <c>TIMESTAMP WITH TIME ZONE(7)</c>.
+    /// </summary>
+    [Fact]
+    public void Create_PutsThePrecisionOfATimeZoneTimestampBeforeTheZoneClause()
+    {
+        var model = Create(
+        [
+            Rows(ObjectColumns, ["APP", "EVENTS"]),
+            Rows(
+                ColumnColumns,
+                ["APP", "EVENTS", "AT", "TIMESTAMP WITH TIME ZONE", null, null, 7, "N", null, "NO"],
+                ["APP", "EVENTS", "LOCAL", "TIMESTAMP WITH LOCAL TIME ZONE", null, null, 4, "N", null, "NO"],
+                ["APP", "EVENTS", "PLAIN", "TIMESTAMP", null, null, 6, "N", null, "NO"]),
+            Rows(ConstraintColumns),
+            Rows(ConstraintColumnColumns),
+            Rows(IndexColumns),
+            Rows(ForeignKeyColumns),
+            Rows(SequenceColumns)
+        ]);
+
+        Assert.Equal(
+            ["TIMESTAMP(7) WITH TIME ZONE", "TIMESTAMP(4) WITH LOCAL TIME ZONE", "TIMESTAMP(6)"],
+            model.Tables.Single().Columns.Select(column => column.StoreType));
+    }
+
     [Fact]
     public void Create_ReadsTheForeignKeysUniqueConstraintsAndIndexes()
     {
