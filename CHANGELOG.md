@@ -82,7 +82,8 @@ do not pass and why. This file records what changed, once per release, instead o
 - A boolean exclusive-or is translated to a comparison of its operands' `CASE` forms, because the server
   has no `^` operator.
 - `IndexOf("")` answers `0`, `LastIndexOf("")` answers `LENGTH(...)`, and the start-position forms answer
-  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle.
+  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle; a NULL string
+  still answers NULL.
 - `EnsureCreated` counts tables in the schemas the model maps, not only the connection's current schema.
 - The migration lock is released by the object the execution state keeps, so a pooled connection does not
   carry a held lock into the next deployment.
@@ -103,3 +104,4 @@ do not pass and why. This file records what changed, once per release, instead o
   are the same value under mode 2 and different under the default mode.
 
 [Unreleased]: https://github.com/cocosip/efcore.dm/commits/master
+

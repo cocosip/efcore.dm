@@ -444,10 +444,11 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
             .AppendLine("    END IF;")
             .Append("END;");
 
-        // A block is executed by a slash of its own. The batch writer on this line does not append
-        // one per command, so the statement carries it; an idempotent script nests this block in the
+        // A block is executed by a slash of its own in a script, but the slash is not part of the
+        // statement a migrator executes directly: the script writer on this line does not append one
+        // per command, so the script case carries it; an idempotent script nests this block in the
         // history guard, where a terminator would end the outer block.
-        if (!_idempotent)
+        if (Options.HasFlag(MigrationsSqlGenerationOptions.Script) && !_idempotent)
         {
             builder.AppendLine().AppendLine(Helper.BatchTerminator);
         }

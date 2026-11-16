@@ -126,7 +126,9 @@ public class DmDatabaseModelFactoryTests
                 ColumnColumns,
                 ["APP", "EVENTS", "AT", "TIMESTAMP WITH TIME ZONE", null, null, 7, "N", null, "NO"],
                 ["APP", "EVENTS", "LOCAL", "TIMESTAMP WITH LOCAL TIME ZONE", null, null, 4, "N", null, "NO"],
-                ["APP", "EVENTS", "PLAIN", "TIMESTAMP", null, null, 6, "N", null, "NO"]),
+                ["APP", "EVENTS", "PLAIN", "TIMESTAMP", null, null, 6, "N", null, "NO"],
+                ["APP", "EVENTS", "DATETIME", "DATETIME WITH TIME ZONE", null, null, 3, "N", null, "NO"],
+                ["APP", "EVENTS", "DATETIME_DEFAULT", "DATETIME WITH TIME ZONE", null, null, 6, "N", null, "NO"]),
             Rows(ConstraintColumns),
             Rows(ConstraintColumnColumns),
             Rows(IndexColumns),
@@ -135,7 +137,13 @@ public class DmDatabaseModelFactoryTests
         ]);
 
         Assert.Equal(
-            ["TIMESTAMP(7) WITH TIME ZONE", "TIMESTAMP(4) WITH LOCAL TIME ZONE", "TIMESTAMP(6)"],
+            [
+                "TIMESTAMP(7) WITH TIME ZONE",
+                "TIMESTAMP(4) WITH LOCAL TIME ZONE",
+                "TIMESTAMP(6)",
+                "DATETIME(3) WITH TIME ZONE",
+                "DATETIME WITH TIME ZONE"
+            ],
             model.Tables.Single().Columns.Select(column => column.StoreType));
     }
 
