@@ -109,6 +109,15 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     {
         var expression = orderingExpression.Expression;
 
+        // A boolean ordering key can arrive wrapped in COALESCE(key, false), which gives a NULL key
+        // the false value; the CASE below gives it the same answer, and the wrapper itself is a value
+        // expression the server rejects in ORDER BY.
+        if (expression is SqlFunctionExpression { Name: "COALESCE", Arguments: [var key, _] }
+            && key.Type == typeof(bool))
+        {
+            expression = key;
+        }
+
         if (!DmSqlConditions.IsCondition(expression))
         {
             return base.VisitOrdering(orderingExpression);
@@ -504,3 +513,6 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         }
     }
 }
+
+
+

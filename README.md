@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 9 line. The provider builds with zero warnings, the unit and SQL shape suite passes (576 cases), the acceptance dry run declares 33 steps, the skip ledger guard passes and the package smoke test resolves and runs `Sharp.DM.EntityFrameworkCore` 9.0.1 from an isolated NuGet cache. The specification suite has not been re-measured against a live instance on this line yet, so [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) is still the ledger measured on `efcore/10.0`; the `v9.0.1` tag is pending that run. Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 9 line. The provider builds with zero warnings, the unit and SQL shape suite passes (581 cases), the acceptance dry run declares 33 steps, the skip ledger guard passes and the package smoke test resolves and runs `Sharp.DM.EntityFrameworkCore` 9.0.1 from an isolated NuGet cache. The specification suite has not been re-measured against a live instance on this line yet, so [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) is still the ledger measured on `efcore/10.0`; the `v9.0.1` tag is pending that run. Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 
@@ -92,6 +92,8 @@ The functional probe is the second live program and is not part of CI: `dotnet r
 ## Licence
 
 [MIT](LICENSE). MIT covers original code in this repository only. Third-party fragments are registered separately in [Provenance](docs/provenance.md).
+
+
 
 
 

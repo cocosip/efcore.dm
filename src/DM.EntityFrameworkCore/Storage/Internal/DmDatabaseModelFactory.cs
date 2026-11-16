@@ -567,6 +567,18 @@ internal class DmDatabaseModelFactory : IDatabaseModelFactory
                 .Append('(').Append(Literal(scaleValue.Value)).Append(')')
                 .Append(suffix);
         }
+        else if (scaleValue is > 0
+            && Same(name, DmStoreTypes.DateTimeWithTimeZone)
+            && scaleValue.Value != 6)
+        {
+            // DATETIME defaults to six fractional digits: the model writes no precision for the
+            // default, so only a different one is carried, and it precedes the zone clause as well.
+            builder
+                .Clear()
+                .Append("DATETIME")
+                .Append('(').Append(Literal(scaleValue.Value)).Append(')')
+                .Append(" WITH TIME ZONE");
+        }
 
         return builder.ToString();
     }

@@ -186,8 +186,25 @@ public class DmMigrationsSqlTests
                     EXECUTE IMMEDIATE 'CREATE SCHEMA "APP"';
                 END IF;
             END;
-            /
             """);
+    }
+
+    /// <summary>
+    /// The slash that closes the block belongs to a script file, where the writer does not add a
+    /// terminator per command. A migrator executing the command directly rejects it, so it must not
+    /// be part of the statement the runtime path receives.
+    /// </summary>
+    [Fact]
+    public void EnsureSchema_WhenScripting_EndsTheBlockWithASlash()
+    {
+        using var context = new ProbeContext();
+
+        var command = Assert.Single(context.GetService<IMigrationsSqlGenerator>().Generate(
+            [new EnsureSchemaOperation { Name = "APP" }],
+            context.Model,
+            MigrationsSqlGenerationOptions.Script));
+
+        Assert.Contains("END;\n/\n", command.CommandText.Replace("\r\n", "\n", StringComparison.Ordinal));
     }
     /// <summary>
     /// A schema belongs to a user, so creating the user creates both. The privileges the account
@@ -681,4 +698,5 @@ public class DmMigrationsSqlTests
         public int ProbeId { get; set; }
     }
 }
+
 

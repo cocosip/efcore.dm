@@ -67,8 +67,8 @@ do not pass and why. This file records what changed, once per release, instead o
 - `ExecuteUpdate` and `ExecuteDelete` rewrite a boolean predicate, including a query filter's, the way the
   select pipeline does; the update commands are built outside `VisitSelect`, so the filter used to reach the
   server as a value expression (`查询使用值表达式作为过滤条件`).
-- A boolean ordering is written as `CASE WHEN ... THEN 1 ELSE 0 END`: an ordering over a predicate was
-  rendered as `COALESCE(<condition>, 0)` and rejected (`无效的ORDER BY子句`).
+- A boolean ordering is written as `CASE WHEN ... THEN 1 ELSE 0 END`, including when the framework
+  wrapped the key in `COALESCE`: the wrapper was rejected (`无效的ORDER BY子句`).
 - A boolean exclusive-or is translated as a comparison of its operands' `CASE` forms, because the server
   has no `^` operator (`语法分析出错`).
 - A paged primitive collection orders its `JSON_TABLE` row source by an ordinality column, so the same
@@ -84,14 +84,16 @@ do not pass and why. This file records what changed, once per release, instead o
 - A boolean `CASE` test is compared with `1`, and an ordering key that is a condition is written as
   `CASE WHEN ... THEN 1 ELSE 0 END`; the server rejects the bare forms.
 - `IndexOf("")` answers `0`, `LastIndexOf("")` answers `LENGTH(...)`, and the start-position forms answer
-  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle.
+  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle; a NULL string
+  still answers NULL.
 - `EnsureCreated` counts tables in the schemas the model maps, not only the connection's current schema.
 - The migration lock is released by the object the execution state keeps, so a pooled connection does not
   carry a held lock into the next deployment.
 - A sequence start value is read from the sequence object of the same schema; a `NUMERIC` column keeps its
   precision and scale when scaffolded.
 - A time-zone timestamp keeps its fractional-seconds precision as `TIMESTAMP(7) WITH TIME ZONE`, the
-  spelling the manual defines, rather than `TIMESTAMP WITH TIME ZONE(7)`.
+  spelling the manual defines, rather than `TIMESTAMP WITH TIME ZONE(7)`; a `DATETIME WITH TIME ZONE`
+  with a non-default precision becomes `DATETIME(n) WITH TIME ZONE`.
 
 ### Changed
 
@@ -105,3 +107,5 @@ do not pass and why. This file records what changed, once per release, instead o
   are the same value under mode 2 and different under the default mode.
 
 [Unreleased]: https://github.com/cocosip/efcore.dm/commits/master
+
+

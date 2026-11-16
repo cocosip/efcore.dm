@@ -120,6 +120,29 @@ public class DmBooleanProjectionTests
             Statement(context.Probes.OrderBy(p => p.Id > 1).Select(p => p.Id).ToQueryString()));
     }
 
+    /// <summary>
+    /// The framework can hand a boolean ordering key over already wrapped in <c>COALESCE(key, 0)</c>,
+    /// which gives a NULL key the false value. The wrapper is a value expression the server rejects as
+    /// an ordering key, and the CASE states the same answer, so the wrapper is opened first.
+    /// </summary>
+    [Fact]
+    public void ACoalescedConditionAsAnOrderingKey_BecomesACaseExpression()
+    {
+        using var context = new ProbeContext();
+        var names = new List<string> { "a", "b" };
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            ORDER BY CASE WHEN EXISTS (
+                SELECT 1
+                FROM JSON_TABLE(:__names_0, '$[*]' COLUMNS ("value" NCLOB PATH '$', "rn" FOR ORDINALITY)) AS "n"
+                WHERE "n"."value" = "p"."Name" OR ("n"."value" IS NULL AND "p"."Name" IS NULL)) THEN 1 ELSE 0 END
+            """,
+            Statement(context.Probes.OrderBy(p => names.Contains(p.Name!)).Select(p => p.Id).ToQueryString()));
+    }
+
     [Fact]
     public void ABooleanColumnAsAnOrderingKey_StaysAColumn()
     {
@@ -159,3 +182,5 @@ public class DmBooleanProjectionTests
         public bool Flag { get; set; }
     }
 }
+
+
