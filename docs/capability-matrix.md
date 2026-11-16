@@ -39,6 +39,20 @@ The matrix is therefore derived from the **EF Core provider contract**: the serv
 
 Each row names one capability, its status and evidence, the roadmap phase that owns it, whether the reference implementation had it, and the note that justifies the status. Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests` or a project the test proves; a measurement that decided a status is in the note or in [Testing](testing.md).
 
+### 4.1 Compatibility modes
+
+The provider never reads `COMPATIBLE_MODE` (D4), so one migration and one statement text serve every mode; the evidence is per mode, not per branch.
+
+| Mode | Value | Evidence |
+|---|---|---|
+| Default (native) | 0 | Acceptance console, feature probe and the primitive-collection specification fixture. Migration DDL beyond `CREATE TABLE`/`CREATE INDEX` is not exercised. |
+| Oracle-compatible | 2 | The full specification suite, the acceptance console, the feature probe and the migrations suite. |
+| MySQL-compatible | 4 | Not exercised or claimed. |
+| PostgreSQL-compatible | 7 | Not exercised or claimed; a P6 exit criterion. |
+| SQL92, MSSQL, DM6, Teradata, DB2 | 1, 3, 5, 6, 8 | Not exercised or claimed. |
+
+The package ships Oracle-shaped DDL (`"..."`, `IDENTITY(1,1)`, `COMMENT ON`, `MODIFY`, `DBMS_LOCK`, `SYS_CONTEXT`) and does not claim the unexercised modes. Empty string and NULL are the same value under mode 2 and different under the default mode, which a model's defaults and seed rows must account for.
+
 ## 5. Matrix
 
 Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` when there is none. Phase refers to [Roadmap](roadmap.md). Reference is `Yes` when the decompiled reference contained an implementation for the capability, `No` when it did not.

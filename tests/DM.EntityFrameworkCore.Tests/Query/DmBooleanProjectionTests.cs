@@ -77,6 +77,63 @@ public class DmBooleanProjectionTests
                     .ToQueryString()));
     }
 
+    /// <summary>
+    /// The <c>WHEN</c> test is a condition position, so a boolean value there is compared with 1 like
+    /// the predicate positions; <c>CASE WHEN "p"."Flag"</c> is the value-expression form the server
+    /// rejects.
+    /// </summary>
+    [Fact]
+    public void ABooleanValueInACaseTest_IsComparedWithOne()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", CASE
+            WHEN "p"."Flag" = 1 THEN 1
+            ELSE 0
+            END AS "Value"
+            FROM "Probes" AS "p"
+            """,
+            Statement(
+                context.Probes
+                    .Select(p => new { p.Id, Value = p.Flag ? 1 : 0 })
+                    .ToQueryString()));
+    }
+
+    /// <summary>
+    /// The server rejects a condition as an ordering key (measured: <c>ORDER BY "p"."Id" &gt; 1</c>
+    /// answered <c>[-2007] 语法分析出错</c>), so the key is written as the CASE that answers a value.
+    /// A boolean column is a value already and keeps the server's own NULL ordering.
+    /// </summary>
+    [Fact]
+    public void AConditionAsAnOrderingKey_BecomesACaseExpression()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            ORDER BY CASE WHEN "p"."Id" > 1 THEN 1 ELSE 0 END
+            """,
+            Statement(context.Probes.OrderBy(p => p.Id > 1).Select(p => p.Id).ToQueryString()));
+    }
+
+    [Fact]
+    public void ABooleanColumnAsAnOrderingKey_StaysAColumn()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            ORDER BY "p"."Flag"
+            """,
+            Statement(context.Probes.OrderBy(p => p.Flag).Select(p => p.Id).ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

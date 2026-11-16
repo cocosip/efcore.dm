@@ -67,8 +67,11 @@ internal sealed class DmMathMethodTranslator : IMethodCallTranslator
 
     /// <summary>
     /// Dameng rounds with <c>ROUND(value)</c> or <c>ROUND(value, digits)</c>, and it rounds halves
-    /// away from zero, which is the midpoint strategy of that name. Rounding to even has no single
-    /// function, so it is left untranslated rather than answered with the other strategy.
+    /// away from zero. .NET's default is round-half-to-even, but the relational providers translate
+    /// that default to the server's <c>ROUND</c> and answer the same deviation; a caller that needs the
+    /// .NET midpoint rule must round on the client. An explicit <see cref="MidpointRounding.ToEven" />
+    /// is left untranslated rather than answered with the other strategy, and the away-from-zero form
+    /// is what the server does.
     /// </summary>
     private SqlExpression? Round(IReadOnlyList<SqlExpression> arguments, MethodInfo method)
     {

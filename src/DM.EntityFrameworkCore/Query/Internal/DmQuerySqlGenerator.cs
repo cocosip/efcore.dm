@@ -101,6 +101,33 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     }
 
     /// <summary>
+    /// Dameng rejects a condition as an ordering key: <c>ORDER BY "p"."Id" &gt; 1</c> answered
+    /// <c>[-2007] 语法分析出错</c>, the same expression the server reads as a predicate. The key is written
+    /// as the <c>CASE</c> that answers 1 or 0, which the clause accepts. A boolean column is a value
+    /// already and is left as it is, so the server keeps its own NULL ordering.
+    /// </summary>
+    protected override Expression VisitOrdering(OrderingExpression orderingExpression)
+    {
+        var expression = orderingExpression.Expression;
+
+        if (!DmSqlConditions.IsCondition(expression))
+        {
+            return base.VisitOrdering(orderingExpression);
+        }
+
+        Sql.Append("CASE WHEN ");
+        Visit(DmSqlConditions.AsPredicate(expression));
+        Sql.Append(" THEN 1 ELSE 0 END");
+
+        if (!orderingExpression.IsAscending)
+        {
+            Sql.Append(" DESC");
+        }
+
+        return orderingExpression;
+    }
+
+    /// <summary>
     /// Dameng has no <c>VALUES</c> row source. Measured on 8.1.4.80: neither
     /// <c>(VALUES (1), (2)) AS "t" ("x")</c> nor a bare <c>VALUES</c> inside a set operation parses
     /// (<c>语法分析出错</c>), while a <c>SELECT ... FROM DUAL</c> per row joined by <c>UNION ALL</c>
@@ -201,7 +228,7 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         foreach (var whenClause in caseExpression.WhenClauses)
         {
             Sql.AppendLine().Append("WHEN ");
-            Visit(whenClause.Test);
+            Visit(DmSqlConditions.AsPredicate(whenClause.Test));
             Sql.Append(" THEN ");
             WriteResult(whenClause.Result);
         }

@@ -1,5 +1,7 @@
 using System.Data.Common;
 using System.Globalization;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage;
 
 namespace DM.EntityFrameworkCore.Storage.Internal;
@@ -15,11 +17,42 @@ namespace DM.EntityFrameworkCore.Storage.Internal;
 internal sealed class DmDatabaseCreator : RelationalDatabaseCreator
 {
     /// <summary>
-    /// Counts user tables in the current schema. Recycle bin entries are excluded by name
-    /// prefix, and system objects are excluded by their catalog type, so a dropped table that is
-    /// still recoverable does not make the database look populated.
+    /// Counts user tables in the schema the model maps, which is the current schema when the model
+    /// names none; a model in another schema would otherwise look empty and <c>EnsureCreated</c> would
+    /// try to create objects that are already there. Recycle bin entries are excluded by name prefix,
+    /// and system objects are excluded by their catalog type, so a dropped table that is still
+    /// recoverable does not make the database look populated.
     /// </summary>
-    private const string HasTablesSql =
+    private string HasTablesSql
+    {
+        get
+        {
+            var schemas = Dependencies.CurrentContext.Context.Model
+                .GetRelationalModel()
+                .Tables
+                .Select(table => table.Schema)
+                .Where(schema => !string.IsNullOrEmpty(schema))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (schemas.Count == 0)
+            {
+                return DefaultHasTablesSql;
+            }
+
+            var names = string.Join(
+                ", ",
+                schemas.Select(schema => "'" + schema!.Replace("'", "''", StringComparison.Ordinal) + "'"));
+
+            return "SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END FROM SYS.SYSOBJECTS"
+                + " WHERE SCHID IN (SELECT ID FROM SYS.SYSOBJECTS WHERE TYPE$ = 'SCH'"
+                + " AND (NAME IN (" + names + ") OR NAME = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')))"
+                + " AND TYPE$ = 'SCHOBJ' AND SUBTYPE$ = 'UTAB'"
+                + " AND NAME NOT LIKE 'BIN$%'";
+        }
+    }
+
+    private const string DefaultHasTablesSql =
         "SELECT CASE WHEN COUNT(*) > 0 THEN 1 ELSE 0 END FROM SYS.SYSOBJECTS"
         + " WHERE SCHID = CURRENT_SCHID()"
         + " AND TYPE$ = 'SCHOBJ' AND SUBTYPE$ = 'UTAB'"

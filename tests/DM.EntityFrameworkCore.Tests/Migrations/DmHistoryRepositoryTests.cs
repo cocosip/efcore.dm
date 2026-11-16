@@ -146,6 +146,31 @@ public class DmHistoryRepositoryTests
         Assert.Single(connection.Commands);
     }
 
+    /// <summary>
+    /// The execution state replaces the lock object it holds with the answer of the reacquire, so that
+    /// answer owns the release; a session-held lock (answer 4) is released by it rather than left to an
+    /// object nobody disposes. Under connection pooling the alternative carries the lock back to the
+    /// pool and the next deployment times out on a database nobody is migrating.
+    /// </summary>
+    [Fact]
+    public async Task ReacquiredLock_ReleasesALockTheSessionAlreadyHolds()
+    {
+        var connection = new FakeDmConnection { ScalarResult = 4 };
+        using var context = new HistoryContext(connection);
+        var repository = context.GetService<IHistoryRepository>();
+
+        using var initial = repository.AcquireDatabaseLock();
+        using var reacquired = await initial.ReacquireIfNeededAsync(
+            connectionReopened: false,
+            transactionRestarted: true);
+
+        reacquired.Dispose();
+
+        Assert.Contains(
+            connection.Commands,
+            command => command.Contains("DBMS_LOCK.RELEASE", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void GetCreateIfNotExistsScript_WrapsTheCreateInAnExecutableBlock()
     {

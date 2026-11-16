@@ -89,6 +89,26 @@ public class DmDatabaseCreatorTests
         Assert.Throws<NotSupportedException>(() => context.GetService<IRelationalDatabaseCreator>().Delete());
     }
 
+    /// <summary>
+    /// A model that maps its tables to an explicit schema is not in the connection's current schema,
+    /// so the table check has to look there as well; otherwise <c>EnsureCreated</c> reads an empty
+    /// database and tries to create objects that are already present.
+    /// </summary>
+    [Fact]
+    public void HasTables_ChecksTheSchemasTheModelMaps()
+    {
+        var connection = new FakeDmConnection { ScalarResult = 0 };
+        using var context = new AuditContext(connection);
+
+        Assert.False(context.GetService<IRelationalDatabaseCreator>().HasTables());
+
+        var sql = Compact(Assert.Single(connection.Commands));
+
+        Assert.Contains("NAME IN ('AUDIT')", sql, StringComparison.Ordinal);
+        Assert.Contains("NAME = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')", sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("SCHID = CURRENT_SCHID()", sql, StringComparison.Ordinal);
+    }
+
     private static string Compact(string sql)
         => string.Join(
             "\n",
@@ -111,6 +131,26 @@ public class DmDatabaseCreatorTests
         protected override void OnModelCreating(ModelBuilder modelBuilder)
             => modelBuilder.Entity<Probe>(entity =>
             {
+                entity.Property(e => e.Id).ValueGeneratedNever();
+                entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+            });
+    }
+
+    private sealed class AuditContext : DbContext
+    {
+        private readonly FakeDmConnection _connection;
+
+        public AuditContext(FakeDmConnection connection) => _connection = connection;
+
+        public DbSet<Probe> Probes => Set<Probe>();
+
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+            => optionsBuilder.UseDm(_connection);
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+            => modelBuilder.Entity<Probe>(entity =>
+            {
+                entity.ToTable("Probes", "AUDIT");
                 entity.Property(e => e.Id).ValueGeneratedNever();
                 entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
             });

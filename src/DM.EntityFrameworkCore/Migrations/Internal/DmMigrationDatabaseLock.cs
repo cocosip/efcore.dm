@@ -59,8 +59,14 @@ internal sealed class DmMigrationDatabaseLock : IMigrationsDatabaseLock
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        return connectionReopened || transactionRestarted is not false
-            ? _historyRepository.AcquireDatabaseLockAsync(cancellationToken)
-            : Task.FromResult<IMigrationsDatabaseLock>(this);
+        if (!connectionReopened && transactionRestarted is false)
+        {
+            return Task.FromResult<IMigrationsDatabaseLock>(this);
+        }
+
+        // The execution state replaces this object with the answer, so the answer has to own the
+        // release even when the session already holds the lock (DBMS_LOCK answers 4).
+        return ((DmHistoryRepository)_historyRepository)
+            .ReacquireNamedLockAsync(_id, cancellationToken);
     }
 }

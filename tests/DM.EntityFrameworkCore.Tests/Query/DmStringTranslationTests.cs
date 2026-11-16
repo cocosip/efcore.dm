@@ -604,6 +604,115 @@ public class DmStringTranslationTests
             """);
     }
 
+    /// <summary>
+    /// An empty needle is not a search: .NET answers <c>0</c> for <c>IndexOf</c> and the string length
+    /// for <c>LastIndexOf</c>, while Dameng's <c>INSTR</c> answers NULL. The translation keeps the .NET
+    /// answer rather than shifting a NULL.
+    /// </summary>
+    [Fact]
+    public void IndexOf_TheEmptyNeedle_AnswersZero()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.IndexOf("")),
+            """
+            SELECT 0
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    [Fact]
+    public void IndexOf_TheEmptyNeedleWithAStart_AnswersTheStart()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.IndexOf("", p.Id)),
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_TheEmptyNeedle_AnswersTheLength()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.LastIndexOf("")),
+            """
+            SELECT LENGTH("p"."Name")
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_TheEmptyNeedleWithAStart_AnswersTheStart()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.LastIndexOf("", p.Id)),
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    /// <summary>
+    /// The constant answer still depends on the instance: a NULL string has no index, and the suite's
+    /// in-memory expression states that as NULL rather than zero.
+    /// </summary>
+    [Fact]
+    public void IndexOf_TheEmptyNeedleOnANullableColumn_AnswersNullForNull()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Select(name => name.Value!.IndexOf("")),
+            """
+            SELECT CASE
+            WHEN "n"."Value" IS NULL THEN NULL
+            ELSE 0
+            END
+            FROM "Names" AS "n"
+            """);
+    }
+
+    [Fact]
+    public void IndexOf_TheEmptyNeedleWithAStartOnANullableColumn_AnswersNullForNull()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Select(name => name.Value!.IndexOf("", name.Id)),
+            """
+            SELECT CASE
+            WHEN "n"."Value" IS NULL THEN NULL
+            ELSE "n"."Id"
+            END
+            FROM "Names" AS "n"
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_TheEmptyNeedleWithAStartOnANullableColumn_AnswersNullForNull()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Select(name => name.Value!.LastIndexOf("", name.Id)),
+            """
+            SELECT CASE
+            WHEN "n"."Value" IS NULL THEN NULL
+            ELSE "n"."Id"
+            END
+            FROM "Names" AS "n"
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 
@@ -649,3 +758,5 @@ public class DmStringTranslationTests
         public string? Value { get; set; }
     }
 }
+
+

@@ -181,7 +181,7 @@ public class DmGeneratedValueTests
                 WHERE "Id" = :p1;
                 SELECT "Total"
                 FROM "Probes"
-                WHERE "Id" = :p1;
+                WHERE sql%ROWCOUNT = 1 AND "Id" = :p1;
                 """),
             Normalize(connection.Commands.Single()));
     }

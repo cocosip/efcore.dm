@@ -15,7 +15,7 @@ do not pass and why. This file records what changed, once per release, instead o
 - Query translation for the relational operators, `DbFunctions` date differences, `ISDATE`, full-text
   `CONTAINS`/`FREETEXT`, and the language and nanosecond forms the reference provider exposes.
 - Migrations DDL generation and a migrations specification suite (134 cases).
-- Reverse engineering of tables, columns, indexes, foreign keys, views, comments and sequences,
+- Reverse engineering of tables, columns, indexes, foreign keys, comments and sequences,
   including the declared sequence start value.
 - The specification suite bases: built-in data types, store generated values, `Where`, `Navigations`,
   `Miscellaneous`, `BulkUpdates`, `PrimitiveCollections`, `Join`, `Select`, `GroupBy`,
@@ -70,6 +70,27 @@ do not pass and why. This file records what changed, once per release, instead o
 - A paged primitive collection orders its `JSON_TABLE` row source by an ordinality column, so the same
   page is asked for each time: the row source declared no ordering and the server answered a different
   page (`FETCH FIRST` over an unordered row source).
+- An idempotent script runs every statement DMSQL does not accept in a block (`COMMENT ON`, `ALTER`,
+  `DROP`, `RENAME`, `CREATE USER`/`SCHEMA`, raw SQL) through `EXECUTE IMMEDIATE`; a seeded identity row
+  keeps its insert as DML and runs only the session flag dynamically.
+- The schema block carries the batch terminator a default script needs, so the block and the next
+  statement are not sent as one command.
+- An update that reads a store-generated value back is matched by `sql%ROWCOUNT = 1` as well as the key,
+  so a stale concurrency token becomes a concurrency failure instead of a silent lost update.
+- A boolean `CASE` test and an ordering key that is a condition are compared with `1` or written as
+  `CASE WHEN ... THEN 1 ELSE 0 END`; an ordering key that is a boolean column stays a column.
+- A boolean exclusive-or is translated to a comparison of its operands' `CASE` forms, because the server
+  has no `^` operator.
+- `IndexOf("")` answers `0`, `LastIndexOf("")` answers `LENGTH(...)`, and the start-position forms answer
+  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle; a NULL string
+  still answers NULL.
+- `EnsureCreated` counts tables in the schemas the model maps, not only the connection's current schema.
+- The migration lock is released by the object the execution state keeps, so a pooled connection does not
+  carry a held lock into the next deployment.
+- A sequence start value is read from the sequence object of the same schema; a `NUMERIC` column keeps its
+  precision and scale when scaffolded.
+- A time-zone timestamp keeps its fractional-seconds precision as `TIMESTAMP(7) WITH TIME ZONE`, the
+  spelling the manual defines, rather than `TIMESTAMP WITH TIME ZONE(7)`.
 
 ### Changed
 
@@ -77,5 +98,10 @@ do not pass and why. This file records what changed, once per release, instead o
   `DM.EntityFrameworkCore`.
 - CI runs on `master` and the version branches and publishes only from a version tag, using NuGet
   trusted publishing instead of a stored API key.
+- Compatibility modes: the dialect is not branched, so one migration and one statement text serve every
+  mode. Default (0) and Oracle-compatible (2) are the modes with live evidence; MySQL-compatible (4) and
+  PostgreSQL-compatible (7) are not exercised, and the package does not claim them. Empty string and NULL
+  are the same value under mode 2 and different under the default mode.
 
 [Unreleased]: https://github.com/cocosip/efcore.dm/commits/master
+
