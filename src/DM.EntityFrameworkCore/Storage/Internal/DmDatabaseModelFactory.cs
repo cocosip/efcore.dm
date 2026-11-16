@@ -557,7 +557,7 @@ internal class DmDatabaseModelFactory : IDatabaseModelFactory
     }
 
     private static bool IsNumeric(string name)
-        => name is DmStoreTypes.Decimal or "NUMBER";
+        => name is DmStoreTypes.Decimal or "NUMBER" or "NUMERIC";
 
     private static bool IsCharacter(string name)
         => name is DmStoreTypes.Char

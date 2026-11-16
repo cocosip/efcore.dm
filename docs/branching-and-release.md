@@ -12,7 +12,7 @@ Governing rule:
 |---|---|---|---|---|---|
 | `efcore/10.0` | Development and release for the EF Core 10 line. Every EF Core 10 change and every `v10.x` tag is here. | 10 | `net10.0` | `10.0.x` | `[10.0.0,11.0.0)` |
 | `efcore/9.0` | Development and release for the EF Core 9 line. Cut from `efcore/10.0` on 2026-11-13 at `1618c4f`. Its tags are here. | 9 | `net9.0` | `9.0.x` | `[9.0.0,10.0.0)` |
-| `efcore/8.0` | Development and release for the EF Core 8 line. Cut from `efcore/9.0` on 2026-11-13 at `3e937a2`, and adapted to EF Core 8 the same day: `net8.0`, a classic `.sln`, SDK 8.0.404 and ranges with an 8.0.0 floor. Its offline gate passes and the live run is pending. Its tags are here. | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
+| `efcore/8.0` | Development and release for the EF Core 8 line. Cut from `efcore/9.0` on 2026-11-13 at `3e937a2`, and adapted to EF Core 8 the same day: `net8.0`, a classic `.sln`, SDK 8.0.404 and ranges with an 8.0.0 floor. Its offline and live gates pass; `v8.0.1` is not published yet. Its tags are here. | 8 | `net8.0` | `8.0.x` | `[8.0.0,9.0.0)` |
 | `dev` | Integration for the next line, reserved for EF Core 11. It carries no EF Core 10 release and receives no EF Core 10 changes. | 11 (reserved) | `net11.0` later | `11.0.x` later | `[11.0.0,12.0.0)` later |
 | `master` | Packaging for the next line, reserved for EF Core 11. A `v11.x` tag is made here when EF Core 11 development completes. It carries no EF Core 10 release. | 11 (reserved) | `net11.0` later | `11.0.x` later | `[11.0.0,12.0.0)` later |
 | `hotfix/X.Y.Z` | Temporary, created from a release tag | as source tag | as source tag | as source tag | as source tag |
@@ -129,7 +129,7 @@ The pipeline in `.github/workflows/ci.yml` follows the same convention as the Lo
 - A push to `master`, a push to a version branch (`efcore/8.0`, `efcore/9.0`, `efcore/10.0`), or a
   pull request to `master` or a version branch builds and tests only. Nothing runs on `dev`, which is
   the EF Core 11 integration line.
-- A push of a version tag (`v10.0.1` or `10.0.1`) runs the same gate, packs the provider, runs the
+- A push of a version tag (`v8.0.1` or `8.0.1`) runs the same gate, packs the provider, runs the
   package smoke test, and publishes. The tag may be on the branch that owns the line; only a tag publishes.
 - The tag has to name the version in `Directory.Build.props` (`<DmVersion>`) and has to point at the
   tagged commit's HEAD; the pipeline fails before building when either is not true.
@@ -187,3 +187,4 @@ Format: `type(scope): summary`, where type is one of `feat`, `fix`, `refactor`, 
 Scope is the layer or area touched: `query`, `storage`, `update`, `migrations`, `scaffolding`, `value-generation`, `dialect`, `docs`, `ci`.
 
 A commit that adds a skip-ledger entry includes it in the same commit as the code, so it is visible in review.
+

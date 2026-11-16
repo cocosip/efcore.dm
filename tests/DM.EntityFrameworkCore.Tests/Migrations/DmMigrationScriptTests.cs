@@ -100,6 +100,24 @@ public class DmMigrationScriptTests
         protected override void OnModelCreating(ModelBuilder modelBuilder)
             => modelBuilder.Entity<ScriptItem>().ToTable("ScriptItems");
     }
+    /// <summary>
+    /// A schema operation is a PL/SQL block, which the script runner executes only when a slash on a
+    /// line of its own follows it. The script writer on this line appends that slash, so the command
+    /// must end with a line break; otherwise the last statement and the slash share a line.
+    /// </summary>
+    [Fact]
+    public void TheEnsureSchemaBlock_IsTerminatedForTheScriptRunner()
+    {
+        var script = Script(MigrationsSqlGenerationOptions.Default);
+
+        var block = script.IndexOf("CREATE SCHEMA \"AUDIT\"", StringComparison.Ordinal);
+        Assert.True(block >= 0, "The script does not create the schema.");
+
+        var terminator = script.IndexOf("\nEND;\n/\n", block, StringComparison.Ordinal);
+        Assert.True(terminator > block, "The schema block is not terminated by a slash on its own line.");
+        Assert.DoesNotContain("END;/", script, StringComparison.Ordinal);
+    }
+
     private static string Script(MigrationsSqlGenerationOptions options)
     {
         using var context = new ScriptContext();
@@ -113,7 +131,10 @@ public class DmMigrationScriptTests
 public class ScriptMigration : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
-        => migrationBuilder.CreateTable(
+    {
+        migrationBuilder.EnsureSchema(name: "AUDIT");
+
+        migrationBuilder.CreateTable(
             name: "ScriptItems",
             columns: table => new
             {
@@ -121,6 +142,7 @@ public class ScriptMigration : Migration
                 Name = table.Column<string>(type: "VARCHAR(50)", nullable: true)
             },
             constraints: table => table.PrimaryKey("PK_ScriptItems", x => x.Id));
+    }
 }
 
 [DbContext(typeof(DmMigrationScriptTests.ScriptContext))]

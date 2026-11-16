@@ -44,6 +44,20 @@ The matrix is therefore derived from the **EF Core provider contract**: the serv
 
 Each row names one capability, its status and evidence, the roadmap phase that owns it, whether the reference implementation had it, and the note that justifies the status. Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests` or a project the test proves; a measurement that decided a status is in the note or in [Testing](testing.md).
 
+### 4.1 Compatibility modes
+
+The provider never reads `COMPATIBLE_MODE` (D4), so one migration and one statement text serve every mode; the evidence is per mode, not per branch.
+
+| Mode | Value | Evidence |
+|---|---|---|
+| Default (native) | 0 | Acceptance console, feature probe and the primitive-collection specification fixture. Migration DDL beyond `CREATE TABLE`/`CREATE INDEX` is not exercised. |
+| Oracle-compatible | 2 | The full specification suite, the acceptance console, the feature probe and the migrations suite. |
+| MySQL-compatible | 4 | Not exercised or claimed. |
+| PostgreSQL-compatible | 7 | Not exercised or claimed; a P6 exit criterion. |
+| SQL92, MSSQL, DM6, Teradata, DB2 | 1, 3, 5, 6, 8 | Not exercised or claimed. |
+
+The package ships Oracle-shaped DDL (`"..."`, `IDENTITY(1,1)`, `COMMENT ON`, `MODIFY`, `DBMS_LOCK`, `SYS_CONTEXT`) and does not claim the unexercised modes. Empty string and NULL are the same value under mode 2 and different under the default mode, which a model's defaults and seed rows must account for.
+
 ## 5. Matrix
 
 Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` when there is none. Phase refers to [Roadmap](roadmap.md). Reference is `Yes` when the decompiled reference contained an implementation for the capability, `No` when it did not.
@@ -154,7 +168,7 @@ Evidence names a test class in `tests/DM.EntityFrameworkCore.Tests`, or `—` wh
 | Table or sequence schema move | `Not applicable` | `tests/DM.EntityFrameworkCore.SpecificationTests/MigrationsDmTest.cs` | P4 | Yes | A table cannot be moved to another schema: `RENAME TO schema.name`, `SET SCHEMA` and `MOVE SCHEMA` all answered `语法分析出错`; a sequence can be renamed only inside its own schema. The generator refuses both operations with the measurement |
 | Table and column comments (`HasComment`) | `Implemented` | `DmMigrationsSqlTests`, `DmDatabaseModelFactoryTests` | P4 | No | A comment is its own statement in Dameng: `COMMENT ON TABLE ... IS` and `COMMENT ON COLUMN ... IS`, written after the statement that creates or alters the object, and an empty string removes one. Reverse engineering reads both back through `SYS.SYSTABLECOMMENTS` and `SYS.SYSCOLUMNCOMMENTS`, which the migrations suite confirms: `ALL_COL_COMMENTS` is empty on 8.1.4.80, so the system tables are the ones that hold the text. An alteration that changes only a comment writes the `COMMENT ON` statement without rewriting the column, which the server refuses on an identity column (`试图修改自增列`). The migrations case that changes a comment on a table and on a column, adds one and removes one, all pass |
 | History repository | `Implemented` | `DmHistoryRepositoryTests`, `samples/DmProviderValidation` | P4 | Yes | Catalog existence check against `SYS.SYSOBJECTS`, executed against a server on 2026-11-11 on both compatibility modes: the idempotent create block, the existence query and the insert of the migration row were all accepted, and the second run found the migration applied |
-| Migration lock | `Not applicable` | — | P4 | Yes | EF Core 8 declares no lock members: measured on 8.0.34, `HistoryRepository` has no `LockReleaseBehavior`, no `AcquireDatabaseLock`, and the `IMigrationsDatabaseLock` type does not exist, so this branch has no contract to implement. The 9 line's `DBMS_LOCK` named lock, its scripts, its unit tests and the acceptance step that started four migrations at once were removed with it; the idempotent create of the history table still tolerates the object appearing between the check and the create |
+| Migration lock | `Not applicable` | — | P4 | Yes | EF Core 8 declares no lock members: measured on 8.0.0, `HistoryRepository` has no `LockReleaseBehavior`, no `AcquireDatabaseLock`, and the `IMigrationsDatabaseLock` type does not exist, so this branch has none. The history table is created by a block that tolerates a lost race, so two deployments can start, but their migrations are not serialized |o contract to implement. The 9 line's `DBMS_LOCK` named lock, its scripts, its unit tests and the acceptance step that started four migrations at once were removed with it; the idempotent create of the history table still tolerates the object appearing between the check and the create |
 | Schema operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | `CREATE SCHEMA` runs inside a block that asks `SYS.SYSOBJECTS` first, so a schema the database administrator created does not fail the migration. The catalog query is not yet confirmed against a server |
 | User operations | `Implemented` | `DmMigrationsSqlTests` | P4 | Yes | Creating a user creates the schema it owns in a second statement. Privileges are not granted: the reference grants DBA as part of the operation, which a migration should not decide |
 | Migrations annotation provider | `Implemented` | `DmAnnotationProviderTests` | P4 | Yes | The identity attribute and a non default seed and increment reach the column operation the differ produces, so the generated migration shows them and a replay reads them; the mirrored key of a table per type hierarchy carries none |

@@ -1,6 +1,8 @@
 using System.Globalization;
+using System.Text;
 using DM.EntityFrameworkCore.Metadata;
 using DM.EntityFrameworkCore.Dialect;
+using DM.EntityFrameworkCore.Storage.Internal;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -442,6 +444,10 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
             .AppendLine("    END IF;")
             .Append("END;");
 
+        // The script writer on this line puts the batch terminator after every command it emits, so
+        // the block ends with a line break here and the slash lands on a line of its own.
+        builder.AppendLine();
+
         builder.EndCommand();
     }
 
@@ -458,7 +464,11 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
 
         try
         {
-            return base.Generate(DeferSelfReferencingForeignKeys(operations), model, options);
+            var commands = base.Generate(DeferSelfReferencingForeignKeys(operations), model, options);
+
+            return _idempotent
+                ? commands.Select(ToBlockStatement).ToList()
+                : commands;
         }
         finally
         {
@@ -699,6 +709,64 @@ internal sealed class DmMigrationsSqlGenerator : MigrationsSqlGenerator
             builder,
             Exists("ALL_CONSTRAINTS", "OWNER", "CONSTRAINT_NAME", operation.Schema, operation.Name!),
             inner => base.Generate(operation, model, inner));
+    }
+
+    /// <summary>
+    /// A data seed row is an insert, which a DMSQL block runs as it is, but the identity flag around it
+    /// is a session statement and only dynamic SQL is accepted there. The nested block keeps the insert
+    /// static and the flag dynamic, so an idempotent script runs the seed without a syntax error.
+    /// </summary>
+    protected override void Generate(
+        InsertDataOperation operation,
+        IModel? model,
+        MigrationCommandListBuilder builder,
+        bool terminate = true)
+    {
+        ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(builder);
+
+        if (!_idempotent || Dependencies.UpdateSqlGenerator is not DmUpdateSqlGenerator updateSqlGenerator)
+        {
+            base.Generate(operation, model, builder, terminate);
+
+            return;
+        }
+
+        var sql = new StringBuilder();
+
+        foreach (var command in GenerateModificationCommands(operation, model))
+        {
+            updateSqlGenerator.AppendSeedInsertOperation(sql, command);
+        }
+
+        builder.AppendLine("BEGIN").Append(sql.ToString()).Append("END;").EndCommand();
+    }
+
+    /// <summary>
+    /// Makes a generated command legal inside the PL/SQL block that an idempotent script wraps around
+    /// it: DDL and session statements go through <c>EXECUTE IMMEDIATE</c>, which is the only form DMSQL
+    /// accepts there. Commands this generator already wrote as blocks are left alone.
+    /// </summary>
+    private MigrationCommand ToBlockStatement(MigrationCommand command)
+    {
+        var text = command.CommandText.Trim();
+
+        if (text.StartsWith("DECLARE", StringComparison.Ordinal)
+            || text.StartsWith("BEGIN", StringComparison.Ordinal))
+        {
+            return command;
+        }
+
+        return new MigrationCommand(
+            Dependencies.CommandBuilderFactory
+                .Create()
+                .Append("EXECUTE IMMEDIATE ")
+                .Append(Quote(WithoutTerminator(text)))
+                .AppendLine(";")
+                .Build(),
+            Dependencies.CurrentContext.Context,
+            Dependencies.Logger,
+            command.TransactionSuppressed);
     }
 
     /// <summary>

@@ -107,6 +107,20 @@ mode. `v8.0.1` is not published yet.
 - A paged primitive collection orders its `JSON_TABLE` row source by an ordinality column, so the same
   page is asked for each time: the row source declared no ordering and the server answered a different
   page (`FETCH FIRST` over an unordered row source).
+- An idempotent script runs every statement DMSQL does not accept in a block (`COMMENT ON`, `ALTER`,
+  `DROP`, `RENAME`, `CREATE USER`/`SCHEMA`, raw SQL) through `EXECUTE IMMEDIATE`; a seeded identity row
+  keeps its insert as DML and runs only the session flag dynamically.
+- The schema block ends with a line break, so the slash the script writer appends is on a line of its own
+  rather than sharing the last statement's line.
+- An update that reads a store-generated value back is matched by `sql%ROWCOUNT = 1` as well as the key,
+  so a stale concurrency token becomes a concurrency failure instead of a silent lost update.
+- A boolean `CASE` test is compared with `1`, and an ordering key that is a condition is written as
+  `CASE WHEN ... THEN 1 ELSE 0 END`; the server rejects the bare forms.
+- `IndexOf("")` with a start position answers the start, and `LastIndexOf("")` answers `LENGTH(...)` or
+  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle.
+- `EnsureCreated` counts tables in the schemas the model maps, not only the connection's current schema.
+- A sequence start value is read from the sequence object of the same schema; a `NUMERIC` column keeps its
+  precision and scale when scaffolded.
 
 ### Changed
 
@@ -114,5 +128,9 @@ mode. `v8.0.1` is not published yet.
   `DM.EntityFrameworkCore`.
 - CI runs on `master` and the version branches and publishes only from a version tag, using NuGet
   trusted publishing instead of a stored API key.
+- Compatibility modes: the dialect is not branched, so one migration and one statement text serve every
+  mode. Default (0) and Oracle-compatible (2) are the modes with live evidence; MySQL-compatible (4) and
+  PostgreSQL-compatible (7) are not exercised, and the package does not claim them. Empty string and NULL
+  are the same value under mode 2 and different under the default mode.
 
 [Unreleased]: https://github.com/cocosip/efcore.dm/commits/master

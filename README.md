@@ -4,7 +4,7 @@
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and adapted to EF Core 8 the same day. Everything measured passes on SDK 8.0.404: zero-warning build, 557 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0 with its skip ledger guard, the package smoke test, which restores and runs a consumer of `Sharp.DM.EntityFrameworkCore` 8.0.1 on `net8.0`, and the live gates against DM 8.1.4.80 — the acceptance console (32 of 32 steps in both compatibility modes), the design-time smoke test, the feature probe (44 steps in each mode) and the specification suite (3780 results, 3711 passed, 69 skipped, 0 failed). `v8.0.1` is not published yet. The adaptation is roadmap phase P8 in the [Roadmap](docs/roadmap.md). Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 8 line, created on 2026-11-13 from `efcore/9.0` at `3e937a2` and adapted to EF Core 8 the same day. Everything measured passes on SDK 8.0.404: zero-warning build, 570 unit and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0 with its skip ledger guard, the package smoke test, which restores and runs a consumer of `Sharp.DM.EntityFrameworkCore` 8.0.1 on `net8.0`, and the live gates against DM 8.1.4.80 — the acceptance console (32 of 32 steps in both compatibility modes), the design-time smoke test, the feature probe (44 steps in each mode) and the specification suite (3780 results, 3711 passed, 69 skipped, 0 failed). `v8.0.1` is not published yet. The adaptation is roadmap phase P8 in the [Roadmap](docs/roadmap.md). Changes are recorded in the [Changelog](CHANGELOG.md).
 
 ## Supported versions
 
@@ -56,7 +56,7 @@ dotnet build DM.EntityFrameworkCore.sln                 # zero warnings, zero er
 dotnet test DM.EntityFrameworkCore.sln                  # the unit and SQL shape suite, no server needed
 dotnet run --project samples/DmProviderValidation -- --dry-run   # the acceptance model, its migration and its idempotent script
 pwsh -File scripts/package-smoke.ps1                     # packs, restores in an isolated cache and runs a consumer
-```n
+```
 `global.json` pins SDK 8.0.404 on this branch: the 8.0 SDK binds C# 12, which is the compiler the EF Core 8 query pipeline expects, and it reads the classic `.sln` the branch uses.
 
 Nothing above needs a Dameng instance. The live acceptance run does, and it takes the connection string from user secrets, the `ConnectionStrings__Dm` environment variable, or its first argument — in that order of specificity — so no credential has to sit in the repository:
