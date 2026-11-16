@@ -124,7 +124,7 @@ dev -> merge -> master (development complete)
 that lists only the produced feed, compares the SHA-256 of the package the consumer resolved against
 the packed one, and runs the consumer, which builds a model and a create script without connecting.
 
-The pipeline in `.github/workflows/ci.yml` follows the same convention as the Locus repository:
+The pipeline in `.github/workflows/ci-cd.yml` follows the same convention as the Locus repository:
 
 - A push to `master`, a push to a version branch (`efcore/8.0`, `efcore/9.0`, `efcore/10.0`), or a
   pull request to `master` or a version branch builds and tests only. Nothing runs on `dev`, which is
@@ -135,7 +135,7 @@ The pipeline in `.github/workflows/ci.yml` follows the same convention as the Lo
   tagged commit's HEAD; the pipeline fails before building when either is not true.
 - NuGet publishing uses **trusted publishing**, not a stored API key: `NuGet/login@v1` exchanges the
   workflow's GitHub OIDC token for a one-hour key, which is passed to `dotnet nuget push`. The
-  nuget.org trusted publishing policy must name this repository and `.github/workflows/ci.yml`, and
+  nuget.org trusted publishing policy must name this repository and `.github/workflows/ci-cd.yml`, and
   the public nuget.org profile name is read from the repository variable `NUGET_USER` (`cocosip`
   when it is not set). There is no `NUGET_API_KEY` secret to rotate or leak.
 
@@ -178,7 +178,7 @@ These are tracked in [Version Matrix](version-matrix.md).
 
 Live-database jobs use protected variables and never run on pull requests from forks. A failing live job fails the pipeline; it is never marked optional.
 
-`.github/workflows/ci.yml` runs the offline rows: build, unit tests, the specification project build with its skip ledger guard, and the acceptance dry run on every push and pull request, and the package smoke test on a `v*` tag. The live rows are not wired yet, because the pipeline has no instance of its own (see [Roadmap](roadmap.md) section 5); until they are, this table describes what the pipeline is meant to run and the release notes state what live verification did not cover. Two live rows are run by hand against an instance someone provides: `samples/DmProviderValidation` and `scripts/design-time-smoke.ps1`. A live job that is added but skipped is worse than an absent one, so nothing here claims to run it. The job runs on Windows, the platform every command in `README.md` was verified on; a Linux job joins with the live matrix, so an unverified native asset does not turn into a red build before anyone can read the failure. Each line uses the SDK its target framework needs: `10.0.x` on `efcore/10.0`, `9.0.x` on `efcore/9.0`, `8.0.x` on `efcore/8.0`.
+`.github/workflows/ci-cd.yml` runs the offline rows: build, unit tests, the specification project build with its skip ledger guard, and the acceptance dry run on every push and pull request, and the package smoke test on a `v*` tag. The live rows are not wired yet, because the pipeline has no instance of its own (see [Roadmap](roadmap.md) section 5); until they are, this table describes what the pipeline is meant to run and the release notes state what live verification did not cover. Two live rows are run by hand against an instance someone provides: `samples/DmProviderValidation` and `scripts/design-time-smoke.ps1`. A live job that is added but skipped is worse than an absent one, so nothing here claims to run it. The job runs on Windows, the platform every command in `README.md` was verified on; a Linux job joins with the live matrix, so an unverified native asset does not turn into a red build before anyone can read the failure. Each line uses the SDK its target framework needs: `10.0.x` on `efcore/10.0`, `9.0.x` on `efcore/9.0`, `8.0.x` on `efcore/8.0`.
 
 ## 10. Commit messages
 
@@ -187,3 +187,4 @@ Format: `type(scope): summary`, where type is one of `feat`, `fix`, `refactor`, 
 Scope is the layer or area touched: `query`, `storage`, `update`, `migrations`, `scaffolding`, `value-generation`, `dialect`, `docs`, `ci`.
 
 A commit that adds a skip-ledger entry includes it in the same commit as the code, so it is visible in review.
+
