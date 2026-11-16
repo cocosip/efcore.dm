@@ -45,7 +45,7 @@ Every translation test places the expression in a position that requires server 
 The specification package is built for the framework of its EF Core line, and each branch targets that framework: 8.0.0 and 9.0.22 ship `net8.0` and `net9.0` assets respectively, and each branch targets the framework its package ships, so the project inherits `DmTargetFramework`. A branch whose package moved ahead of the provider would set `TargetFramework` in the project instead: the test project follows the package, never the other way round.
 
 
-This document is maintained per branch. Its numbers describe `efcore/8.0`: the Release build, the 571 unit
+This document is maintained per branch. Its numbers describe `efcore/8.0`: the Release build, the 574 unit
 and SQL shape cases, the 32-step acceptance dry run, the specification project build against 8.0.0, the skip
 ledger guard and the package smoke test all pass on SDK 8.0.404. The **live** numbers below are this
 branch's: the acceptance console, the design-time smoke test, the feature probe and the specification suite
@@ -305,6 +305,7 @@ New T2 tests are written only when:
 - the code under test is a pure function in `Dialect/`.
 
 There is no coverage threshold and no test is written to raise coverage.
+
 
 
 

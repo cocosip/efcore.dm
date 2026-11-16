@@ -677,6 +677,58 @@ public class DmStringTranslationTests
             """);
     }
 
+    /// <summary>
+    /// The constant answer still depends on the instance: a NULL string has no index, and the suite's
+    /// in-memory expression states that as NULL rather than zero.
+    /// </summary>
+    [Fact]
+    public void IndexOf_TheEmptyNeedleOnANullableColumn_AnswersNullForNull()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Select(name => name.Value!.IndexOf("")),
+            """
+            SELECT CASE
+            WHEN "n"."Value" IS NULL THEN NULL
+            ELSE 0
+            END
+            FROM "Names" AS "n"
+            """);
+    }
+
+    [Fact]
+    public void IndexOf_TheEmptyNeedleWithAStartOnANullableColumn_AnswersNullForNull()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Select(name => name.Value!.IndexOf("", name.Id)),
+            """
+            SELECT CASE
+            WHEN "n"."Value" IS NULL THEN NULL
+            ELSE "n"."Id"
+            END
+            FROM "Names" AS "n"
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_TheEmptyNeedleWithAStartOnANullableColumn_AnswersNullForNull()
+    {
+        using var context = new NullableContext();
+
+        AssertSql(
+            context.Names.Select(name => name.Value!.LastIndexOf("", name.Id)),
+            """
+            SELECT CASE
+            WHEN "n"."Value" IS NULL THEN NULL
+            ELSE "n"."Id"
+            END
+            FROM "Names" AS "n"
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 

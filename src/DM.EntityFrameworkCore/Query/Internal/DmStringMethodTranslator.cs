@@ -213,7 +213,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             {
                 if (IsEmptyString(arguments[0]))
                 {
-                    return _sqlExpressionFactory.Constant(0);
+                    return NullWhenNull(subject, _sqlExpressionFactory.Constant(0));
                 }
 
                 return _sqlExpressionFactory.Subtract(IndexOf(subject, value), _sqlExpressionFactory.Constant(1));
@@ -311,7 +311,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             // over the constant to the constant itself, so the empty needle is written as it is.
             if (method == IndexOfMethod && arguments[0] is SqlConstantExpression { Value: "" })
             {
-                return _sqlExpressionFactory.Constant(0);
+                return NullWhenNull(instance, _sqlExpressionFactory.Constant(0));
             }
 
             return _sqlExpressionFactory.Subtract(IndexOf(instance, arguments[0]), _sqlExpressionFactory.Constant(1));
@@ -353,7 +353,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         {
             if (method == IndexOfWithStartMethod && IsEmptyString(arguments[0]))
             {
-                return arguments[1];
+                return NullWhenNull(instance, arguments[1]);
             }
 
             return _sqlExpressionFactory.Subtract(
@@ -375,7 +375,7 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         {
             if (method == LastIndexOfWithStartMethod && IsEmptyString(arguments[0]))
             {
-                return arguments[1];
+                return NullWhenNull(instance, arguments[1]);
             }
 
             return LastIndexOf(instance, arguments[0], arguments[1]);
@@ -453,6 +453,16 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
 
     private static bool IsEmptyString(SqlExpression expression)
         => expression is SqlConstantExpression { Value: "" };
+
+    /// <summary>
+    /// A translation that answers a constant still has to propagate a NULL instance: the server's
+    /// own search returns NULL for it, and the in-memory expression the suite compares against tests
+    /// the instance for NULL before it asks for the empty-needle answer.
+    /// </summary>
+    private SqlExpression NullWhenNull(SqlExpression instance, SqlExpression value)
+        => _sqlExpressionFactory.Case(
+            [new CaseWhenClause(_sqlExpressionFactory.IsNull(instance), _sqlExpressionFactory.Constant(null, typeof(int?)))],
+            value);
 
     /// <summary>
     /// <c>LastIndexOf</c> of the empty string is the length of the string, which is the one value the

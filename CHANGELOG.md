@@ -117,12 +117,14 @@ mode. `v8.0.1` is not published yet.
 - A boolean `CASE` test is compared with `1`, and an ordering key that is a condition is written as
   `CASE WHEN ... THEN 1 ELSE 0 END`; the server rejects the bare forms.
 - `IndexOf("")` with a start position answers the start, and `LastIndexOf("")` answers `LENGTH(...)` or
-  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle.
+  the start, rather than shifting the NULL Dameng's `INSTR` returns for an empty needle; a NULL string
+  still answers NULL.
 - `EnsureCreated` counts tables in the schemas the model maps, not only the connection's current schema.
 - A sequence start value is read from the sequence object of the same schema; a `NUMERIC` column keeps its
   precision and scale when scaffolded.
 - A time-zone timestamp keeps its fractional-seconds precision as `TIMESTAMP(7) WITH TIME ZONE`, the
-  spelling the manual defines, rather than `TIMESTAMP WITH TIME ZONE(7)`.
+  spelling the manual defines, rather than `TIMESTAMP WITH TIME ZONE(7)`; a `DATETIME WITH TIME ZONE`
+  with a non-default precision becomes `DATETIME(n) WITH TIME ZONE`.
 
 ### Changed
 
@@ -136,3 +138,4 @@ mode. `v8.0.1` is not published yet.
   are the same value under mode 2 and different under the default mode.
 
 [Unreleased]: https://github.com/cocosip/efcore.dm/commits/master
+
