@@ -64,7 +64,7 @@ jobs:
         shell: pwsh
         run: |
           $props = [xml](Get-Content Directory.Build.props)
-          $version = ($props.Project.PropertyGroup.DmVersion | Where-Object { $_ } | Select-Object -First 1)
+          $version = $props.SelectSingleNode("/Project/PropertyGroup/DmVersion").InnerText
           if (-not $version) { throw 'Directory.Build.props does not define <DmVersion>.' }
 
           if ($env:GITHUB_REF -like 'refs/tags/*') {
@@ -192,6 +192,7 @@ jobs:
             --title "DM.EntityFrameworkCore $VERSION" \
             --generate-notes \
             "${flags[@]}" ./packages/*.nupkg
+
 
 
 
