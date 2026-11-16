@@ -1,6 +1,6 @@
 # Sharp.DM.EntityFrameworkCore
 
-[![CI/CD](https://github.com/cocosip/efcore.dm/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cocosip/efcore.dm/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/cocosip/efcore.dm/actions/workflows/ci-cd.yml/badge.svg?branch=master)](https://github.com/cocosip/efcore.dm/actions/workflows/ci-cd.yml)
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
@@ -92,6 +92,7 @@ The functional probe is the second live program and is not part of CI: `dotnet r
 ## Licence
 
 [MIT](LICENSE). MIT covers original code in this repository only. Third-party fragments are registered separately in [Provenance](docs/provenance.md).
+
 
 
 

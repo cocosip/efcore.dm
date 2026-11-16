@@ -158,7 +158,7 @@ The official provider declares its own internals under `Microsoft.EntityFramewor
 ## 8. Repository layout
 
 ```
-.github/workflows/ci.yml                                  build, tests and the acceptance dry run; pack on a tag
+.github/workflows/ci-cd.yml                                  build, tests and the acceptance dry run; pack on a tag
 DM.EntityFrameworkCore.slnx
 Directory.Build.props
 Directory.Packages.props
@@ -221,6 +221,7 @@ fails, and a directory at the top level of the provider that is not listed fails
 | D9 | A hi-lo block is reserved by advancing a model sequence whose increment is the block size | The block state lives in the singleton value generator cache, so the reservation has to be recorded where a second process can see it, and a sequence is the only such record. Making the increment the block size means one fetch reserves exactly one block, and a model that declares a different increment gets blocks of that size without any extra configuration. |
 | D10 | A `string` property maps to the unicode store type unless the model asks for the ansi one | The reference provider and the framework's own providers for the engines Dameng imitates all default a string to the national type, so a model written against them keeps the columns it declared instead of showing every string column as changed. A .NET string is UTF-16 while the ansi type is written in the database character set, which is the second reason, though a weaker one than it looks: Dameng has a single database character set, so the national type does not carry the Oracle dual charset guarantee, and whether a character outside the database set can be stored at all is a property of the database, not of the type. `IsUnicode(false)` is the opt-in to the ansi type, which is the shape the reference provider's own migrations show for such a column. The names are the reference provider's, `VARCHAR2` and `NVARCHAR2`, which the manual says are used the same way as `VARCHAR` and which its catalog reports, so a migration written by either provider reads the same in the other. Recorded 2026-11-11. |
 | D11 | A JSON column maps through a `JsonTypeMapping` and a member is written with `JSON_SET` | EF Core looks the container column's store type up by the CLR type it parses the document into: `JsonTypePlaceholder` on EF Core 10 and `JsonElement` on EF Core 9, where `JsonColumnBase.GetDefaultStoreTypeMapping()` calls `FindMapping(typeof(JsonElement))`. It refuses the model when the provider answers nothing; the same mapping supplies the reader path, which is the string one turned into the UTF-8 stream the framework parses, because the driver hands a `JSON` column over as text. A change inside a document reaches the update pipeline as a value for a path rather than as the document, so the column is written with `JSON_SET`, measured on 8.1.4.80 to answer `{"a":2}` for `JSON_SET('{"a":1}', '$.a', 2)`; writing that value plainly would replace the document with it, which is data loss rather than an error. The root path is the exception: `JSON_SET(doc, '$', '{"b":2}')` answers the document as a quoted string, so it is written as the column value. Recorded 2026-11-11. |
+
 
 
 
