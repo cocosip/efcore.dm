@@ -156,13 +156,11 @@ jobs:
           name: nuget-packages
           path: ./packages
 
-      - name: NuGet login (OIDC to a one-hour API key)
+      - name: NuGet login (OIDC -> temporary API key)
         id: login
         uses: NuGet/login@v1
         with:
-          # The nuget.org profile name, which is public; set NUGET_USER in the repository
-          # variables. The fallback is the repository owner's nuget.org profile; the package prefix is Sharp.
-          user: ${{ vars.NUGET_USER || 'cocosip' }}
+          user: virtual # nuget.org profile name (not email); public, so no secret is needed
 
       - name: Publish packages to NuGet.org
         shell: bash
@@ -192,6 +190,7 @@ jobs:
             --title "DM.EntityFrameworkCore $VERSION" \
             --generate-notes \
             "${flags[@]}" ./packages/*.nupkg
+
 
 
 
