@@ -604,6 +604,63 @@ public class DmStringTranslationTests
             """);
     }
 
+    /// <summary>
+    /// An empty needle is not a search: .NET answers <c>0</c> for <c>IndexOf</c> and the string length
+    /// for <c>LastIndexOf</c>, while Dameng's <c>INSTR</c> answers NULL. The translation keeps the .NET
+    /// answer rather than shifting a NULL.
+    /// </summary>
+    [Fact]
+    public void IndexOf_TheEmptyNeedle_AnswersZero()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.IndexOf("")),
+            """
+            SELECT 0
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    [Fact]
+    public void IndexOf_TheEmptyNeedleWithAStart_AnswersTheStart()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.IndexOf("", p.Id)),
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_TheEmptyNeedle_AnswersTheLength()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.LastIndexOf("")),
+            """
+            SELECT LENGTH("p"."Name")
+            FROM "Probes" AS "p"
+            """);
+    }
+
+    [Fact]
+    public void LastIndexOf_TheEmptyNeedleWithAStart_AnswersTheStart()
+    {
+        using var context = new ProbeContext();
+
+        AssertSql(
+            context.Probes.Select(p => p.Name.LastIndexOf("", p.Id)),
+            """
+            SELECT "p"."Id"
+            FROM "Probes" AS "p"
+            """);
+    }
+
     private static void AssertSql<T>(IQueryable<T> query, string expected)
         => Assert.Equal(expected, Statement(query.ToQueryString()));
 

@@ -109,13 +109,13 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
     {
         var expression = orderingExpression.Expression;
 
-        if (expression.Type != typeof(bool) && expression.Type != typeof(bool?))
+        if (!DmSqlConditions.IsCondition(expression))
         {
             return base.VisitOrdering(orderingExpression);
         }
 
         Sql.Append("CASE WHEN ");
-        Visit(expression);
+        Visit(DmSqlConditions.AsPredicate(expression));
         Sql.Append(" THEN 1 ELSE 0 END");
 
         if (!orderingExpression.IsAscending)
@@ -217,7 +217,7 @@ internal sealed class DmQuerySqlGenerator : QuerySqlGenerator
         foreach (var whenClause in caseExpression.WhenClauses)
         {
             Sql.AppendLine().Append("WHEN ");
-            Visit(whenClause.Test);
+            Visit(DmSqlConditions.AsPredicate(whenClause.Test));
             Sql.Append(" THEN ");
             WriteResult(whenClause.Result);
         }

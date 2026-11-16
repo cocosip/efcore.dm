@@ -211,6 +211,11 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
 
             if (method == IndexOfWithComparisonMethod)
             {
+                if (IsEmptyString(arguments[0]))
+                {
+                    return _sqlExpressionFactory.Constant(0);
+                }
+
                 return _sqlExpressionFactory.Subtract(IndexOf(subject, value), _sqlExpressionFactory.Constant(1));
             }
 
@@ -226,6 +231,11 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
             if (Comparison(arguments) is not { } comparison)
             {
                 return null;
+            }
+
+            if (IsEmptyString(arguments[0]))
+            {
+                return LengthOf(instance);
             }
 
             return LastIndexOf(Ignoring(instance, comparison), Ignoring(arguments[0], comparison), null);
@@ -296,6 +306,11 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         // -1, so subtracting one moves both ends at once.
         if (method == IndexOfMethod || method == IndexOfCharacterMethod)
         {
+            if (method == IndexOfMethod && IsEmptyString(arguments[0]))
+            {
+                return _sqlExpressionFactory.Constant(0);
+            }
+
             return _sqlExpressionFactory.Subtract(IndexOf(instance, arguments[0]), _sqlExpressionFactory.Constant(1));
         }
 
@@ -333,6 +348,11 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         // the string, which is where INSTR starts counting when it is moved one place.
         if (method == IndexOfWithStartMethod || method == IndexOfCharacterWithStartMethod)
         {
+            if (method == IndexOfWithStartMethod && IsEmptyString(arguments[0]))
+            {
+                return arguments[1];
+            }
+
             return _sqlExpressionFactory.Subtract(
                 IndexOf(instance, arguments[0], OneBasedStart(arguments[1])),
                 _sqlExpressionFactory.Constant(1));
@@ -340,11 +360,21 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
 
         if (method == LastIndexOfMethod || method == LastIndexOfCharacterMethod)
         {
+            if (method == LastIndexOfMethod && IsEmptyString(arguments[0]))
+            {
+                return LengthOf(instance);
+            }
+
             return LastIndexOf(instance, arguments[0], null);
         }
 
         if (method == LastIndexOfCharacterWithStartMethod || method == LastIndexOfWithStartMethod)
         {
+            if (method == LastIndexOfWithStartMethod && IsEmptyString(arguments[0]))
+            {
+                return arguments[1];
+            }
+
             return LastIndexOf(instance, arguments[0], arguments[1]);
         }
 
@@ -417,6 +447,22 @@ internal sealed class DmStringMethodTranslator : IMethodCallTranslator
         => startIndex is SqlConstantExpression { Value: int start }
             ? _sqlExpressionFactory.Constant(start + 1)
             : _sqlExpressionFactory.Add(startIndex, _sqlExpressionFactory.Constant(1));
+
+    private static bool IsEmptyString(SqlExpression expression)
+        => expression is SqlConstantExpression { Value: "" };
+
+    /// <summary>
+    /// <c>LastIndexOf</c> of the empty string is the length of the string, which is the one value the
+    /// empty needle answers, and <c>LENGTH</c> answers exactly that.
+    /// </summary>
+    private SqlExpression LengthOf(SqlExpression instance)
+        => _sqlExpressionFactory.Function(
+            "LENGTH",
+            [instance],
+            nullable: true,
+            argumentsPropagateNullability: [true],
+            typeof(int),
+            typeMapping: null);
 
     private SqlExpression IndexOf(SqlExpression subject, SqlExpression value, SqlExpression? position = null)
         => _sqlExpressionFactory.Function(

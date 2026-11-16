@@ -102,6 +102,24 @@ public class DmBooleanPredicateTests
             Statement(context.Probes.Where(p => (p.Id > 1) == (p.Id > 2)).ToQueryString()));
     }
 
+    /// <summary>
+    /// Dameng has no <c>^</c> operator (measured: <c>语法分析出错</c> at the operator), so two boolean
+    /// values are compared instead; the generator writes each condition operand as its CASE form.
+    /// </summary>
+    [Fact]
+    public void ABooleanExclusiveOr_BecomesAComparisonOfConditions()
+    {
+        using var context = new ProbeContext();
+
+        Assert.Equal(
+            """
+            SELECT "p"."Id", "p"."Flag", "p"."Name"
+            FROM "Probes" AS "p"
+            WHERE CASE WHEN "p"."Id" > 1 THEN 1 ELSE 0 END <> CASE WHEN "p"."Id" < 5 THEN 1 ELSE 0 END
+            """,
+            Statement(context.Probes.Where(p => (p.Id > 1) ^ (p.Id < 5)).ToQueryString()));
+    }
+
     private static string Statement(string sql)
         => string.Join(
             "\n",

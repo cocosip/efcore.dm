@@ -75,6 +75,24 @@ public class DmMigrationScriptTests
     }
 
     /// <summary>
+    /// A schema operation is a PL/SQL block, which the script runner executes only when a slash on a
+    /// line of its own follows it. Without the terminator the block and the next statement are handed
+    /// to the server as one command.
+    /// </summary>
+    [Fact]
+    public void TheEnsureSchemaBlock_IsTerminatedForTheScriptRunner()
+    {
+        var script = Script(MigrationsSqlGenerationOptions.Default);
+
+        var block = script.IndexOf("CREATE SCHEMA \"AUDIT\"", StringComparison.Ordinal);
+        Assert.True(block >= 0, "The script does not create the schema.");
+
+        var terminator = script.IndexOf("\nEND;\n/\n", block, StringComparison.Ordinal);
+        Assert.True(terminator > block, "The schema block is not terminated by a slash on its own line.");
+        Assert.DoesNotContain("END;\nCREATE TABLE", script, StringComparison.Ordinal);
+    }
+
+    /// <summary>
     /// The history table is created by an anonymous block too, so an idempotent script is a sequence of
     /// blocks and the migration statements between them, never one block that swallowed the next.
     /// </summary>
@@ -113,7 +131,10 @@ public class DmMigrationScriptTests
 public class ScriptMigration : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
-        => migrationBuilder.CreateTable(
+    {
+        migrationBuilder.EnsureSchema(name: "AUDIT");
+
+        migrationBuilder.CreateTable(
             name: "ScriptItems",
             columns: table => new
             {
@@ -121,6 +142,7 @@ public class ScriptMigration : Migration
                 Name = table.Column<string>(type: "VARCHAR(50)", nullable: true)
             },
             constraints: table => table.PrimaryKey("PK_ScriptItems", x => x.Id));
+    }
 }
 
 [DbContext(typeof(DmMigrationScriptTests.ScriptContext))]

@@ -31,6 +31,34 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     {
     }
 
+    /// <summary>
+    /// Writes a data seed row. An insert is DML and runs inside a DMSQL block as it is, but the identity
+    /// flag is a session statement and a block only accepts it through dynamic SQL, so that one statement
+    /// is written as <c>EXECUTE IMMEDIATE</c>.
+    /// </summary>
+    internal void AppendSeedInsertOperation(
+        StringBuilder commandStringBuilder,
+        IReadOnlyModificationCommand command)
+    {
+        var writeOperations = command.ColumnModifications.Where(c => c.IsWrite).ToList();
+        var identityColumn = writeOperations.FirstOrDefault(column => IsIdentityWrite(command, column));
+
+        if (identityColumn is not null)
+        {
+            AppendIdentityInsert(commandStringBuilder, command, on: true, dynamic: true);
+        }
+
+        AppendInsertCommandHeader(commandStringBuilder, command.TableName, command.Schema, writeOperations);
+        AppendValuesHeader(commandStringBuilder, writeOperations);
+        AppendValues(commandStringBuilder, command.TableName, command.Schema, writeOperations);
+        commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);
+
+        if (identityColumn is not null)
+        {
+            AppendIdentityInsert(commandStringBuilder, command, on: false, dynamic: true);
+        }
+    }
+
     public override ResultSetMapping AppendInsertOperation(
         StringBuilder commandStringBuilder,
         IReadOnlyModificationCommand command,
@@ -157,11 +185,24 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     private void AppendIdentityInsert(
         StringBuilder commandStringBuilder,
         IReadOnlyModificationCommand command,
-        bool on)
+        bool on,
+        bool dynamic = false)
     {
-        commandStringBuilder.Append("SET IDENTITY_INSERT ");
-        SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, command.TableName, command.Schema);
-        commandStringBuilder.Append(on ? " ON" : " OFF").AppendLine(SqlGenerationHelper.StatementTerminator);
+        var statement = "SET IDENTITY_INSERT "
+            + SqlGenerationHelper.DelimitIdentifier(command.TableName, command.Schema)
+            + (on ? " ON" : " OFF");
+
+        if (dynamic)
+        {
+            commandStringBuilder
+                .Append("EXECUTE IMMEDIATE ")
+                .Append("'" + statement.Replace("'", "''", StringComparison.Ordinal) + "'")
+                .AppendLine(SqlGenerationHelper.StatementTerminator);
+
+            return;
+        }
+
+        commandStringBuilder.Append(statement).AppendLine(SqlGenerationHelper.StatementTerminator);
     }
 
     /// <summary>
@@ -193,10 +234,11 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
     }
 
     /// <summary>
-    /// Reads the generated columns back from the row the statement just wrote. An insert is matched
-    /// by the affected row count and the key the insert produced; an update repeats the where clause
-    /// of the statement it follows. Either way a statement that matched nothing reads nothing, so the
-    /// caller reports a concurrency conflict rather than a stale value.
+    /// Reads the generated columns back from the row the statement just wrote. The row is identified by
+    /// the affected row count of the statement that preceded this select and by the key, so a statement
+    /// that matched nothing reads nothing and the caller reports a concurrency conflict rather than a
+    /// stale value. The update matters most: without the row count the select still finds the row a
+    /// stale concurrency token made the update skip, and the conflict would go unreported.
     /// </summary>
     private void AppendReadBack(
         StringBuilder commandStringBuilder,
@@ -224,24 +266,23 @@ internal sealed class DmUpdateSqlGenerator : UpdateSqlGenerator
 
         var keys = command.ColumnModifications.Where(c => c.IsKey).ToList();
 
-        if (inserted)
-        {
-            commandStringBuilder
-                .AppendLine()
-                .Append("WHERE sql%ROWCOUNT = 1");
+        commandStringBuilder
+            .AppendLine()
+            .Append("WHERE sql%ROWCOUNT = 1");
 
-            foreach (var key in keys)
-            {
-                commandStringBuilder.Append(" AND ");
-                SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, key.ColumnName);
-                commandStringBuilder.Append(" = ").Append(KeyCondition(command.TableName, key));
-            }
-        }
-        else
+        foreach (var key in keys)
         {
-            // The update already matched the row, so the read repeats that where clause and binds to
-            // the same parameters, which only the generator can name.
-            AppendWhereClause(commandStringBuilder, keys);
+            commandStringBuilder.Append(" AND ");
+
+            if (!inserted)
+            {
+                AppendWhereCondition(commandStringBuilder, key, key.UseOriginalValueParameter);
+
+                continue;
+            }
+
+            SqlGenerationHelper.DelimitIdentifier(commandStringBuilder, key.ColumnName);
+            commandStringBuilder.Append(" = ").Append(KeyCondition(command.TableName, key));
         }
 
         commandStringBuilder.AppendLine(SqlGenerationHelper.StatementTerminator);

@@ -112,7 +112,7 @@ correctness; a live run is the final standard. The reference is not a build depe
 source is never copied (see [Provenance](provenance.md)).
 
 The comparison ran twice, on 2026-11-11. On SQL only, 23 queries produced 12 differences, none a defect
-here (escaping, EF Core 10 parameter names and collection parameterisation, `LENGTHB` for byte arrays,
+here (escaping, EF Core 9 parameter names and collection parameterisation, `LENGTHB` for byte arrays,
 `EXTRACT` for interval parts). Executed against the server, 108 answers matched and 8 differed: six were
 queries this provider answers and the reference cannot, one was a member the reference mistranslates
 (`Date` without truncation), and one was a row both refuse. The record is kept so a future difference is a
@@ -126,7 +126,7 @@ difference from a known baseline; no behaviour changed because of it.
 | Compatibility mode | The default instance and the Oracle-compatible one both ran the console on 2026-11-11, as reported by the environment's operator; the dialect does not branch on the mode (D4). PostgreSQL-compatible mode is still a P6 exit criterion and has not been exercised |
 | Operating system | Windows x64, Linux x64 |
 | Target framework | `net8.0` on the EF Core 8 branch, `net9.0` on EF Core 9, `net10.0` on EF Core 10, `net11.0` from EF Core 11. The specification project runs on the framework its package ships, which is the branch framework here |
-| Driver | The `DM.DmProvider` version the package depends on, which is the floor the provider is compiled against; EF Core 10 consumes its `net9.0` asset |
+| Driver | The `DM.DmProvider` version the package depends on, which is the floor the provider is compiled against; EF Core 9 consumes its `net9.0` asset |
 
 ### What the live runs measured
 
@@ -162,7 +162,6 @@ solution and does not run in CI; the pipeline builds it and runs the skip ledger
 | `NorthwindGroupByQueryDmTest` | 507 | 500 pass, 7 skipped (four upstream, three ledger cases) |
 | `NorthwindAggregateOperatorsQueryDmTest` | 420 | 418 pass, 2 skipped (the two ledger cases) |
 | `NorthwindIncludeQueryDmTest` | 232 | 230 pass, 2 skipped (two empty-list ordering cases) |
-| `UpdatesDmTest` | 36 | 35 pass, 1 skipped (filtered unique index) |
 | `UpdatesDmTest` | 36 | 35 pass, 1 skipped (filtered unique index) |
 | `MigrationsDmTest` | 131 | 112 pass, 19 skipped |
 | `SkipLedgerTests` | 1 | all pass |

@@ -186,6 +186,7 @@ public class DmMigrationsSqlTests
                     EXECUTE IMMEDIATE 'CREATE SCHEMA "APP"';
                 END IF;
             END;
+            /
             """);
     }
     /// <summary>

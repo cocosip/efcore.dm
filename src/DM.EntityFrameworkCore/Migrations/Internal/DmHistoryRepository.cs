@@ -149,6 +149,28 @@ internal sealed class DmHistoryRepository : HistoryRepository
     }
 
     /// <summary>
+    /// Re-takes the named lock after the connection or the transaction underneath it was restarted. The
+    /// answer <c>4</c> means this session already holds the lock, so the reacquired object owns the
+    /// release: otherwise the object that was overwritten in the execution state is the only holder and
+    /// a pooled connection carries the lock back to the pool.
+    /// </summary>
+    internal IMigrationsDatabaseLock ReacquireNamedLock(int id)
+    {
+        _ = GrantNamedLock(id);
+
+        return new DmMigrationDatabaseLock(this, this, id);
+    }
+
+    internal async Task<IMigrationsDatabaseLock> ReacquireNamedLockAsync(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        _ = await GrantNamedLockAsync(id, cancellationToken).ConfigureAwait(false);
+
+        return new DmMigrationDatabaseLock(this, this, id);
+    }
+
+    /// <summary>
     /// Releases the named lock, which the lock object does when the migration is done with it.
     /// </summary>
     /// <remarks>
