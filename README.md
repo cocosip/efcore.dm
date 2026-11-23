@@ -1,10 +1,33 @@
 # Sharp.DM.EntityFrameworkCore
 
 [![CI/CD](https://github.com/cocosip/efcore.dm/actions/workflows/ci-cd.yml/badge.svg?branch=master)](https://github.com/cocosip/efcore.dm/actions/workflows/ci-cd.yml)
+[![NuGet](https://img.shields.io/nuget/v/Sharp.DM.EntityFrameworkCore.svg)](https://www.nuget.org/packages/Sharp.DM.EntityFrameworkCore/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 Entity Framework Core provider for Dameng (DM). Original implementation, MIT licensed.
 
-Status: EF Core 10 release candidate. The provider is feature-complete within the server limits recorded in the [Capability Matrix](docs/capability-matrix.md); all EF Core 10 specification bases are inherited and the live suite passes with only the cases recorded in [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) skipped. The `v10.0.1` tag is pending the final review. Changes are recorded in the [Changelog](CHANGELOG.md).
+Status: EF Core 10 released. `10.0.1` was tagged and published to NuGet on 2026-11-16. The provider is feature-complete within the server limits recorded in the [Capability Matrix](docs/capability-matrix.md); all EF Core 10 specification bases are inherited and the live suite passes with only the cases recorded in [Skipped.md](tests/DM.EntityFrameworkCore.SpecificationTests/Skipped.md) skipped. Changes are recorded in the [Changelog](CHANGELOG.md).
+
+## Package
+
+One package, [`Sharp.DM.EntityFrameworkCore`](https://www.nuget.org/packages/Sharp.DM.EntityFrameworkCore/), serves every EF Core line; the package version says which line it belongs to.
+
+| EF Core line | Latest package | Target framework | EF Core dependency |
+|---|---|---|---|
+| 10 | `10.0.1` | `net10.0` | `Microsoft.EntityFrameworkCore.Relational` `[10.0.0,11.0.0)` |
+| 9 | `9.0.1` | `net9.0` | `[9.0.0,10.0.0)` |
+| 8 | `8.0.1` | `net8.0` | `[8.0.0,9.0.0)` |
+
+The package also depends on the Dameng ADO.NET driver `DM.DmProvider` (`8.3.1.47463` or later). Both dependencies restore from nuget.org; nothing else has to be installed by hand.
+
+```pwsh
+dotnet add package Sharp.DM.EntityFrameworkCore                    # EF Core 10 line, net10.0
+dotnet add package Sharp.DM.EntityFrameworkCore --version 9.0.1    # EF Core 9 line, net9.0, and 8.0.1 for the 8 line
+```
+
+Restore picks the highest published version, `10.0.1`, which targets `net10.0` only: an EF Core 9 or 8 application pins its own line, as in the second command.
+
+Every release is a `v<version>` tag; the [CI/CD workflow](.github/workflows/ci-cd.yml) packs, smoke-tests and publishes it to NuGet and as a GitHub Release, and [Branching and Release](docs/branching-and-release.md) records the process.
 
 ## Supported versions
 

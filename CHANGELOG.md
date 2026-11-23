@@ -6,8 +6,11 @@ All notable changes to this project are recorded here. The format follows
 
 The capability matrix records what the provider supports today; the skip ledger records the cases that
 do not pass and why. This file records what changed, once per release, instead of narrating every run.
+Each release is also a GitHub Release carrying the generated notes and the verified `.nupkg`.
 
 ## [Unreleased]
+
+## [10.0.1] - 2026-11-16
 
 ### Added
 
@@ -103,5 +106,6 @@ do not pass and why. This file records what changed, once per release, instead o
   PostgreSQL-compatible (7) are not exercised, and the package does not claim them. Empty string and NULL
   are the same value under mode 2 and different under the default mode.
 
-[Unreleased]: https://github.com/cocosip/efcore.dm/commits/master
+[Unreleased]: https://github.com/cocosip/efcore.dm/compare/v10.0.1...HEAD
+[10.0.1]: https://github.com/cocosip/efcore.dm/releases/tag/v10.0.1
 
